@@ -15,11 +15,11 @@ That includes generating and explaining code, researching implementation options
 RF Mechanics is the gameplay companion to Race Framework. It gives races different ways to explore, gather and survive.
 
 - **Dwarves:** mining bonuses that vary with depth, plus **Ore-Song**. Knock on rock with an empty hand and listen for nearby ore through distinct sound cues.
-- **Elves:** climb trees, move through branchy leaves and use focused vision to look into the distance.
-- **Orcs:** maintain **Thew** through feeding, with changes to body size and physical capabilities. Frenzy offers a burst of power with recovery costs. Use scent to help locate creatures; standing still builds a clearer sense.
-- **Goblins:** small, nimble scavengers whose size helps them explore cramped spaces. Use spit to help collect materials from ruins, with darkvision and scavenging bonuses supporting the playstyle. Eating rot also builds an aura that accelerates nearby food spoilage; abstaining lets it fade. Flies provide feedback for the aura and stored spit charges.
+- **Elves:** move through branchy leaves, climb log-grown trees, gain tree-proximity movement, reduced fall damage, leaf gathering, zoom, toggleable step height, and 15% lower hunger. Chiseled-log climbing is an open diagnostic investigation, not a proven shipped fix.
+- **Orcs:** maintain **Thew** through feeding, with changing body size and physical capabilities. Frenzy offers a burst of speed with recovery costs. Hold scent to locate creatures: walking retains a weaker partial sense, while standing still builds full quality.
+- **Goblins:** eat rot to build an aura that accelerates nearby food spoilage, earn spit charges for block repair, and show separate aura and charge fly systems. They climb, tunnel, take less fall damage, and mine stone/Ore at 0.4x. Darkvision is optional and disabled by default.
 
-Mechanics and balance values are configurable. Development is ongoing, and feedback on how the races feel to play is welcome.
+Elf attunement and goblin digging/spit-packed material conversion are not active mechanics. The elf harvest multiplier remains unwired. Mechanics and balance values are configurable; development and in-game acceptance are ongoing.
 
 ### Installation
 
