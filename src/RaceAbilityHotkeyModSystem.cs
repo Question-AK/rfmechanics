@@ -5,7 +5,7 @@ using Vintagestory.API.Common;
 namespace rfmechanics
 {
     /// <summary>
-    /// Single hotkey ("rfraceability", default C) replacing the four old per-race V-bound keys
+    /// Client hotkey registrations for race abilities. "rfraceability" (default R) replaced the four old per-race V-bound keys
     /// (orcsmellfocus, rfelfzoom, rfdwarforesong, rfgoblinspit) -- those four all defaulted to the
     /// same key on the assumption that races are mutually exclusive per player, which never
     /// actually isolated them from third-party mods also bound to V (see
@@ -14,7 +14,15 @@ namespace rfmechanics
     /// cleaned up, so re-registering one would silently resurrect a player's old rebind under new
     /// semantics.
     ///
-    /// Only handles the two discrete-press abilities (dwarf, goblin). Orc smell focus and elf zoom
+    /// The default must be a key vanilla leaves unbound: hotkeys dispatch in registration order,
+    /// vanilla registers before any mod, and the first handler returning true ends the press -- both
+    /// C (characterdialog) and X (fliphandslots) swallow it before Dispatch ever runs. See
+    /// notes/race-mechanics/race-ability-hotkey-default-2026-09-16.md.
+    ///
+    /// "rfclamber" (Ctrl+H) is a separate key on purpose: the Clamber stance is a persistent mode,
+    /// not one of the one-per-race abilities the dispatch table below assumes.
+    ///
+    /// The hotkey handler only covers the two discrete-press abilities (dwarf, goblin). Orc smell focus and elf zoom
     /// are held ramps driven by their own render/tick pollers (OrcSmellFocusModSystem,
     /// RFElfZoomBehavior), which read this same "rfraceability" code's raw key state directly and
     /// gate on the same cached PlayerRaceBehavior.Race -- they never go through SetHotKeyHandler.
@@ -35,13 +43,18 @@ namespace rfmechanics
         public override void StartClientSide(ICoreClientAPI api)
         {
             base.StartClientSide(api);
-            api.Input.RegisterHotKey("rfraceability", "Race Ability", GlKeys.C, HotkeyType.CharacterControls);
+            api.Input.RegisterHotKey("rfraceability", "Race Ability", GlKeys.R, HotkeyType.CharacterControls);
             api.Input.SetHotKeyHandler("rfraceability", _ => Dispatch(api));
+
+            // New code, not the retired "rfelfstepheighttoggle" that held Ctrl+H before M1 --
+            // see the orphaned-rebind warning above.
+            api.Input.RegisterHotKey("rfclamber", "Clamber Stance (Goblin)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
+            api.Input.SetHotKeyHandler("rfclamber", _ => DispatchClamber(api));
         }
 
         /// <summary>Race lookup uses the cached path (PlayerRaceBehavior.Race), never a fresh
         /// RaceTraits.HasTrait call -- a race with no ability, including Human, falls through to
-        /// the dictionary miss below and returns false so other mods bound to C still see the
+        /// the dictionary miss below and returns false so other mods bound to the same key still see the
         /// press.</summary>
         private static bool Dispatch(ICoreClientAPI api)
         {
@@ -49,6 +62,17 @@ namespace rfmechanics
             PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
 
             return PressAbilities.TryGetValue(race, out var ability) && ability(api);
+        }
+
+        /// <summary>Returns false for every non-goblin so their Ctrl+H stays available to other
+        /// mods, and so no other race ever acquires hidden stance state.</summary>
+        private static bool DispatchClamber(ICoreClientAPI api)
+        {
+            IPlayer? player = api.World.Player;
+            PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
+            if (race != PlayerRace.Goblin) return false;
+
+            return api.ModLoader.GetModSystem<GoblinClamberStanceModSystem>().TryToggle(api);
         }
     }
 }

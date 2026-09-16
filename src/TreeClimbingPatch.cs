@@ -13,21 +13,24 @@ namespace rfmechanics
     /// Two postfixes on EntityBehaviorControlledPhysics, not EntityBehaviorPlayerPhysics: that
     /// subclass overrides OnPhysicsTick but not these two methods, so patching the base class
     /// covers players (see BranchyLeavesPassthroughPatch.SimPhysicsPrefix for the OnPhysicsTick case).
-    /// MotionAndCollisionPostfix does the real work, not ApplyTestsPostfix: an earlier version
-    /// postfixed only ApplyTests (mirroring vanilla's IsClimbing flag), but that ran too late to
-    /// affect that tick's ApplyTerrainCollision, and PModuleGravity.Applicable() skipping gravity
-    /// off the stale flag from the previous tick's postfix suppressed gravity without ever
+    /// MotionAndCollisionPostfix does the vertical-motion work, not ApplyTestsPostfix: an earlier
+    /// version postfixed only ApplyTests (mirroring vanilla's IsClimbing flag), but that ran too
+    /// late to affect that tick's ApplyTerrainCollision, and PModuleGravity.Applicable() skipping
+    /// gravity off the stale flag from the previous tick's postfix suppressed gravity without ever
     /// running the climb-speed correction -- observed in-game as sticking to the tree with no
     /// gravity and no vertical movement. Postfixing MotionAndCollision runs before
     /// ApplyTerrainCollision consumes pos.Motion and sets an absolute value, so it's independent
     /// of whether gravity already ran that tick.
-    /// ApplyTestsPostfix is cosmetic only now (animation state), firing only when vanilla's own
-    /// scan found nothing, so a real ladder (even one built onto a tree) still takes priority.
+    /// ApplyTestsPostfix sets animation state and owns the corner-traversal bookkeeping (see
+    /// ClimbCornerTraversal, shared with GoblinClimbingPatch), firing only when vanilla's own scan
+    /// found nothing, so a real ladder (even one built onto a tree) still takes priority.
     /// </summary>
     [HarmonyPatch(typeof(EntityBehaviorControlledPhysics))]
     public static class TreeClimbingPatch
     {
         private static bool loggedException = false;
+
+        private static readonly ClimbCornerTraversal corners = new();
 
         [HarmonyPatch(nameof(EntityBehaviorControlledPhysics.MotionAndCollision))]
         [HarmonyPostfix]
@@ -36,7 +39,7 @@ namespace rfmechanics
             try
             {
                 if (!TryGetElf(__instance, out Entity? entity)) return;
-                if (!TryFindTreeClimb(entity!, pos, out BlockFacing? _, out Cuboidf? _)) return;
+                if (!corners.HoldsGrip(entity!, pos, LogClimbFilter.Instance, CornersEnabled())) return;
 
                 if (controls.Jump)
                 {
@@ -62,16 +65,16 @@ namespace rfmechanics
         [HarmonyPostfix]
         public static void ApplyTestsPostfix(EntityBehaviorControlledPhysics __instance, EntityPos pos, EntityControls controls)
         {
-            if (controls.IsClimbing) return; // vanilla already found something to climb
-
             try
             {
                 if (!TryGetElf(__instance, out Entity? entity)) return;
-                if (!TryFindTreeClimb(entity!, pos, out BlockFacing? face, out Cuboidf? collBox)) return;
 
-                controls.IsClimbing = true;
-                entity!.ClimbingOnFace = face;
-                entity.ClimbingOnCollBox = collBox;
+                // A ladder grip is not a trunk grip, so it must not leave a corner window armed to
+                // suspend gravity after the elf steps off it.
+                if (controls.IsClimbing) { corners.Forget(entity!); return; }
+
+                corners.Update(entity!, pos, controls, LogClimbFilter.Instance, CornersEnabled(),
+                    RFMechanicsModSystem.Config?.ElfCornerGraceTicks ?? 0);
             }
             catch (Exception ex)
             {
@@ -98,48 +101,14 @@ namespace rfmechanics
             return true;
         }
 
-        /// <summary>LANDMINE: tmpPos.IterateHorizontalOffsets(i) is cumulative (each call offsets
-        /// from tmpPos's current value, not a fixed origin) -- it must be seeded at floor(pos)
-        /// once before the loop and never reset inside it.</summary>
-        private static bool TryFindTreeClimb(Entity entity, EntityPos pos, out BlockFacing? face, out Cuboidf? collBox)
+        private static bool CornersEnabled() => RFMechanicsModSystem.Config?.EnableElfCornerTraversal == true;
+
+        /// <summary>Stateless, so one shared instance instead of the goblin's per-tick rebuild.</summary>
+        private sealed class LogClimbFilter : IClimbBlockFilter
         {
-            face = null;
-            collBox = null;
+            internal static readonly LogClimbFilter Instance = new();
 
-            IBlockAccessor blockAccessor = entity.World.BlockAccessor;
-            float touchDistance = entity.Properties.ClimbTouchDistance;
-            int height = (int)Math.Ceiling(entity.CollisionBox.Y2);
-            Cuboidd entityBox = new Cuboidd().SetAndTranslate(entity.CollisionBox, pos.X, pos.Y, pos.Z);
-            BlockPos tmpPos = new BlockPos(pos.Dimension);
-            int baseY = (int)pos.Y;
-
-            tmpPos.Set((int)pos.X, baseY, (int)pos.Z);
-            for (int i = 0; i < 4; i++)
-            {
-                tmpPos.IterateHorizontalOffsets(i);
-                for (int dy = 0; dy < height; dy++)
-                {
-                    tmpPos.Y = baseY + dy;
-                    Block inBlock = blockAccessor.GetBlock(tmpPos, BlockLayersAccess.Solid);
-                    if (!IsClimbableLog(entity.World, inBlock, tmpPos)) continue;
-
-                    Cuboidf[] collisionBoxes = inBlock.GetCollisionBoxes(blockAccessor, tmpPos);
-                    if (collisionBoxes == null) continue;
-
-                    for (int j = 0; j < collisionBoxes.Length; j++)
-                    {
-                        double distance = entityBox.ShortestDistanceFrom(collisionBoxes[j], tmpPos);
-                        if (distance < touchDistance)
-                        {
-                            face = BlockFacing.HORIZONTALS[i];
-                            collBox = collisionBoxes[j];
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
+            public bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos) => IsClimbableLog(world, block, pos);
         }
 
         /// <summary>Chiseling replaces a block's own Code.Path with the generic "chiseledblock",

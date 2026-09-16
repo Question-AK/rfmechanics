@@ -31,8 +31,8 @@ namespace rfmechanics
         public override string PropertyName() => "rfelfidentity";
 
         /// <summary>Runs once per entity (re)creation, before the first OnGameTick -- refreshes
-        /// Race immediately so consumers (leaf filter, zoom, tree proximity, step height, race
-        /// ability hotkey) never read a false negative for the first tick interval after chunk
+        /// Race immediately so consumers (leaf filter, zoom, tree proximity, race ability
+        /// hotkey) never read a false negative for the first tick interval after chunk
         /// load/reconnect.</summary>
         public override void Initialize(EntityProperties properties, JsonObject attributes)
         {

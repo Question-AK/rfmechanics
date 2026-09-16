@@ -6,7 +6,7 @@ using Vintagestory.API.Common.Entities;
 namespace rfmechanics
 {
     /// <summary>
-    /// Telescopic vision: holding the shared "rfraceability" hotkey (default C) while cached as an
+    /// Telescopic vision: holding the shared "rfraceability" hotkey (default R) while cached as an
     /// elf eases the FOV down to ElfZoomFovMult; releasing eases it back to 1.0. No attunement gate
     /// -- every elf has this at all times, gated only by PlayerRaceBehavior.IsElf.
     ///

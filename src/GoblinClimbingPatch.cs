@@ -14,17 +14,24 @@ namespace rfmechanics
     /// term at all (only Dwarf's ClimbSaturationPatch is a deliberately ADDED cost).
     /// Parallel to TreeClimbingPatch (Elf), not an extension of it: raw rock is never vanilla
     /// Climbable-flagged, so the dwarf-style extension-of-vanilla-ladder-detection shape never
-    /// fires for it -- only TreeClimbingPatch's self-contained-scan shape generalizes.
-    /// Tree and rock climbing are independently toggleable; the rock whitelist
-    /// (GoblinRockClimbCodePrefixes) covers raw rock plus rough worked-stone/masonry families,
-    /// see the config's doc comment. Chiseled logs/rock (BlockEntityMicroBlock) are climbable
+    /// fires for it -- only TreeClimbingPatch's self-contained-scan shape generalizes. The two
+    /// patches share ClimbCornerTraversal for face selection and corner wrapping; only the block
+    /// filter below is goblin-specific.
+    /// Rock and dry-earth climbing additionally require the Clamber stance (GoblinClamberStance),
+    /// so a goblin doesn't stick to ordinary terrain walls during ordinary work; trunks are ungated
+    /// like the Elf's. Tree, rock and earth climbing are independently toggleable; the rock
+    /// whitelist (GoblinRockClimbCodePrefixes) covers raw rock plus rough worked-stone/masonry
+    /// families and the earth list (GoblinEarthClimbCodes) covers bare/packed earth and ground
+    /// cover -- see the config's doc comments for the different match rules the two use. Chiseled logs/rock (BlockEntityMicroBlock) are climbable
     /// via the same fallback TreeClimbingPatch.IsClimbableLog uses for Elves -- see
-    /// IsClimbableGoblinBlock.
+    /// GoblinClimbFilter.
     /// </summary>
     [HarmonyPatch(typeof(EntityBehaviorControlledPhysics))]
     public static class GoblinClimbingPatch
     {
         private static bool loggedException = false;
+
+        private static readonly ClimbCornerTraversal corners = new();
 
         [HarmonyPatch(nameof(EntityBehaviorControlledPhysics.MotionAndCollision))]
         [HarmonyPostfix]
@@ -33,7 +40,7 @@ namespace rfmechanics
             try
             {
                 if (!TryGetGoblin(__instance, out Entity? entity)) return;
-                if (!TryFindGoblinClimb(entity!, pos, out BlockFacing? _, out Cuboidf? _)) return;
+                if (!corners.HoldsGrip(entity!, pos, BuildFilter(entity!), CornersEnabled())) return;
 
                 if (controls.Jump)
                 {
@@ -59,16 +66,16 @@ namespace rfmechanics
         [HarmonyPostfix]
         public static void ApplyTestsPostfix(EntityBehaviorControlledPhysics __instance, EntityPos pos, EntityControls controls)
         {
-            if (controls.IsClimbing) return; // vanilla (or TreeClimbingPatch) already found something to climb
-
             try
             {
                 if (!TryGetGoblin(__instance, out Entity? entity)) return;
-                if (!TryFindGoblinClimb(entity!, pos, out BlockFacing? face, out Cuboidf? collBox)) return;
 
-                controls.IsClimbing = true;
-                entity!.ClimbingOnFace = face;
-                entity.ClimbingOnCollBox = collBox;
+                // A ladder or trunk grip is not a wall grip, so it must not leave a corner window
+                // armed to suspend gravity after the goblin steps off it.
+                if (controls.IsClimbing) { corners.Forget(entity!); return; }
+
+                corners.Update(entity!, pos, controls, BuildFilter(entity!), CornersEnabled(),
+                    RFMechanicsModSystem.Config?.GoblinCornerGraceTicks ?? 0);
             }
             catch (Exception ex)
             {
@@ -77,16 +84,16 @@ namespace rfmechanics
         }
 
         /// <summary>charClass null check is load-bearing (HasTrait returns true for a null class
-        /// by default). Does not gate on EnableGoblinTreeClimbing/EnableGoblinRockClimbing here --
-        /// those are per-match-group toggles inside TryFindGoblinClimb, so one toggle off and the
-        /// other on still gets partial climbing.</summary>
+        /// by default). Does not gate on the individual tree/rock/earth toggles here -- those are
+        /// per-match-group toggles inside the filter, so one toggle off and another on
+        /// still gets partial climbing.</summary>
         private static bool TryGetGoblin(EntityBehaviorControlledPhysics behavior, out Entity? entity)
         {
             entity = null;
 
             var cfg = RFMechanicsModSystem.Config;
             if (cfg == null) return false;
-            if (!cfg.EnableGoblinTreeClimbing && !cfg.EnableGoblinRockClimbing) return false;
+            if (!cfg.EnableGoblinTreeClimbing && !cfg.EnableGoblinRockClimbing && !cfg.EnableGoblinEarthClimbing) return false;
 
             Entity candidate = behavior.entity;
             if (candidate is not EntityPlayer player) return false;
@@ -99,81 +106,82 @@ namespace rfmechanics
             return true;
         }
 
-        /// <summary>Same horizontal-neighbor scan shape as TreeClimbingPatch.TryFindTreeClimb, checking two independently-toggleable prefix groups instead of one fixed prefix.</summary>
-        private static bool TryFindGoblinClimb(Entity entity, EntityPos pos, out BlockFacing? face, out Cuboidf? collBox)
+        private static bool CornersEnabled() => RFMechanicsModSystem.Config?.EnableGoblinCornerTraversal == true;
+
+        /// <summary>Null when nothing is currently grippable, which the scan takes as an immediate
+        /// miss. Rebuilt per tick because the Clamber stance can drop rock and earth mid-climb.</summary>
+        private static GoblinClimbFilter? BuildFilter(Entity entity)
         {
-            face = null;
-            collBox = null;
-
             var cfg = RFMechanicsModSystem.Config;
-            if (cfg == null) return false;
+            if (cfg == null) return null;
 
+            bool wallAllowed = GoblinClamberStance.AllowsWallClimb(entity, cfg);
             bool checkTrees = cfg.EnableGoblinTreeClimbing;
-            bool checkRock = cfg.EnableGoblinRockClimbing;
-            if (!checkTrees && !checkRock) return false;
+            bool checkRock = cfg.EnableGoblinRockClimbing && wallAllowed;
+            bool checkEarth = cfg.EnableGoblinEarthClimbing && wallAllowed;
+            if (!checkTrees && !checkRock && !checkEarth) return null;
 
-            string[] rockPrefixes = cfg.GoblinRockClimbCodePrefixes ?? Array.Empty<string>();
+            return new GoblinClimbFilter(checkTrees, checkRock, checkEarth,
+                cfg.GoblinRockClimbCodePrefixes ?? Array.Empty<string>(),
+                cfg.GoblinEarthClimbCodes ?? Array.Empty<string>());
+        }
 
-            IBlockAccessor blockAccessor = entity.World.BlockAccessor;
-            float touchDistance = entity.Properties.ClimbTouchDistance;
-            int height = (int)Math.Ceiling(entity.CollisionBox.Y2);
-            Cuboidd entityBox = new Cuboidd().SetAndTranslate(entity.CollisionBox, pos.X, pos.Y, pos.Z);
-            BlockPos tmpPos = new BlockPos(pos.Dimension);
-            int baseY = (int)pos.Y;
+        private sealed class GoblinClimbFilter : IClimbBlockFilter
+        {
+            private readonly bool checkTrees, checkRock, checkEarth;
+            private readonly string[] rockPrefixes;
+            private readonly string[] earthCodes;
 
-            tmpPos.Set((int)pos.X, baseY, (int)pos.Z);
-            for (int i = 0; i < 4; i++)
+            internal GoblinClimbFilter(bool checkTrees, bool checkRock, bool checkEarth, string[] rockPrefixes, string[] earthCodes)
             {
-                tmpPos.IterateHorizontalOffsets(i);
-                for (int dy = 0; dy < height; dy++)
+                this.checkTrees = checkTrees;
+                this.checkRock = checkRock;
+                this.checkEarth = checkEarth;
+                this.rockPrefixes = rockPrefixes;
+                this.earthCodes = earthCodes;
+            }
+
+            /// <summary>Chiseling replaces a block's own Code.Path with the generic "chiseledblock", so
+            /// a carved log or rock face no longer matches its prefix directly -- same
+            /// BlockEntityMicroBlock.BlockIds fallback as TreeClimbingPatch.IsClimbableLog, generalized
+            /// to cover both the tree and rock match groups here.</summary>
+            public bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos)
+            {
+                if (MatchesPath(block?.Code?.Path)) return true;
+
+                BlockEntity blockEntity = world.BlockAccessor.GetBlockEntity(pos);
+                if (blockEntity is BlockEntityMicroBlock micro && micro.BlockIds != null)
                 {
-                    tmpPos.Y = baseY + dy;
-                    Block inBlock = blockAccessor.GetBlock(tmpPos, BlockLayersAccess.Solid);
-                    if (!IsClimbableGoblinBlock(entity.World, inBlock, tmpPos, checkTrees, checkRock, rockPrefixes)) continue;
-
-                    Cuboidf[] collisionBoxes = inBlock.GetCollisionBoxes(blockAccessor, tmpPos);
-                    if (collisionBoxes == null) continue;
-
-                    for (int j = 0; j < collisionBoxes.Length; j++)
+                    foreach (int id in micro.BlockIds)
                     {
-                        double distance = entityBox.ShortestDistanceFrom(collisionBoxes[j], tmpPos);
-                        if (distance < touchDistance)
-                        {
-                            face = BlockFacing.HORIZONTALS[i];
-                            collBox = collisionBoxes[j];
-                            return true;
-                        }
+                        if (MatchesPath(world.GetBlock(id)?.Code?.Path)) return true;
                     }
                 }
+
+                return false;
             }
 
-            return false;
-        }
-
-        /// <summary>Chiseling replaces a block's own Code.Path with the generic "chiseledblock", so
-        /// a carved log or rock face no longer matches its prefix directly -- same
-        /// BlockEntityMicroBlock.BlockIds fallback as TreeClimbingPatch.IsClimbableLog, generalized
-        /// to cover both the tree and rock match groups here.</summary>
-        private static bool IsClimbableGoblinBlock(IWorldAccessor world, Block block, BlockPos pos, bool checkTrees, bool checkRock, string[] rockPrefixes)
-        {
-            if (MatchesPath(block?.Code?.Path, checkTrees, checkRock, rockPrefixes)) return true;
-
-            BlockEntity blockEntity = world.BlockAccessor.GetBlockEntity(pos);
-            if (blockEntity is BlockEntityMicroBlock micro && micro.BlockIds != null)
+            private bool MatchesPath(string? path)
             {
-                foreach (int id in micro.BlockIds)
-                {
-                    if (MatchesPath(world.GetBlock(id)?.Code?.Path, checkTrees, checkRock, rockPrefixes)) return true;
-                }
+                if (path == null) return false;
+                return (checkTrees && path.StartsWith("log-grown"))
+                    || (checkRock && MatchesAnyPrefix(path, rockPrefixes))
+                    || (checkEarth && MatchesAnyCode(path, earthCodes));
             }
-
-            return false;
         }
 
-        private static bool MatchesPath(string? path, bool checkTrees, bool checkRock, string[] rockPrefixes)
+        /// <summary>Bare code or code-plus-variant, not a raw prefix: "cob" must hit cob without
+        /// also hitting the cobblestone family.</summary>
+        private static bool MatchesAnyCode(string path, string[] codes)
         {
-            if (path == null) return false;
-            return (checkTrees && path.StartsWith("log-grown")) || (checkRock && MatchesAnyPrefix(path, rockPrefixes));
+            for (int i = 0; i < codes.Length; i++)
+            {
+                string code = codes[i];
+                if (string.IsNullOrEmpty(code)) continue;
+                if (path.Length == code.Length ? path == code
+                    : path.Length > code.Length && path[code.Length] == '-' && path.StartsWith(code)) return true;
+            }
+            return false;
         }
 
         private static bool MatchesAnyPrefix(string path, string[] prefixes)

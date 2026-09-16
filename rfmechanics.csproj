@@ -18,6 +18,8 @@
     <!-- Historical record only, superseded by PlayerRaceBehavior. The implicit SDK glob would
          otherwise compile everything under archive/ too. -->
     <Compile Remove="archive/**/*.cs" />
+    <!-- Preserved development proposal, not approved for this local movement/hotkey package. -->
+    <Compile Remove="src/RetiredDwarfClassMigration.cs" />
   </ItemGroup>
 
   <ItemGroup>

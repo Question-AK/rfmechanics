@@ -42,7 +42,7 @@ namespace rfmechanics
 
             api.RegisterEntityBehaviorClass("rftreeproximity", typeof(RFTreeProximityBehavior));
             api.RegisterEntityBehaviorClass("rfelfidentity", typeof(PlayerRaceBehavior));
-            api.RegisterEntityBehaviorClass("rfelfstepheight", typeof(ElfStepHeightBehavior));
+            api.RegisterEntityBehaviorClass("rfstepheight", typeof(StepHeightBehavior));
             api.RegisterEntityBehaviorClass("rfelfzoom", typeof(RFElfZoomBehavior));
             api.RegisterEntityBehaviorClass("rfthew", typeof(ThewBehavior));
             api.RegisterEntityBehaviorClass("rfband", typeof(BandBehavior));
@@ -79,20 +79,18 @@ namespace rfmechanics
             }
         }
 
-        private static long lastStepHeightToggleSentMs;
         private static long lastGoblinSpitSentMs;
 
         public override void StartClientSide(ICoreClientAPI api)
         {
             base.StartClientSide(api);
-            RegisterElfStepHeightHotkey(api);
             RegisterFliesLagCommand(api);
         }
 
         /// <summary>Called from RaceAbilityHotkeyModSystem's dispatch table once it has already
         /// confirmed the presser is cached as Goblin -- no race check here, that decision belongs
-        /// to the dispatcher alone. Repairing spends a charge, so (unlike the idempotent
-        /// step-height toggle) an undebounced key-repeat burst would visibly overspend charges.</summary>
+        /// to the dispatcher alone. Repairing spends a charge, so an undebounced key-repeat burst
+        /// would visibly overspend charges.</summary>
         internal bool TryTriggerGoblinSpit(ICoreClientAPI api)
         {
             if (Config == null) return false;
@@ -200,23 +198,6 @@ namespace rfmechanics
             return TextCommandResult.Success(string.Format("{0} set to {1:F3} (this session only, not saved to rfmechanics.json)", fieldName, value));
         }
 
-        /// <summary>200ms client-side debounce so a held key doesn't spam the server with
-        /// repeated toggle commands -- RegisterHotKey's handler fires on key-repeat, not just the
-        /// initial press.</summary>
-        private void RegisterElfStepHeightHotkey(ICoreClientAPI api)
-        {
-            api.Input.RegisterHotKey("rfelfstepheighttoggle", "Toggle Elf Step Height Boost", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
-            api.Input.SetHotKeyHandler("rfelfstepheighttoggle", _ =>
-            {
-                long now = api.World.ElapsedMilliseconds;
-                if (now - lastStepHeightToggleSentMs < 200) return true;
-                lastStepHeightToggleSentMs = now;
-
-                api.SendChatMessage("/rfelfstepheight toggle");
-                return true;
-            });
-        }
-
         public override void Dispose()
         {
             if (harmony != null)
@@ -256,6 +237,10 @@ namespace rfmechanics
                 api.Logger.Notification("[rfmechanics] Migrated goblin visuals revision 3: independent persistent winged spit-charge flies; aura recovery retained.");
             if (config.MigrateSmellVisuals())
                 api.Logger.Notification("[rfmechanics] Migrated smell visuals to revision 2: walking/full focus, acquisition 4.5-13.5s, stronger body-size contrast, yellow-green fallback.");
+            if (config.MigrateStepHeight())
+                api.Logger.Notification("[rfmechanics] Step height revision 2: baseline StepHeightValue={0} for every race, ElfStepHeightOverride={1} for elves. The per-player elf toggle and /rfelfstepheight stay retired.", config.StepHeightValue, config.ElfStepHeightOverride);
+            if (config.MigrateGoblinClimb())
+                api.Logger.Notification("[rfmechanics] Repaired goblin rock-climb prefixes that matched no block: mossystonebricks, lichenstonebricks, peatbrick, refractorybricks.");
 
             if (!malformed)
             {
@@ -329,45 +314,17 @@ namespace rfmechanics
             RegisterThewCommand(api);
             RegisterRotAuraDiagCommand(api);
             RegisterRotAuraDebugCommand(api);
-            RegisterElfStepHeightToggleCommand(api);
             RegisterGoblinSpitCommand(api);
             RegisterChunkScarCommand(api);
             RegisterFliesDiagCommand(api);
-        }
-
-        /// <summary>Server-side counterpart to the client hotkey (RegisterElfStepHeightHotkey) --
-        /// flips a per-player WatchedAttributes bool, which ElfStepHeightBehavior reads directly.
-        /// Chat command rather than a network channel: this codebase has no existing packet
-        /// infrastructure, and every other per-player toggle here already goes through
-        /// ChatCommands.</summary>
-        private void RegisterElfStepHeightToggleCommand(ICoreServerAPI api)
-        {
-            api.ChatCommands.Create("rfelfstepheight")
-                .WithDescription("Toggle the Elf step-height boost for the calling player (also bound to a client hotkey, default Ctrl+H).")
-                .RequiresPrivilege(Privilege.chat)
-                .BeginSubCommand("toggle")
-                    .HandleWith(args =>
-                    {
-                        IPlayer player = args.Caller.Player;
-                        if (player == null)
-                            return TextCommandResult.Success("No player context.");
-
-                        bool defaultOn = Config?.ElfStepHeightDefaultEnabled ?? true;
-                        bool current = player.Entity.WatchedAttributes.GetBool("rf-elf-stepheight-enabled", defaultOn);
-                        bool next = !current;
-                        player.Entity.WatchedAttributes.SetBool("rf-elf-stepheight-enabled", next);
-
-                        return TextCommandResult.Success(string.Format("Elf step height boost {0}.", next ? "enabled" : "disabled"));
-                    })
-                .EndSubCommand();
         }
 
         /// <summary>Server-side counterpart to the goblin spit ability, dispatched client-side by
         /// RaceAbilityHotkeyModSystem via RFMechanicsModSystem.TryTriggerGoblinSpit -- ported from
         /// the old RfGoblinSpitRepairBehavior block-behavior, which ran via vanilla's own
         /// click-interact dispatch (client-predicted + server-authoritative automatically). A bare
-        /// hotkey has no such dispatch, so this goes through a chat command instead, same shape as
-        /// the elf step-height toggle. Repairs whatever block the player is currently looking at
+        /// hotkey has no such dispatch, so this goes through a chat command instead. Repairs
+        /// whatever block the player is currently looking at
         /// (CurrentBlockSelection) -- present on the base IPlayer interface, so it's populated
         /// server-side too, and already carries the same reach cap vanilla block selection always
         /// has. Re-checks race fresh (not the client's cache) since this is the trust boundary for
@@ -375,7 +332,7 @@ namespace rfmechanics
         private void RegisterGoblinSpitCommand(ICoreServerAPI api)
         {
             api.ChatCommands.Create("rfgoblinspit")
-                .WithDescription("Goblin spit repair for the calling player (also bound to a client hotkey, default C).")
+                .WithDescription("Goblin spit repair for the calling player (also bound to a client hotkey, default R).")
                 .RequiresPrivilege(Privilege.chat)
                 .BeginSubCommand("repair")
                     .HandleWith(args =>

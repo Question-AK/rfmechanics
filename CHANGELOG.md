@@ -1,5 +1,111 @@
 # Changelog
 
+## 0.1.3-dev.11 — combined local test, unpublished
+
+- Integrates elf two-block stepping and the default-R racial hotkey with the existing
+  elf/goblin corner traversal and persistent goblin Clamber stance.
+- Preserves saved hotkey bindings; players using X should rebind Race Ability in Controls
+  because vanilla's hand-swap action also uses X.
+- Explicitly excludes the preserved, unapproved retired-dwarf migration source from compilation.
+- The dev.9/dev.10 entries below describe source increments, not separately deployed packages.
+- Local player acceptance remains pending. No server deployment or public release.
+
+## 0.1.3-dev.10 — race ability hotkey default, unpublished
+
+- The Race Ability hotkey now defaults to **R**. It defaulted to C, which vanilla already binds to
+  the character inventory, so on a fresh install the press opened that dialog and never reached
+  Ore-Song or goblin spit. X is not an alternative: vanilla binds it to flip hand slots, which
+  reports every press as handled.
+- The hotkey identifier is unchanged, so any existing rebind is kept exactly as it was. Only a
+  player with no saved binding for Race Ability picks up the new default; anyone already rebound
+  has to change it in Settings -> Controls, or use Restore Defaults.
+- Ctrl+H Clamber is unchanged, and no retired hotkey identifier was revived.
+- Local build only; in-game acceptance pending.
+
+## 0.1.3-dev.9 — elf two-block stepping, unpublished
+
+- Elves step up two blocks instead of one. It is automatic and stance-independent: no new toggle,
+  no hotkey, and nothing to hold. Every other race, humans included, keeps one-block stepping.
+- Vanilla clearance is unchanged, so a two-block ledge with a block above it still refuses the
+  step, and openings too small to fit through still stop you.
+- Add `ElfStepHeightOverride` (2.0). `StepHeightValue` (1.0) is now the baseline for every race
+  without an override rather than a universal value; `EnableStepHeight` still turns the whole
+  system off and restores each entity's own original step height, elves included.
+- Existing configs pick up the elf default simply by not having the new key. A config from before
+  universal stepping that tuned the old `ElfStepHeightValue` has that number carried onto
+  `ElfStepHeightOverride`, where it was always meant to apply, instead of onto everyone.
+- Local build only; in-game acceptance pending.
+
+## 0.1.3-dev.8 — elf trunk corner traversal, unpublished
+
+- Elves climbing a tree now wrap around the outside edge of the trunk instead of dropping when
+  the gripped column goes diagonal, the same way goblins wrap a building corner.
+- Elf climbing also picks its face by preference rather than scan order: the face already held
+  wins, then the one best matching the direction of travel, so moving around a trunk no longer
+  snaps back to the north face.
+- Add `EnableElfCornerTraversal` and `ElfCornerGraceTicks` (6 ticks, about 0.2s). Turning it off
+  restores the previous elf scan exactly, north-first face pick included. Goblin trunk climbing
+  keeps using the goblin keys.
+- Goblin and elf climbing now share one implementation of the scan, face scoring and corner
+  window; only the list of grippable blocks differs between them. No change to goblin behaviour
+  is intended.
+- Local build only; in-game acceptance pending.
+
+## 0.1.3-dev.7 — goblin outside-corner traversal, unpublished
+
+- Climb around outside (convex) building corners instead of dropping off them. When the wall a
+  goblin is holding runs out, gravity stays suspended briefly while a second scan looks at the
+  four diagonal columns for the wall continuing around the corner.
+- Pick the climbing face by preference rather than by scan order: the face already held wins,
+  then the one best matching the direction of travel. Inside corners no longer snap the goblin
+  to the north face regardless of which way it is going.
+- The window suspends gravity only — it never holds a face whose block has gone — and is cleared
+  on landing, so stepping away from a wall still falls immediately.
+- Add `EnableGoblinCornerTraversal` and `GoblinCornerGraceTicks` (6 ticks, about 0.2s). Turning
+  corner traversal off restores the previous scan exactly, north-first face pick included.
+- Accepted in game on a local client; not published.
+
+## 0.1.3-dev.4 — goblin Clamber stance and dry earth climbing, unpublished
+
+- Add the Clamber stance on Ctrl+H (goblins only): a sticky per-player mode that gates wall
+  climbing. Off by default on a new character, and kept across rejoin and death until toggled
+  off. Tree trunks and vanilla ladders are never gated, and other races are unaffected.
+- The stance lives on the player's watched attributes and is only ever written by the server;
+  the client asks for a state and never sets race state itself.
+- Climb dry earth with Clamber on: soil, packed dirt, trampled earth, dry packed dirt, bony
+  soil, cob and forest floor. Sand, gravel, dirty/muddy/sludgy gravel, farmland, raw clay and
+  peat stay unclimbable, and there is no all-material wildcard.
+- Repair four rock entries that matched no block in 1.22.6 and so never granted climbing:
+  `mossybrick-`/`lichenbrick-` (really `mossystonebricks`/`lichenstonebricks`) and
+  `peatbrick-`/`refractorybrick-` (really bare `peatbrick` and plural `refractorybricks`).
+  A one-time migration repairs existing configs; other customizations are left alone.
+- Add `EnableGoblinClamberStance`, `EnableGoblinEarthClimbing` and `GoblinEarthClimbCodes`.
+  Earth entries match a bare code or that code plus a variant, so `cob` does not also catch
+  the cobblestone family.
+- Local build only; in-game acceptance pending for the earth surfaces and the stance.
+
+## 0.1.3-dev.3 — universal one-block stepping, unpublished
+
+- Step over a full block as any race, humans included; the elf-only gate and the per-player
+  step-height toggle are gone. Vanilla clearance still blocks low ceilings and tight openings.
+- Retire the Ctrl+H elf toggle hotkey and the `/rfelfstepheight` command, reserving Ctrl+H
+  for the planned stance control. Old saved toggles can no longer disable stepping.
+- Replace `EnableElfStepHeight`/`ElfStepHeightValue`/`ElfStepHeightDefaultEnabled` with
+  `EnableStepHeight`/`StepHeightValue`; a one-time migration carries a customized value across.
+- Local build only; in-game acceptance pending.
+
+## 0.1.3-dev.1 — seated Ore-Song, unpublished
+
+- Replace the instant dwarf scan with seated, empty-hand stone contact, a settling period,
+  a knock, ten seconds of listening and three seconds of recovery.
+- Search loaded server terrain out to 96 blocks using a shared work budget and bounded
+  chunk-summary cache. No terrain loading/generation; incomplete searches are identified.
+- Play staggered mineral voices with coarse bearings, nearby enveloping sound, average
+  grade harmonics and size-dependent chorus. Add optional sensory captions.
+- Replace the ten legacy cues with sixteen original synthesized material voices,
+  including separate gem and bismuth voices, three variations and rough/clear layers.
+- Local build only; multiplayer performance and in-game audio acceptance pending.
+
 ## 0.1.2-rc.2 ? candidate, unpublished
 
 - Remove the crop-stunting patch for the absent vanilla bellpepper asset, fixing its 1.22.6 startup error.

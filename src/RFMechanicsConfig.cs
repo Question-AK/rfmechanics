@@ -107,6 +107,17 @@ public class RFMechanicsConfig
     /// speed curve, unlike ClimbSpeedFactor/ClimbSaturationPerSecond for dwarves).</summary>
     public bool EnableTreeClimbing { get; set; } = true;
 
+    /// <summary>Master toggle for wrapping an Elf around the outside edge of a trunk instead of
+    /// dropping when the gripped column goes diagonal. False restores the plain four-orthogonal-
+    /// neighbour scan exactly, including its fixed north-first face pick. Goblin trunk climbing is
+    /// governed by EnableGoblinCornerTraversal instead, not by this key.</summary>
+    public bool EnableElfCornerTraversal { get; set; } = true;
+
+    /// <summary>Physics ticks gravity stays suspended after the held trunk face disappears, while
+    /// the diagonal scan looks for the surface around the edge. Physics is 1/30s, so 6 is ~0.2s.
+    /// Zero disables the window, which also disables the diagonal scan.</summary>
+    public int ElfCornerGraceTicks { get; set; } = 6;
+
     // ── Fall damage reduction (Elf) ──
 
     /// <summary>Master toggle for the Elf fall damage reduction.</summary>
@@ -139,20 +150,63 @@ public class RFMechanicsConfig
     /// immediate Initialize()-time refresh). Matches GoblinRotAuraTickInterval's 2.0s precedent.</summary>
     public double ElfIdentityTickInterval { get; set; } = 2.0;
 
-    // ── Elf step height ──
+    // ── Step height (baseline + per-race override) ──
 
-    /// <summary>Master toggle for the Elf step-height boost.</summary>
+    /// <summary>Master toggle for the whole step-height system. False restores each player entity's
+    /// own pre-existing StepHeight, elves included.</summary>
+    public bool EnableStepHeight { get; set; } = true;
+
+    /// <summary>Baseline StepHeight for every race without an override, humans (PlayerRace.None)
+    /// included. Vanilla default is 0.6f; 1.0 is exactly the threshold FindSteppableCollisionBox
+    /// checks against, so a player auto-climbs a full single-block obstacle. Vanilla's own
+    /// clearance test still blocks low ceilings and undersized openings at any value.</summary>
+    public double StepHeightValue { get; set; } = 1.0;
+
+    /// <summary>ACTIVE: StepHeight for elves only, replacing StepHeightValue for them. Set it equal
+    /// to StepHeightValue to put elves back on the baseline -- there is no separate elf toggle,
+    /// because the ability is automatic and stance-independent.</summary>
+    public double ElfStepHeightOverride { get; set; } = 2.0;
+
+    /// <summary>DORMANT: superseded by EnableStepHeight -- stepping is no longer elf-gated. No
+    /// longer read anywhere; left in place so existing rfmechanics.json installs don't drop the key.</summary>
     public bool EnableElfStepHeight { get; set; } = true;
 
-    /// <summary>StepHeight value applied to elves (vanilla default is 0.6f). 1.0 is exactly the
-    /// threshold FindSteppableCollisionBox checks against, so elves auto-climb single-block-tall
-    /// obstacles (fences, stair edges) -- see ElfStepHeightBehavior and the client-side toggle.</summary>
-    public double ElfStepHeightValue { get; set; } = 1.0;
+    /// <summary>DORMANT: the pre-M1 elf step height, read only by MigrateStepHeight. Never an
+    /// active key again -- ElfStepHeightOverride carries the elf value now, and keeping the two
+    /// separate is what stops the 2.0 elf default from migrating onto every race.</summary>
+    public double ElfStepHeightValue { get; set; } = LegacyElfStepHeightDefault;
 
-    /// <summary>Default state of each player's own step-height toggle (WatchedAttributes
-    /// "rf-elf-stepheight-enabled"), flippable via the "/rfelfstepheight toggle" command or its
-    /// bound client hotkey (default Ctrl+H).</summary>
+    /// <summary>DORMANT: the per-player toggle ("rf-elf-stepheight-enabled") and its
+    /// "/rfelfstepheight toggle" command are retired; stepping cannot be switched off per player.
+    /// Left in place so existing rfmechanics.json installs don't drop the key.</summary>
     public bool ElfStepHeightDefaultEnabled { get; set; } = true;
+
+    /// <summary>0 = pre-M1 (elf-gated), 1 = M1 universal, 2 = baseline plus elf override.</summary>
+    public int StepHeightRevision { get; set; }
+
+    private const int CurrentStepHeightRevision = 2;
+
+    /// <summary>The value ElfStepHeightValue shipped with while it was active; anything else in a
+    /// pre-M1 file is a deliberate server tuning rather than an untouched default.</summary>
+    private const double LegacyElfStepHeightDefault = 1.0;
+
+    /// <summary>Carries a pre-M1 tuned elf value onto ElfStepHeightOverride rather than revision 1's
+    /// StepHeightValue: that number was always chosen for elves, so it belongs on the elf key now
+    /// that one exists again. A config already at revision 1 keeps whatever StepHeightValue it was
+    /// given -- an explicit universal choice is not re-interpreted as an elf-only one. Never carries
+    /// EnableElfStepHeight: disabling an elf-only perk is not the same decision as opting out of
+    /// stepping entirely, so that stays a fresh choice. Configs with no ElfStepHeightOverride key
+    /// simply take its 2.0 default, which is how every existing install gets the elf default.</summary>
+    internal bool MigrateStepHeight()
+    {
+        if (StepHeightRevision >= CurrentStepHeightRevision) return false;
+
+        if (StepHeightRevision < 1 && ElfStepHeightValue != LegacyElfStepHeightDefault)
+            ElfStepHeightOverride = ElfStepHeightValue;
+
+        StepHeightRevision = CurrentStepHeightRevision;
+        return true;
+    }
 
     // ── Elf living harvest yield (Phase 4 stub, E3.1) ──
 
@@ -595,6 +649,11 @@ public class RFMechanicsConfig
     /// of EnableGoblinTreeClimbing -- either match group can be disabled without the other.</summary>
     public bool EnableGoblinRockClimbing { get; set; } = true;
 
+    /// <summary>Master toggle for the Ctrl+H Clamber stance gate on Goblin wall climbing. False
+    /// removes the gate (wall climbing reverts to always-on) rather than disabling climbing; use
+    /// EnableGoblinRockClimbing for that. Tree trunks are never gated, matching the Elf.</summary>
+    public bool EnableGoblinClamberStance { get; set; } = true;
+
     /// <summary>Master toggle for Goblin tree climbing (same "log-grown" mechanism as Elf's
     /// TreeClimbingPatch, parallel implementation in GoblinClimbingPatch). Independent of
     /// EnableGoblinRockClimbing.</summary>
@@ -611,8 +670,65 @@ public class RFMechanicsConfig
         "rock-", "crackedrock-", "meteorite-", "stalagsection-",
         "cobblestone-", "mossycobblestone-", "lichencobblestone-",
         "stonebricks-", "agedstonebricks-", "crackedstonebricks-", "mossybrick-", "lichenbrick-",
-        "claybricks-", "drystone-", "mudbrick-", "peatbrick-", "refractorybrick-", "ore-"
+        "claybricks-", "drystone-", "mudbrick-", "peatbrick", "refractorybricks", "ore-"
     };
+
+    /// <summary>Master toggle for Goblin dry-earth climbing. Independent of the rock and tree
+    /// toggles, matching the existing split.</summary>
+    public bool EnableGoblinEarthClimbing { get; set; } = true;
+
+    /// <summary>Dry earth Code.Paths treated as climbable for goblins: bare and packed earth plus
+    /// ground cover. Unlike GoblinRockClimbCodePrefixes' raw prefixes, an entry here matches the
+    /// bare code OR that code plus a variant suffix ("cob" hits cob but not cobblestone/cobbleskull,
+    /// which a raw "cob" prefix would wrongly drag in). Sand, gravel, dirty/muddy/sludgy gravel,
+    /// farmland, raw clay and peat stay unclimbable by not being listed.</summary>
+    public string[] GoblinEarthClimbCodes { get; set; } = new[]
+    {
+        "soil", "packeddirt", "drypackeddirt", "bonysoil", "cob", "forestfloor"
+    };
+
+    /// <summary>Master toggle for wrapping around outside (convex) corners. False restores the
+    /// pre-M5 four-orthogonal-neighbour scan exactly, including its fixed north-first face pick.</summary>
+    public bool EnableGoblinCornerTraversal { get; set; } = true;
+
+    /// <summary>Physics ticks gravity stays suspended after the held face disappears, while the
+    /// diagonal scan looks for the wall around the corner. Physics is 1/30s, so 6 is ~0.2s --
+    /// long enough to wrap a convex corner at walking speed, short enough that a real fall still
+    /// reads as immediate. Zero disables the window, which also disables the diagonal scan.</summary>
+    public int GoblinCornerGraceTicks { get; set; } = 6;
+
+    /// <summary>One-time repair of rock prefixes that matched no 1.22.6 block.</summary>
+    public int GoblinClimbRevision { get; set; }
+
+    /// <summary>Only rewrites the four entries verified dead against the 1.22.6 assets, leaving any
+    /// other customization alone: "mossybrick-"/"lichenbrick-" (real codes are mossystonebricks /
+    /// lichenstonebricks), "peatbrick-" and "refractorybrick-" (real codes are bare peatbrick and
+    /// plural refractorybricks, so neither ever matched with the trailing dash).</summary>
+    internal bool MigrateGoblinClimb()
+    {
+        if (GoblinClimbRevision >= 1) return false;
+        GoblinClimbRevision = 1;
+
+        string[]? prefixes = GoblinRockClimbCodePrefixes;
+        if (prefixes == null) return true;
+
+        bool changed = false;
+        for (int i = 0; i < prefixes.Length; i++)
+        {
+            string? repaired = prefixes[i] switch
+            {
+                "mossybrick-" => "mossystonebricks",
+                "lichenbrick-" => "lichenstonebricks",
+                "peatbrick-" => "peatbrick",
+                "refractorybrick-" => "refractorybricks",
+                _ => null
+            };
+            if (repaired == null) continue;
+            prefixes[i] = repaired;
+            changed = true;
+        }
+        return changed;
+    }
 
     // ── Goblin tunnel speed (Phase G2) ──
 
@@ -884,37 +1000,48 @@ public class RFMechanicsConfig
 
     /// <summary>Master toggle for the Dwarf ore-song mechanic (the shared "rfraceability" hotkey,
     /// as a dwarf, makes nearby ore/gem deposits answer with a positioned sound per material).
-    /// Client-only, no network traffic.</summary>
+    /// Server-authoritative seated stone listening.</summary>
     public bool DwarfOreSongEnabled { get; set; } = true;
 
-    /// <summary>Scan radius in blocks around the player. Capped at 20 by
-    /// DwarfOreSongModSystem (see notes/diagnostics/ore-song-discovery.md Q6 -- vanilla itself
-    /// routes comparable-or-smaller inline WalkBlocks scans onto a background thread; a v1
-    /// inline scan does not go past this cap).</summary>
-    public int OreSongRadius { get; set; } = 16;
+    /// <summary>Legacy v1 field retained for configuration round-tripping; no longer used.</summary>
+    public int OreSongRadius { get; set; } = 16; // Legacy v1 setting; ignored by seated listening.
 
-    /// <summary>Cooldown between ore-song triggers, milliseconds. Must stay &gt;= the longest
-    /// ore-song asset (10s) -- this is what prevents overlapping playback instead of any
-    /// fade/dispose-tracking logic (see the v1 brief's Phase 4 rationale).</summary>
-    public int OreSongCooldownMs { get; set; } = 10000;
+    /// <summary>Legacy v1 field retained for configuration round-tripping; no longer used.</summary>
+    public int OreSongCooldownMs { get; set; } = 10000; // Legacy v1 setting; ignored.
 
-    /// <summary>Max number of material clusters played per knock. Clusters beyond the nearest
-    /// this many (by distance) are discarded silently.</summary>
+    /// <summary>Different mineral voices per knock, clamped 1..3. Further knocks rotate
+    /// through up to twelve detected minerals.</summary>
     public int OreSongMaxClusters { get; set; } = 3;
 
-    /// <summary>Greedy cluster-merge distance in blocks -- a hit joins an existing cluster of
-    /// the same material if within this distance of that cluster's centroid.</summary>
-    public double OreSongClusterMergeDistance { get; set; } = 6;
+    /// <summary>Legacy v1 field retained for configuration round-tripping; no longer used.</summary>
+    public double OreSongClusterMergeDistance { get; set; } = 6; // Legacy v1 setting; ignored.
 
-    /// <summary>Floor applied to a cluster's final playback volume (gradeGain x
-    /// distanceFalloff), so distant/poor-grade deposits are still faintly audible rather than
-    /// silent.</summary>
-    public double OreSongVolumeFloor { get; set; } = 0.15;
+    /// <summary>Legacy v1 field retained for configuration round-tripping; no longer used.</summary>
+    public double OreSongVolumeFloor { get; set; } = 0.15; // Legacy v1 setting; ignored.
 
-    /// <summary>Max random pitch jitter (+/-, fraction of 1.0) applied per cluster. Load-bearing,
-    /// not cosmetic -- two same-material clusters at identical pitch are phase-identical files
-    /// and comb-filter into sounding like one source.</summary>
-    public double OreSongPitchJitter { get; set; } = 0.05;
+    /// <summary>Legacy v1 field retained for configuration round-tripping; no longer used.</summary>
+    public double OreSongPitchJitter { get; set; } = 0.05; // Legacy v1 setting; ignored.
+
+    // New names deliberately avoid silently retaining the old 16-block/10-second config values.
+    /// <summary>Server scan radius, capped at 96. Reads loaded terrain only; no chunk generation.</summary>
+    public int OreSongListeningRadius { get; set; } = 96;
+    /// <summary>Minimum stillness before the knock. Budgeted cold searches may take longer.</summary>
+    public int OreSongSettleMs { get; set; } = 2000;
+    /// <summary>Listening period after the knock; minimum 10 seconds accommodates three voices.</summary>
+    public int OreSongListenMs { get; set; } = 10000;
+    /// <summary>Recovery after finishing or cancelling, milliseconds.</summary>
+    public int OreSongRestMs { get; set; } = 3000;
+    /// <summary>ONE shared server work budget per 50ms tick, milliseconds. Clamped 0.25..2.
+    /// A single engine unpack/lock cannot be preempted; /rforesong reports measured worst slices.</summary>
+    public double OreSongServerBudgetMs { get; set; } = 1;
+    /// <summary>Bounded memory-only chunk summary cache, clamped 64..1024; 30-second expiry.</summary>
+    public int OreSongCacheChunks { get; set; } = 512;
+    /// <summary>Concurrent listeners admitted on the server, clamped 1..8. Budget is shared.</summary>
+    public int OreSongMaxListeners { get; set; } = 4;
+    /// <summary>Client-only audio gain, 0..2, applied under the game's sound-effects volume.</summary>
+    public float OreSongVolume { get; set; } = 1;
+    /// <summary>Client-only coarse sensory captions for players unable to use directional audio.</summary>
+    public bool OreSongCaptions { get; set; } = false;
 
     // ── Chunk scar tracker (passive data collector, no gameplay consumer -- see
     // ChunkScarTracker.cs's header and notes/race-mechanics/chunk-scar-archived.md) ──
