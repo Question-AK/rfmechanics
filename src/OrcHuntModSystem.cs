@@ -65,7 +65,7 @@ public sealed class OrcHuntModSystem : ModSystem
         api.Event.LeaveWorld += ClearClient;
         api.ChatCommands.Create("rfhunttest").WithDescription("Report Orc sniff and real bleeding integration state; does not create bleeding.")
             .HandleWith(_ => {
-                string report = $"Orc hunt: stance={Stance}, focus={OrcSmellShared.FocusActive}, heldMs={OrcSmellShared.HeldMs:F0}, quality={OrcSmellShared.Quality:F2}, provider={status.ProviderAvailable && FreshStatus}, blood={ (FreshStatus ? BloodIds.Count : 0)}, pursuit={status.Bonus:P0}";
+                string report = $"Orc hunt: stance={Stance}, focus={OrcSmellShared.FocusActive}, resting={OrcSmellShared.Resting}, sitting={OrcSmellShared.Sitting}, speed={OrcSmellShared.Speed:F2}, darkness={OrcSmellShared.FocusWeight:F2}, quality={OrcSmellShared.Quality:F2}, provider={status.ProviderAvailable && FreshStatus}, blood={ (FreshStatus ? BloodIds.Count : 0)}, pursuit={status.Bonus:P0}";
                 api.Logger.Notification("[rfmechanics] {0}", report);
                 return TextCommandResult.Success(report);
             });
@@ -77,6 +77,9 @@ public sealed class OrcHuntModSystem : ModSystem
         if (capi.World.ElapsedMilliseconds < toggleAt) return true;
         toggleAt = capi.World.ElapsedMilliseconds + 250;
         Stance = !Stance;
+        OrcSmellShared.StanceRevision++;
+        OrcSmellShared.Quality = 0;
+        OrcSmellShared.SensoryActive = Stance;
         capi.ShowChatMessage(Stance ? "Hunting stance on" : "Hunting stance off");
         return true;
     }

@@ -8,6 +8,14 @@ public class RFMechanicsConfig
 {
     // Local hunting trial; separate names leave older saved smell tuning untouched.
     public bool EnableOrcHunting { get; set; } = true;
+    public double OrcFocusRecoverySeconds { get; set; } = 2;
+    public double OrcFocusFadeSeconds { get; set; } = 6;
+    public double OrcFocusVisionRecoverySeconds { get; set; } = 1;
+    public double OrcFocusMaximumDarkness { get; set; } = 0.90;
+    public double OrcSlowFocusLevel { get; set; } = 0.35;
+    public double OrcSlowFocusMaxSpeed { get; set; } = 1.5;
+    public int OrcSmellSourceLimit { get; set; } = 12;
+    // Legacy held-sniff setting; stance has an immediate first whiff.
     public double OrcQuickSniffMs { get; set; } = 100;
     public double OrcDeepFocusSeconds { get; set; } = 4;
     public double OrcQuickRange { get; set; } = 24;
@@ -1278,7 +1286,7 @@ public class RFMechanicsConfig
     public double SmellFocusFogDensity { get; set; } = 0.25;
 
     /// <summary>Milliseconds of eligible stationary focus before smell particles start
-    /// appearing. Keyed off concentration duration (OrcSmellShared.HeldMs), independent of the
+    /// appearing. Keyed off concentration duration (legacy held clock), independent of the
     /// fog ramp -- the world darkens first, the smell sense kicks in after.</summary>
     public int SmellParticleFadeInStartMs { get; set; } = 4500;
 

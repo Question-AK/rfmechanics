@@ -22,10 +22,9 @@ namespace rfmechanics
     /// "rfclamber" (Ctrl+H) is the shared stance key, retaining existing rebinds. It dispatches
     /// persistent goblin Clamber or session-only elf Watchfulness independently of held abilities.
     ///
-    /// The hotkey handler only covers the two discrete-press abilities (dwarf, goblin). Orc smell focus and elf zoom
-    /// are held ramps driven by their own render/tick pollers (OrcSmellFocusModSystem,
-    /// RFElfZoomBehavior), which read this same "rfraceability" code's raw key state directly and
-    /// gate on the same cached PlayerRaceBehavior.Race -- they never go through SetHotKeyHandler.
+    /// The press handler covers dwarf/goblin. Elf zoom polls the saved Race Ability
+    /// binding independently. Orc smell is entirely stance-owned; Race Ability is
+    /// reserved for the separate bracing task and is not consumed here.
     /// </summary>
     public class RaceAbilityHotkeyModSystem : ModSystem
     {

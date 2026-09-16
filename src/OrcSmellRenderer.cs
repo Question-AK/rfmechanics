@@ -98,7 +98,7 @@ internal sealed class OrcSmellRenderer : IRenderer
                 Math.Min(box.X1, previousBox.X1), Math.Min(box.Y1, previousBox.Y1), Math.Min(box.Z1, previousBox.Z1),
                 Math.Max(box.X2, previousBox.X2), Math.Max(box.Y2, previousBox.Y2), Math.Max(box.Z2, previousBox.Z2));
             Vec3d eye = body.AddCopy(self.LocalEyePos.X, self.LocalEyePos.Y, self.LocalEyePos.Z);
-            release = OrcSmellShared.SensoryActive ? 1 : Math.Max(0, release - (float)dt / 0.2f);
+            release = capi.ModLoader.GetModSystem<OrcHuntModSystem>().Stance && OrcSmellShared.SensoryActive ? 1 : Math.Max(0, release - (float)dt / 0.2f);
             if (release <= 0) wisps.Clear();
             for (int i = wisps.Count - 1; i >= 0; i--)
             {

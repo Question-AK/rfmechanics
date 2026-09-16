@@ -16,7 +16,8 @@ public sealed class OrcSmellModSystem : ModSystem
     private EntityPartitioning? partitions;
     private long tick;
     private double scanAt, whiffAt, whiffUntil;
-    private bool wasEmitting, failed;
+    private bool wasActive, failed;
+    private int revision;
     private long playerId;
     private int dimension;
     private Vec3d? previous;
@@ -33,7 +34,7 @@ public sealed class OrcSmellModSystem : ModSystem
     private void Clear()
     {
         sources.Clear(); renderer?.Clear(); previous = null; playerId = 0;
-        scanAt = whiffAt = whiffUntil = 0; wasEmitting = false;
+        scanAt = whiffAt = whiffUntil = 0; wasActive = false;
         OrcSmellShared.SensoryActive = false;
     }
     private void Tick(float dt)
@@ -52,21 +53,26 @@ public sealed class OrcSmellModSystem : ModSystem
                 || previous != null && self.Pos.SquareDistanceTo(previous) > 4 || dt > 0.5)
             { Clear(); }
             playerId = self.EntityId; dimension = self.Pos.Dimension; previous = self.Pos.XYZ;
-            bool held = OrcSmellShared.FocusActive && OrcSmellShared.HeldMs >= Math.Clamp(cfg.OrcQuickSniffMs, 0, 1000);
-            if (hunt.Stance && now >= whiffAt)
+            if (!hunt.Stance)
             {
-                whiffAt = now + Math.Clamp(cfg.OrcWhiffIntervalSeconds, 1, 15) * (0.85 + capi.World.Rand.NextDouble()*0.3);
-                whiffUntil = now + Math.Clamp(cfg.OrcWhiffDurationSeconds, 0.2, 2);
+                sources.Clear(); scanAt = whiffAt = whiffUntil = 0; wasActive = false;
+                OrcSmellShared.SensoryActive = false;
+                return;
             }
-            bool passive = hunt.Stance && now < whiffUntil;
-            bool emit = held || passive || hunt.HasBlood;
-            OrcSmellShared.SensoryActive = held || hunt.Stance || hunt.HasBlood;
-            if (!emit) { wasEmitting = false; return; }
-            if (!wasEmitting) scanAt = 0;
-            wasEmitting = true;
-            double quality = held ? OrcSmellShared.Quality : 0;
-            double range = held ? Math.Clamp(cfg.OrcQuickRange, 4, 64) +
-                (Math.Clamp(cfg.OrcDeepRange, 4, 64) - Math.Clamp(cfg.OrcQuickRange, 4, 64))*quality : Math.Clamp(cfg.OrcPassiveRange, 4, 64);
+            if (!wasActive || revision != OrcSmellShared.StanceRevision)
+            { scanAt = whiffAt = whiffUntil = 0; revision = OrcSmellShared.StanceRevision; }
+            wasActive = true;
+            OrcSmellShared.SensoryActive = true;
+            double quality = OrcSmellShared.Quality;
+            double range = Math.Clamp(cfg.OrcPassiveRange, 4, 64) +
+                (Math.Clamp(cfg.OrcDeepRange, 4, 64) - Math.Clamp(cfg.OrcPassiveRange, 4, 64))*quality;
+            if (now >= whiffAt)
+            {
+                whiffAt = now + Math.Clamp(cfg.OrcWhiffIntervalSeconds, 1, 15) * (1-0.75*quality)
+                    * (0.85 + capi.World.Rand.NextDouble()*0.3);
+                whiffUntil = now + Math.Clamp(cfg.OrcWhiffDurationSeconds, 0.2, 2) + quality;
+            }
+            bool ordinaryWindow = now < whiffUntil || quality >= 0.75;
             if (now >= scanAt)
             {
                 scanAt = now + 0.5; sources.Clear(); int visits = 0;
@@ -74,23 +80,23 @@ public sealed class OrcSmellModSystem : ModSystem
                 partitions!.WalkEntities(self.Pos.X, self.Pos.Y, self.Pos.Z, scanRange, e =>
                 {
                     if (++visits > 256) return false;
-                    if (sources.Count < 64 && Eligible(e, self) && (hunt.IsBlood(e) || (held || passive) && InRange(e, self, range))) sources.Add(e);
+                    if (sources.Count < 64 && Eligible(e, self) && (hunt.IsBlood(e) || InRange(e, self, range))) sources.Add(e);
                     return true;
                 }, null, EnumEntitySearchType.Creatures);
                 sources.Sort((a,b) => {
                     int bloodOrder = hunt.IsBlood(b).CompareTo(hunt.IsBlood(a));
                     return bloodOrder != 0 ? bloodOrder : a.Pos.SquareDistanceTo(self.Pos).CompareTo(b.Pos.SquareDistanceTo(self.Pos));
                 });
-                int count = Math.Clamp(cfg.SmellMaxSources, 1, 6);
+                int count = Math.Clamp(cfg.OrcSmellSourceLimit, 1, 16);
                 if (sources.Count > count) sources.RemoveRange(count, sources.Count-count);
             }
             Vec3d eye = self.Pos.XYZ.Add(self.LocalEyePos.X, self.LocalEyePos.Y, self.LocalEyePos.Z);
             foreach (var e in sources)
             {
                 bool blood = hunt.IsBlood(e) && (!cfg.OrcTargetSwimmingBreaksBlood || !e.Swimming);
-                if (!Eligible(e, self) || (!blood && (!(held || passive) || !InRange(e, self, range)))) continue;
+                if (!Eligible(e, self) || (!blood && (!ordinaryWindow || !InRange(e, self, range)))) continue;
                 ScentCategory category = blood ? ScentCategory.Blood : e is EntityPlayer ? ScentCategory.Player : OrcSmellClassifier.Classify(e, cfg);
-                Emit(cfg, eye, e, category, quality, passive && !held);
+                Emit(cfg, eye, e, category, quality);
             }
         }
         catch (Exception e)
@@ -107,7 +113,7 @@ public sealed class OrcSmellModSystem : ModSystem
         double radius = Math.Min(64, range * size);
         return e.Pos.SquareDistanceTo(self.Pos) <= radius * radius;
     }
-    private void Emit(RFMechanicsConfig cfg, Vec3d eye, Entity e, ScentCategory category, double quality, bool passive)
+    private void Emit(RFMechanicsConfig cfg, Vec3d eye, Entity e, ScentCategory category, double quality)
     {
         bool blood = category == ScentCategory.Blood;
         double dx = e.Pos.X-eye.X, dz = e.Pos.Z-eye.Z;
@@ -125,13 +131,13 @@ public sealed class OrcSmellModSystem : ModSystem
             ScentCategory.Omnivore => cfg.SmellColorOmnivore,
             _ => cfg.SmellColorUnknown
         };
-        int count = Math.Clamp((int)Math.Round(2 + size * (blood ? 4 : passive ? 1 : 2)), 2, 8);
+        int count = Math.Clamp((int)Math.Round(2 + size * (blood ? 4 : 1 + quality)), 2, 8);
         Random rand = capi!.World.Rand;
         for (int i=0; i<count; i++)
         {
             double angle = bearing + (rand.NextDouble()-0.5)*spread*GameMath.DEG2RAD_DOUBLE;
             // Blood remains a directional stream at close range, not a body marker.
-            double t = blood ? 2.2 + rand.NextDouble()*3.5 : 2.5 + rand.NextDouble()*(passive ? 4 : 8);
+            double t = blood ? 2.2 + rand.NextDouble()*3.5 : 2.5 + rand.NextDouble()*(4 + 4*quality);
             double vOff = (rand.NextDouble()-0.5)*(blood ? 0.25 : 0.8);
             var position = new Vec3d(eye.X+Math.Cos(angle)*t, eye.Y+vOff, eye.Z+Math.Sin(angle)*t);
             double speed = blood ? 3 : Math.Clamp(cfg.SmellDriftSpeed, 0.5, 4);
@@ -139,8 +145,8 @@ public sealed class OrcSmellModSystem : ModSystem
             // being swallowed by the moving body-exclusion volume on their first frame.
             var self = capi.World.Player.Entity;
             speed += self.Controls.Sprint ? 2 : 0;
-            renderer!.Add(e.EntityId, sources.Count, position, angle, speed, blood ? 0.7 : passive ? 1.1 : 1.8,
-                particleSize, blood ? 0.7f : passive ? 0.48f : 0.55f, rgb, category);
+            renderer!.Add(e.EntityId, sources.Count, position, angle, speed, blood ? 0.7 : 1.1 + 0.7*quality,
+                particleSize, blood ? 0.7f : (float)(0.48 + 0.07*quality), rgb, category);
         }
     }
     public override void Dispose()

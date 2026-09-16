@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3-orchunt.2 ? automatic smell stance, unpublished local trial
+
+- Removes Orc held Race Ability sniffing and its hotbar input blocker; reserves R
+  for separate bracing work, preserving other races' input behavior.
+- Adds natural standing/sitting/slow-movement concentration and tunable ambient fade,
+  smooth movement/off vision recovery and immediate stance-on whiff.
+- Gates blood visuals on stance while retaining independent pursuit and acknowledgement.
+- Preserves learned scent shapes and raises the bounded source limit for crowded scenes.
+- Leaves Thew, Burn, Frenzy, protection, pursuit tuning and bleeding providers unchanged.
+
 ## 0.1.3-orchunt.1 ? local hunting prototype, unpublished
 
 - Retains Watchfulness revision 9 and accepted dev.11 movement.

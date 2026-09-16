@@ -2,32 +2,44 @@
 
 Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
 
-Local Orc hunting trial **0.1.3-orchunt.1**, cumulative on Watchfulness revision 9.
-Orc Ctrl+H (saved Race Stance rebind retained) toggles occasional nearby whiffs.
-Hold Race Ability (default R or saved rebind) for a quick sniff; continue holding
-for deeper focus. Walking keeps the sniff active; sprint/jump/hurt shed deep focus
-and allow automatic recovery. Stance starts off each session. No species HUD labels.
+Local Orc smell trial **0.1.3-orchunt.2**, cumulative on orchunt.1/Watchfulness .9.
+Orc Ctrl+H (saved stance rebind retained) enables all scent visuals. The first whiff
+arrives on the next 50 ms sample. Moving/sprinting gives occasional whiffs; stopping
+or sitting automatically builds concentration in four seconds, extending base range
+from 20 to 64 blocks. Body size scales range 0.7-1.2, capped at 64. Sneaking/slow
+movement below 1.5 blocks/s can build partial focus. No Race Ability input is used:
+R is reserved for a separate bracing task, not implemented by this package.
 
-Fresh blood uses pointed red droplets with a tighter bearing even nearby. Server
-pursuit requires actual BloodTrail or The Hunter bleeding state, including players
-when the provider applies bleeding to them. Running toward the target builds up to
-+20% walkspeed over six seconds; two-second grace then three-second decay. Combined
-Frenzy and pursuit contribution is capped at +35% (other movement modifiers remain).
-Changing prey resets charge. A brief discovery impression announces engagement,
-with no repeat during an episode and a 15-second minimum between announcements.
-Target swimming suppresses blood scent until it emerges still bleeding. Orc swimming
-is independent. No terrain obstruction or scent pathfinding is implemented.
+Standing/sitting also fades the surrounding world over six seconds, to maximum 0.90
+ambient weight. Scent shaders keep their own color/alpha so they remain readable.
+Moving eases concentration down over up to two seconds and restores vision over up
+to one second. Stance off resets concentration and stops all scent emission; existing
+wisps fade within 0.2 seconds and vision returns within one second. Stance remains
+session-only. Death/race exit/world exit clear the effect.
 
-The sparse Diet test profile has neither bleeding provider: sensory/controls testing
-is available, blood pursuit is inactive. No provider is bundled or installed here.
-`.rfhunttest` reports real adapter/blood/focus state without creating test bleeding.
-Use `Orc*` properties in rfmechanics.json to tune this trial; defaults leave the saved
-older smell timing/range properties untouched. Config and saves need no migration.
-The 100 ms quick threshold follows a 50 ms input settle and 50 ms emission cadence;
-standing reaches full focus at four seconds, walking reaches half focus in about six.
-Base quick/deep/passive ranges are 24/64/20 blocks, multiplied by body size 0.7?1.2
-and capped at 64. Blood range is 40 blocks, independent of focus and stance.
-Whiffs last 0.65 seconds, every 3.4?4.6 seconds; held focus darkens by at most 35%.
+New tuning: OrcFocusFadeSeconds=6, OrcFocusMaximumDarkness=0.90,
+OrcFocusVisionRecoverySeconds=1, OrcFocusRecoverySeconds=2,
+OrcSlowFocusLevel=0.35, OrcSlowFocusMaxSpeed=1.5, OrcSmellSourceLimit=12 (cap 16).
+Existing OrcDeepFocusSeconds=4, OrcPassiveRange=20, OrcDeepRange=64,
+OrcWhiffIntervalSeconds=4 and OrcWhiffDurationSeconds=0.65 remain adjustable.
+Moving whiffs repeat every 3.4-4.6 seconds; concentration lengthens/joins them into
+continuous scent from 75% focus. OrcQuickSniffMs/OrcQuickRange are now legacy.
+No configuration migration or save change is needed.
+
+Pursuit physics/acknowledgement, blood adapters and tuning are unchanged: server-owned
+actual bleeding detection, 40-block radius, six-second ramp to +20%, two-second grace,
+three-second decay and +35% combined Frenzy/pursuit cap. Blood visuals now require
+stance; the physical benefit and brief engagement impression do not. Target swimming
+still interrupts eligibility until it surfaces bleeding. Orc swimming is separate.
+Diet still has neither BloodTrail nor The Hunter: blood gameplay cannot be tested
+there without a separately authorized provider setup. No dependency/profile expansion.
+
+Distinct scent shapes, body-size differences and close-range blood direction are
+preserved. Terrain remains unresolved: no scent obstruction/attenuation through walls.
+The source limit is raised to 12 for crowded scenes; scans remain bounded at 256 visits,
+64 candidates, with 1200 live wisps and particle-setting limits. `.rfhunttest` reports
+stance, resting/sitting, measured speed, concentration, darkness and real blood status;
+it does not create bleeding or identify targets in ordinary gameplay.
 
 Retained Watchfulness trial: elf Ctrl+H enables the stance.
 Without racial zoom, moving animals/players can produce a broad pale wisp.

@@ -2,43 +2,21 @@ using System;
 
 namespace rfmechanics;
 
-// Pure interaction state, independent of rendering and the calendar clock.
+// Stance-owned concentration; no ability key or release latch.
 internal sealed class OrcSmellFocusState
 {
-    internal float HeldMs { get; private set; }
-    internal float StillMs { get; private set; }
-    internal bool Active { get; private set; }
-    internal bool NeedsRelease { get; private set; }
-    private float settledMs;
-
-    internal void Update(float dt, bool held, bool eligible, bool stationary, bool hurt, bool interrupted = false, float fullMs = 4000)
+    internal float Quality { get; private set; }
+    internal float Fade { get; private set; }
+    internal void Reset(bool vision = true) { Quality = 0; if (vision) Fade = 0; }
+    internal void Update(float dt, bool active, float targetQuality, bool resting, RFMechanicsConfig cfg)
     {
         dt = Math.Clamp(dt, 0, 0.1f);
-        NeedsRelease = false;
-        if (!eligible || !held)
-        {
-            HeldMs = StillMs = settledMs = 0;
-            Active = false;
-            return;
-        }
-        settledMs += dt * 1000;
-        if (settledMs < 50) return;
-        Active = true;
-        HeldMs += dt * 1000;
-        // Sprinting, jumping and damage shed deep focus, without latching the button.
-        // Walking builds more slowly and cannot retain full stationary concentration.
-        if (hurt || interrupted) StillMs = 0;
-        else if (stationary) StillMs += dt * 1000;
-        else StillMs = Math.Min(StillMs + dt * 350, Math.Clamp(fullMs, 1000, 15000) * 0.5f);
+        if (!active) Quality = 0;
+        else Quality = Move(Quality, targetQuality, dt / (float)Math.Clamp(
+            Quality < targetQuality ? cfg.OrcDeepFocusSeconds : cfg.OrcFocusRecoverySeconds, 0.1, 30));
+        float desiredFade = active && resting ? Quality : 0;
+        Fade = Move(Fade, desiredFade, dt / (float)Math.Clamp(
+            Fade < desiredFade ? cfg.OrcFocusFadeSeconds : cfg.OrcFocusVisionRecoverySeconds, 0.1, 30));
     }
-
-    internal float Quality(float fullMs) => Math.Clamp(StillMs / Math.Max(1, fullMs), 0, 1);
-
-    internal float Darkness(float engageMs, float movingWeight)
-    {
-        if (!Active) return 0;
-        float warmup = Math.Clamp(HeldMs / Math.Max(1, engageMs), 0, 1);
-        return Math.Clamp(movingWeight, 0, 0.5f) * warmup
-            + (1 - Math.Clamp(movingWeight, 0, 0.5f)) * Math.Clamp(StillMs / Math.Max(1, engageMs), 0, 1);
-    }
+    private static float Move(float value, float target, float step) => value + Math.Clamp(target - value, -step, step);
 }
