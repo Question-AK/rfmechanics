@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3-feedback.1 - Racial feedback and Thew/Frenzy prototype, not installed
+
+- Adds localized, race-themed ephemeral feedback with no historical queue.
+- Retains Oresong; adds three sparse Dwarf mining-depth lines.
+- Makes Thew smoke mean actual net metabolic reserve loss, never growth or debt alone.
+- Smooths hunger-driven Frenzy, charges additional debt only for qualified exertion,
+  and retains maximum bonuses, exhaustion safeguard and combined pursuit cap.
+- Preserves delivered bracing protection/economy, smell and Watchfulness.
+- Adds offline arithmetic/preservation checks and diagnostic rates for player testing.
+
 ## 0.1.3-orcbrace.1 - Orc combat prototype, unpublished and not installed
 
 - Replaces health-dependent wild-animal resistance with Tier 1 natural skin, and

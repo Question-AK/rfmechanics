@@ -2,8 +2,74 @@
 
 Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
 
-Local combat prototype **0.1.3-orcbrace.1**, cumulative on accepted Orc smell .2,
-Watchfulness .9 and dev.11 movement. Prepared locally; not installed or published.
+Local feedback prototype **0.1.3-feedback.1**, cumulative on delivered orcbrace.1,
+accepted Orc smell .2, Watchfulness .9 and dev.11 movement. Build preparation only;
+not installed or published. Miles evaluates it in VS - Diet Test after installation.
+
+Brief racial messages use one noninteractive fading line, distinct race colors and
+built-in fonts. Goblin rot consumption/repair and Clamber, Elf Watchfulness/woodland
+movement, Dwarf mining-depth milestones, and Orc scent/Burn/Frenzy use confirmed
+outcomes and restrained transitions. No panel or counter. Oresong is unchanged.
+Messages are localized in assets/rfmechanics/lang/en.json. EnableRacialFeedback
+controls these new lines. Rapid stance changes replace the previous line, with no
+historical queue. Passive messages yield to deliberate actions. Blood pursuit and
+bracing also share the line so simultaneous Orc messages cannot overlap.
+
+Dwarf lines follow the depth fraction already used by the mining curve, relative to
+sea level (not the local surface): 25%, 50%, 75%. They require breaking stone/ore,
+only the deepest newly reached band is announced, at most once per band per life/join.
+These are depth fractions, not a claim of a 25/50/75% speed bonus.
+
+Thew growth/stability produce no smoke. Wisps represent the net reduction from a
+server metabolic update, including actual reserve-funded debt repayment. Growth
+that offsets consumption is silent. Slower loss has thin occasional wisps, faster
+loss fuller/frequent ones. The same rate drives local and nearby-player feedback;
+local wisps are below the eyes and shorter-lived. Particles already emitted fade.
+The metabolic cadence is unchanged (normally six seconds), so changes in smoke can
+lag feeding by that interval. Initialization, admin edits and death resets are not
+counted as metabolic expenditure. Old smoke state/priority and steam settings no
+longer drive the effect. PuffSmokeColorRgb, PuffOpacity, PuffRenderRange, EnablePuff
+and PuffTickIntervalMs still apply; particle geometry/lifetime are restrained in code.
+
+Frenzy still begins below 50% satiety, reaches the existing 25% maximum and preserves
+the reserve/debt exhaustion safeguard. New FrenzyResponseExponent=1.5 and
+FrenzyResponseWriteThreshold=0.0025 replace the old saved cubic curve/write threshold
+without editing installed configuration. Gate, maximum and debt-rate settings remain
+active. Updates are normally every 500 ms, not every frame.
+
+| Food | Speed bonus | Sprint debt/game-hour | Walk debt/game-hour |
+| --- | --- | --- | --- |
+| 50% | 0% | 0 | 0 |
+| 40% | 2.24% | 0 | 0 |
+| 30% | 6.32% | 0 | 0 |
+| 25% | 8.84% | 0 | 0 |
+| 20% | 11.62% | 0.27885 | 0.09760 |
+| 10% | 17.89% | 0.42933 | 0.15026 |
+| 0% | 25% | 0.60000 | 0.21000 |
+
+Costs shown assume the benefit is available throughout qualifying movement. Idle is
+always zero extra Frenzy debt; ordinary starvation/Burn costs still apply. Below the
+existing 25% debt gate, deliberate ground sprinting pays full rate, ordinary travel
+35% (FrenzyWalkingDebtMultiplier). Requires input and measured displacement aligned
+with intended travel at both sample endpoints. Blocked input, riding, swimming,
+climbing, flying, airborne motion, hurt/knockback, vanilla agent repulsion, stale intervals and detected
+teleports are excluded. Teleport version changes reject even short same-dimension
+teleports between samples; push/knockback observations provide a 1.5-second grace. This conservative rule may undercount obstacle-rich movement;
+unrecognised external mod pushes concurrent with aligned input remain a limitation.
+
+Pursuit retains its configured 35% Frenzy/pursuit combined cap. Bracing still cuts off
+its debit at 30% food, above the 25% extra-debt threshold; its 30% Frenzy bonus is now
+6.32%. No protection, Burn cost, band, food restriction or bracing economy redesign.
+Current local BurnThewPerHp=0.03 was inspected but not edited and can dominate costs.
+/rfthew dump additionally reports measured exertion, actual Frenzy debt rate and
+net Thew loss rate. Read-only diagnostics do not replace player observation.
+
+Future direction only: a sharp/vivid Frenzy screen effect, preserving learned scent
+colors/shapes, a clear center, smooth recovery and compatibility with smell-focus
+fade. The engine has PsychedelicStrength shader plumbing worth investigating later;
+no screen shader, color grading or psychedelic behavior is added here. Broader Thew
+food-category, maintenance, starvation, Burn-borrowing and band-balance proposals
+remain pending and are not part of this prototype.
 
 Tap the saved **Race Ability** binding (default R) as an Orc to brace; tap again to
 release. Walking, attacks and sprinting remain available. Natural skin uses vanilla
