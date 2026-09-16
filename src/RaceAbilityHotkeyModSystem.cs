@@ -22,9 +22,8 @@ namespace rfmechanics
     /// "rfclamber" (Ctrl+H) is the shared stance key, retaining existing rebinds. It dispatches
     /// persistent goblin Clamber or session-only elf Watchfulness independently of held abilities.
     ///
-    /// The press handler covers dwarf/goblin. Elf zoom polls the saved Race Ability
-    /// binding independently. Orc smell is entirely stance-owned; Race Ability is
-    /// reserved for the separate bracing task and is not consumed here.
+    /// The press handler covers dwarf/goblin/Orc. Elf zoom polls the saved Race Ability
+    /// binding independently. Orc smell is entirely stance-owned; Race Ability toggles bracing.
     /// </summary>
     public class RaceAbilityHotkeyModSystem : ModSystem
     {
@@ -33,6 +32,7 @@ namespace rfmechanics
         // dictionary entry or a second hotkey.
         private static readonly Dictionary<PlayerRace, System.Func<ICoreClientAPI, bool>> PressAbilities = new()
         {
+            [PlayerRace.Orc] = api => api.ModLoader.GetModSystem<OrcBracingModSystem>().TryToggle(),
             [PlayerRace.Dwarf] = api => api.ModLoader.GetModSystem<DwarfOreSongModSystem>().TryTrigger(api),
             [PlayerRace.Goblin] = api => api.ModLoader.GetModSystem<RFMechanicsModSystem>().TryTriggerGoblinSpit(api),
         };

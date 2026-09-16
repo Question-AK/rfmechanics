@@ -850,36 +850,9 @@ namespace rfmechanics
                                 thewBhv.BurnDebt, thewBhv.FrenzyDebt, thewBhv.BurnDebt + thewBhv.FrenzyDebt, cfg.DebtDrainPerHour)
                             : "(no thew behavior)";
 
-                        string resistStr = "(not orc)";
-                        if (isOrc)
-                        {
-                            var healthBhv = entity.GetBehavior<EntityBehaviorHealth>();
-                            if (healthBhv == null)
-                            {
-                                resistStr = "resist=? (no health behavior)";
-                            }
-                            else if (!cfg.EnableOrcWildAnimalResist)
-                            {
-                                resistStr = "resist=0.00 (disabled in config)";
-                            }
-                            else
-                            {
-                                float resist = OrcWildAnimalResistPatch.ComputeResist(healthBhv, cfg);
-                                if (resist <= 0f)
-                                {
-                                    resistStr = string.Format("resist=0.00 (below activation gap {0:F2})", cfg.OrcWildResistActivationHealthFracGap);
-                                }
-                                else if (cfg.OrcWildResistRequiresNoArmor && entity is EntityPlayer entityPlayer && OrcWildAnimalResistPatch.IsWearingArmor(entityPlayer))
-                                {
-                                    resistStr = string.Format("resist=0.00 (wearing armor, would be {0:F3})", resist);
-                                }
-                                else
-                                {
-                                    resistStr = string.Format("resist={0:F3}", resist);
-                                }
-                            }
-                        }
-
+                        string resistStr = isOrc && entity is EntityPlayer bracePlayer
+                            ? entity.Api.ModLoader.GetModSystem<OrcBracingModSystem>().Describe(bracePlayer)
+                            : "(not orc)";
                         string msg = string.Format(
                             "thew={0:F4} orc={1} charClass={2} extraTraits=[{3}] satFrac={4:F3} zone={5} (gainGate {6:F2} lowSatietyThreshold {7:F2}) protein={8:F1} dairy={9:F1} proteinGated={10} (threshold {11:F1}, Protein OR Dairy) lastFoodCategory={12} foodTypeBlocksGain={13} gaining={14} {15} {16} {17} {18} {19}",
                             thew, isOrc, charClass ?? "(null)", extraTraitsStr, satFrac, zone, cfg.ThewGainSatietyGate, cfg.ThewDecayLowSatietyThreshold, hunger.ProteinLevel, hunger.DairyLevel, proteinGated, cfg.ProteinGateLevel, lastFoodCat, foodTypeBlocksGain, gaining, debtStr, bandStr, burnStr, frenzyStr, resistStr);

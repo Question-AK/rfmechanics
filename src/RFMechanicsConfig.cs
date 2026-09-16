@@ -628,6 +628,24 @@ public class RFMechanicsConfig
     /// only has to learn "armor turns this off."</summary>
     public bool OrcWildResistRequiresNoArmor { get; set; } = true;
 
+    // The five OrcWildResist settings above are retained only for config compatibility.
+    // Their old health-dependent/animal-only patch is retired; none affects this prototype.
+    public bool EnableOrcNaturalProtection { get; set; } = true;
+    public bool EnableOrcBracing { get; set; } = true;
+    /// <summary>Total horizontal arc, centred on server facing. Sanitized to 20..180 degrees.</summary>
+    public double OrcBraceFrontalArcDegrees { get; set; } = 120;
+    /// <summary>Literal satiety points per real simulation second, additional to ordinary hunger.</summary>
+    public double OrcBraceInitialSatietyPerSecond { get; set; } = 1;
+    public double OrcBraceMaxSatietyPerSecond { get; set; } = 5;
+    /// <summary>Seconds from fully recovered to capped drain under uninterrupted bracing.</summary>
+    public double OrcBraceRampSeconds { get; set; } = 30;
+    /// <summary>Seconds to settle full exertion after release. Reactivation keeps what remains.</summary>
+    public double OrcBraceRecoverySeconds { get; set; } = 60;
+    /// <summary>Release floor as a fraction of actual MaxSaturation; bracing never debits below it.</summary>
+    public double OrcBraceLowFoodFraction { get; set; } = 0.30;
+    /// <summary>Extra food fraction required to start again (32% total by default).</summary>
+    public double OrcBraceRestartFoodMargin { get; set; } = 0.02;
+
     // â”€â”€ Darkvision (Goblin) â”€â”€
 
     /// <summary>Master toggle for the Goblin darkvision effect. Client-side only feature (no
