@@ -21,7 +21,7 @@ internal sealed class OrcBraceHud : HudElement
     {
         if (label == null)
         {
-            var bounds = ElementBounds.Fixed(EnumDialogArea.CenterMiddle, -350, -170, 700, 40);
+            var bounds = ElementBounds.Fixed(EnumDialogArea.CenterMiddle, 0, -170, 700, 40);
             var font = CairoFont.WhiteMediumText().WithFont(GuiStyle.DecorativeFontName)
                 .WithColor(GuiStyle.DiscoveryTextColor).WithStroke(GuiStyle.DialogBorderColor, 2)
                 .WithOrientation(EnumTextOrientation.Center);

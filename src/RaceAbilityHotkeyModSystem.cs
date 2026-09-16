@@ -43,7 +43,10 @@ namespace rfmechanics
         {
             base.StartClientSide(api);
             api.Input.RegisterHotKey("rfraceability", "Race Ability", GlKeys.R, HotkeyType.CharacterControls);
-            api.Input.SetHotKeyHandler("rfraceability", _ => Dispatch(api));
+            // Forward releases only to Orc's repeat latch. Other race abilities keep
+            // their original press-only dispatch, including after mouse rebindings.
+            api.Input.HotKeys["rfraceability"].TriggerOnUpAlso = true;
+            api.Input.SetHotKeyHandler("rfraceability", key => Dispatch(api, key));
 
             // New code, not the retired "rfelfstepheighttoggle" that held Ctrl+H before M1 --
             // see the orphaned-rebind warning above.
@@ -55,8 +58,13 @@ namespace rfmechanics
         /// RaceTraits.HasTrait call -- a race with no ability, including Human, falls through to
         /// the dictionary miss below and returns false so other mods bound to the same key still see the
         /// press.</summary>
-        private static bool Dispatch(ICoreClientAPI api)
+        private static bool Dispatch(ICoreClientAPI api, KeyCombination key)
         {
+            if (key.OnKeyUp)
+            {
+                api.ModLoader.GetModSystem<OrcBracingModSystem>().ReleaseKey(key.KeyCode);
+                return false;
+            }
             IPlayer? player = api.World.Player;
             PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
 

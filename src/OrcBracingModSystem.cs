@@ -6,6 +6,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
+using Vintagestory.Client.NoObf;
 
 namespace rfmechanics;
 
@@ -42,6 +43,7 @@ public sealed class OrcBracingModSystem : ModSystem
     private RFMechanicsConfig cfg = new();
     private OrcBraceTuning tuning = new();
     private long tick;
+    private long inputTick;
     private int heldKey = -1;
     private long nextClientHint;
     private OrcBraceHud? hud;
@@ -56,14 +58,16 @@ public sealed class OrcBracingModSystem : ModSystem
         api.Event.KeyUp += KeyUp;
         api.Event.MouseUp += MouseUp;
         api.Event.LeaveWorld += ClearClient;
+        inputTick = api.Event.RegisterGameTickListener(PollRelease, 50);
     }
 
     internal bool TryToggle()
     {
         var self = capi?.World.Player?.Entity;
         if (self?.Alive != true) return false;
-        if (heldKey >= 0) return true; // OS repeat cannot turn a held key into many taps.
         if (!capi!.Input.HotKeys.TryGetValue("rfraceability", out var hotkey)) return false;
+        if (heldKey >= 0 && heldKey != hotkey.CurrentMapping.KeyCode) heldKey = -1;
+        if (heldKey >= 0) return true; // OS repeat cannot turn a held key into many taps.
         heldKey = hotkey.CurrentMapping.KeyCode;
         capi.Network.GetChannel(Channel).SendPacket(new OrcBraceRequest { EntityId = self.EntityId });
         return true;
@@ -71,6 +75,20 @@ public sealed class OrcBracingModSystem : ModSystem
 
     private void KeyUp(KeyEvent e) { if (e.KeyCode == heldKey) heldKey = -1; }
     private void MouseUp(MouseEvent e) { if (heldKey == KeyCombination.MouseStart + (int)e.Button) heldKey = -1; }
+    internal void ReleaseKey(int key) { if (key == heldKey) heldKey = -1; }
+    private void PollRelease(float dt)
+    {
+        if (capi == null || heldKey < 0) return;
+        if (capi.World.Player?.Entity?.Alive != true
+            || (capi.World is ClientMain client && !client.Platform.IsFocused)
+            || !capi.Input.HotKeys.TryGetValue("rfraceability", out var binding)
+            || binding.CurrentMapping.KeyCode != heldKey)
+        { heldKey = -1; return; }
+        // Mouse4/5 do not necessarily emit logical MouseUp. Raw mouse dispatch writes
+        // KeyboardKeyState[240+button], whereas keyboard releases use the Raw array.
+        var keys = heldKey >= KeyCombination.MouseStart ? capi.Input.KeyboardKeyState : capi.Input.KeyboardKeyStateRaw;
+        if (heldKey >= keys.Length || !keys[heldKey]) heldKey = -1;
+    }
     private void ClearClient() { heldKey = -1; nextClientHint = 0; hud?.Dispose(); hud = null; }
     private void Notice(OrcBraceNotice notice)
     {
@@ -277,6 +295,7 @@ public sealed class OrcBracingModSystem : ModSystem
         if (capi != null)
         {
             capi.Event.KeyUp -= KeyUp; capi.Event.MouseUp -= MouseUp; capi.Event.LeaveWorld -= ClearClient;
+            capi.Event.UnregisterGameTickListener(inputTick);
             ClearClient();
         }
         base.Dispose();
