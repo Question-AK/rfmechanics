@@ -98,7 +98,8 @@ public sealed class OrcSmellModSystem : ModSystem
             failed = true; Clear(); capi.Logger.Error("[rfmechanics] Orc hunting scent disabled: {0}", e);
         }
     }
-    private static bool Eligible(Entity e, EntityPlayer self) => e != self && e.Alive && e.Pos.Dimension == self.Pos.Dimension
+    private static bool Eligible(Entity e, EntityPlayer self) => e != self && e.Alive
+        && ReferenceEquals(self.World.GetEntityById(e.EntityId), e) && e.Pos.Dimension == self.Pos.Dimension
         && (e is EntityPlayer || OrcSmellClassifier.IsSmellableFauna(e));
     private static bool InRange(Entity e, EntityPlayer self, double range)
     {

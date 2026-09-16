@@ -112,7 +112,9 @@ public sealed class OrcHuntModSystem : ModSystem
     private bool Valid(Entity target, EntityPlayer self)
     {
         double range = Math.Clamp(cfg.OrcBloodRange, 4, 64);
-        return target != self && target.Alive && target.Pos.Dimension == self.Pos.Dimension
+        return target != self && target.Alive
+            && sapi!.World.LoadedEntities.TryGetValue(target.EntityId, out var loaded) && ReferenceEquals(loaded, target)
+            && target.Pos.Dimension == self.Pos.Dimension
             && (!cfg.OrcTargetSwimmingBreaksBlood || !target.Swimming)
             && target.Pos.SquareDistanceTo(self.Pos) <= range * range
             && (target is EntityPlayer || OrcSmellClassifier.IsSmellableFauna(target))
