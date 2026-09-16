@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0 - 2026-09-17
+
+- All races can step up one block; Elves can step up two.
+- Improved Elf tree climbing and Goblin wall climbing around corners; added Goblin Clamber stance and dry-earth climbing.
+- Added Elf Watchfulness with subtle movement cues and brief silhouettes during focused observation.
+- Improved Orc scent focus and tracking, including blood pursuit with supported bleeding mods.
+- Orcs gain passive Tier 2 thick skin regardless of equipment; refined Frenzy and Thew expenditure feedback.
+- Added subtle racial feedback messages. Race Ability now defaults to R; existing key bindings are preserved.
+
+For Vintage Story 1.22.6. Cumulative from the locally tested 0.1.3-orcskin.2 build;
+armor interaction and broader multiplayer checks remain incomplete.
+Earlier entries below preserve development history, including superseded trials.
+
 ## 0.1.3-orcskin.2 - Thick skin regardless of equipment
 
 - Removes the chest armor, shirt and coat gate: all Orcs receive passive Tier 2 skin.

@@ -1,10 +1,13 @@
 # RF Mechanics
 
-Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
+RF Mechanics **1.1.0** for Vintage Story **1.22.6**.
 
-Local thick-skin prototype **0.1.3-orcskin.2**, cumulative on delivered feedback.1,
-accepted Orc smell .2, Watchfulness .9 and dev.11 movement. Local testing candidate;
-not installed or published. Miles evaluates it in VS - Diet Test after installation.
+Packages the cumulative locally tested 0.1.3-orcskin.2 gameplay source, including
+racial feedback, Orc thick skin and scent, Elf Watchfulness, and climbing/stepping
+improvements. See CHANGELOG.md for changes since 1.0.0. Armor interaction and
+broader multiplayer checks remain incomplete; this package adds no gameplay changes
+to that development build. The detailed design and testing notes below retain
+their original prototype context.
 
 Brief racial messages use one noninteractive fading line, distinct race colors and
 built-in fonts. Goblin rot consumption/repair and Clamber, Elf Watchfulness/woodland
