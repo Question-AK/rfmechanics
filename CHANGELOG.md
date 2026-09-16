@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.3-orcbrace.1 - Orc combat prototype, unpublished and not installed
+
+- Replaces health-dependent wild-animal resistance with Tier 1 natural skin, and
+  Tier 3 frontal protection while braced, using vanilla jerkin/iron-lamellar profiles.
+- Adds server-owned Race Ability toggle, escalating satiety cost, gradual exertion
+  recovery, low-food release and restart hysteresis. Supports saved mouse/key rebindings.
+- Keeps attacks and movement available, validates direction per hit, and clears
+  active state on lifecycle/identity changes. Equipment calculation precedes skin.
+- Adds a single discovery-style feedback line and read-only `/rfbrace` diagnostics.
+- Preserves accepted smell stance, Watchfulness, movement, Thew, Burn and Frenzy.
+- Includes offline checks of production protection, direction and food rules.
+
 ## 0.1.3-orchunt.2 ? automatic smell stance, unpublished local trial
 
 - Removes Orc held Race Ability sniffing and its hotbar input blocker; reserves R

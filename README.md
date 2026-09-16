@@ -2,13 +2,55 @@
 
 Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
 
-Local Orc smell trial **0.1.3-orchunt.2**, cumulative on orchunt.1/Watchfulness .9.
+Local combat prototype **0.1.3-orcbrace.1**, cumulative on accepted Orc smell .2,
+Watchfulness .9 and dev.11 movement. Prepared locally; not installed or published.
+
+Tap the saved **Race Ability** binding (default R) as an Orc to brace; tap again to
+release. Walking, attacks and sprinting remain available. Natural skin uses vanilla
+leather jerkin's Tier 1 profile from every direction. While braced, hits within a
+120-degree horizontal frontal arc use iron lamellar's Tier 3 profile instead.
+These are complete vanilla armor profiles, including weapon-tier losses, not damage
+division by tier. Natural protection cannot increase damage at extreme weapon tiers.
+Interim armor rule: normal shield/armor calculation and wear happen first, followed
+by exactly one natural-protection calculation. Equipped armor never prevents activation.
+This additional protection can make armored Orcs very tough; armor balancing is deferred.
+The former low-health wild-animal resistance is retired, including its no-armor gate.
+Legacy OrcWildResist config values remain readable but have no effect.
+
+Bracing directly debits 1 satiety point/second initially, rising linearly to 5 after
+30 seconds. Extra cost from rested: 10s = 16.67, 20s = 46.67, 30s = 90, 60s = 240
+points, plus ordinary hunger. Releasing stops debit; full exertion takes 60 seconds
+to settle. Early reactivation retains the remaining exertion and cost. Forced release
+at 30% of actual food capacity; restarting requires 32%. No new Thew/debt or hit cost.
+New settings: EnableOrcNaturalProtection, EnableOrcBracing,
+OrcBraceFrontalArcDegrees, OrcBraceInitialSatietyPerSecond,
+OrcBraceMaxSatietyPerSecond, OrcBraceRampSeconds, OrcBraceRecoverySeconds,
+OrcBraceLowFoodFraction, OrcBraceRestartFoodMargin. Change server config and relaunch
+normally to reload. Existing player config has not been changed by preparation.
+
+Protection covers entity/player/unknown-source blunt, piercing and slashing attacks.
+Unknown or missing-entity attacks get T1 only. Projectiles use incoming motion;
+missing/stopped/vertical motion has no frontal benefit. Environmental sources,
+internal/bleeding damage and other damage types bypass skin. Vanilla physical DoT
+ticks recreated without a source entity get T1 only. Mods that bypass vanilla health
+delegates or mislabel attacks require separate compatibility testing.
+
+Feedback uses one replaceable, fading discovery-style line, with no permanent meter
+or message queue. Active state and exertion are session-only and reset on death,
+disconnect, class/trait change or world exit. Ordinary satiety changes persist through
+the game's existing hunger storage. `/rfbrace` reads server state and the most recent
+natural-protection calculation; `/rfthew dump` includes that report.
+Run `./Verify-OrcBracing.ps1` for offline production-rule checks, and
+`./Build.ps1 -Configuration Release -ReleaseCandidate` for the existing mod package.
+Neither command launches or installs the game. Gameplay remains a player check.
+
+Retained Orc smell **0.1.3-orchunt.2** behavior:
 Orc Ctrl+H (saved stance rebind retained) enables all scent visuals. The first whiff
 arrives on the next 50 ms sample. Moving/sprinting gives occasional whiffs; stopping
 or sitting automatically builds concentration in four seconds, extending base range
 from 20 to 64 blocks. Body size scales range 0.7-1.2, capped at 64. Sneaking/slow
-movement below 1.5 blocks/s can build partial focus. No Race Ability input is used:
-R is reserved for a separate bracing task, not implemented by this package.
+movement below 1.5 blocks/s can build partial focus. Smell uses no Race Ability input;
+the independent bracing toggle now owns Orc Race Ability.
 
 Standing/sitting also fades the surrounding world over six seconds, to maximum 0.90
 ambient weight. Scent shaders keep their own color/alpha so they remain readable.
