@@ -643,7 +643,7 @@ public class RFMechanicsConfig
     // Their old health-dependent/animal-only patch is retired; none affects this prototype.
     public bool EnableOrcNaturalProtection { get; set; } = true;
     // Legacy bracing keys below are inert and retained only to preserve old config.
-    // Orc now has passive T2 only with shirt, coat and chest-armor slots empty.
+    // Orc now has passive T2 regardless of clothing or armor.
     public bool EnableOrcBracing { get; set; } = true;
     /// <summary>Total horizontal arc, centred on server facing. Sanitized to 20..180 degrees.</summary>
     public double OrcBraceFrontalArcDegrees { get; set; } = 120;
