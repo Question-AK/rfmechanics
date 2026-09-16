@@ -852,8 +852,8 @@ namespace rfmechanics
                                 thewBhv.BurnDebt, thewBhv.FrenzyDebt, thewBhv.BurnDebt + thewBhv.FrenzyDebt, cfg.DebtDrainPerHour)
                             : "(no thew behavior)";
 
-                        string resistStr = isOrc && entity is EntityPlayer bracePlayer
-                            ? entity.Api.ModLoader.GetModSystem<OrcBracingModSystem>().Describe(bracePlayer)
+                        string resistStr = isOrc && entity is EntityPlayer skinPlayer
+                            ? entity.Api.ModLoader.GetModSystem<OrcSkinModSystem>().Describe(skinPlayer)
                             : "(not orc)";
                         string msg = string.Format(
                             "thew={0:F4} orc={1} charClass={2} extraTraits=[{3}] satFrac={4:F3} zone={5} (gainGate {6:F2} lowSatietyThreshold {7:F2}) protein={8:F1} dairy={9:F1} proteinGated={10} (threshold {11:F1}, Protein OR Dairy) lastFoodCategory={12} foodTypeBlocksGain={13} gaining={14} {15} {16} {17} {18} {19}",

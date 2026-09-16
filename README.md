@@ -2,8 +2,8 @@
 
 Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
 
-Local feedback prototype **0.1.3-feedback.1**, cumulative on delivered orcbrace.1,
-accepted Orc smell .2, Watchfulness .9 and dev.11 movement. Build preparation only;
+Local bare-torso prototype **0.1.3-orcskin.1**, cumulative on delivered feedback.1,
+accepted Orc smell .2, Watchfulness .9 and dev.11 movement. Local testing candidate;
 not installed or published. Miles evaluates it in VS - Diet Test after installation.
 
 Brief racial messages use one noninteractive fading line, distinct race colors and
@@ -12,8 +12,7 @@ movement, Dwarf mining-depth milestones, and Orc scent/Burn/Frenzy use confirmed
 outcomes and restrained transitions. No panel or counter. Oresong is unchanged.
 Messages are localized in assets/rfmechanics/lang/en.json. EnableRacialFeedback
 controls these new lines. Rapid stance changes replace the previous line, with no
-historical queue. Passive messages yield to deliberate actions. Blood pursuit and
-bracing also share the line so simultaneous Orc messages cannot overlap.
+historical queue. Passive messages yield to deliberate actions. Blood pursuit shares the line so simultaneous Orc messages cannot overlap.
 
 Dwarf lines follow the depth fraction already used by the mining curve, relative to
 sea level (not the local surface): 25%, 50%, 75%. They require breaking stone/ore,
@@ -57,9 +56,7 @@ teleports are excluded. Teleport version changes reject even short same-dimensio
 teleports between samples; push/knockback observations provide a 1.5-second grace. This conservative rule may undercount obstacle-rich movement;
 unrecognised external mod pushes concurrent with aligned input remain a limitation.
 
-Pursuit retains its configured 35% Frenzy/pursuit combined cap. Bracing still cuts off
-its debit at 30% food, above the 25% extra-debt threshold; its 30% Frenzy bonus is now
-6.32%. No protection, Burn cost, band, food restriction or bracing economy redesign.
+Pursuit retains its configured 35% Frenzy/pursuit combined cap.
 Current local BurnThewPerHp=0.03 was inspected but not edited and can dominate costs.
 /rfthew dump additionally reports measured exertion, actual Frenzy debt rate and
 net Thew loss rate. Read-only diagnostics do not replace player observation.
@@ -71,44 +68,29 @@ no screen shader, color grading or psychedelic behavior is added here. Broader T
 food-category, maintenance, starvation, Burn-borrowing and band-balance proposals
 remain pending and are not part of this prototype.
 
-Tap the saved **Race Ability** binding (default R) as an Orc to brace; tap again to
-release. Walking, attacks and sprinting remain available. Natural skin uses vanilla
-leather jerkin's Tier 1 profile from every direction. While braced, hits within a
-120-degree horizontal frontal arc use iron lamellar's Tier 3 profile instead.
-These are complete vanilla armor profiles, including weapon-tier losses, not damage
-division by tier. Natural protection cannot increase damage at extreme weapon tiers.
-Interim armor rule: normal shield/armor calculation and wear happen first, followed
-by exactly one natural-protection calculation. Equipped armor never prevents activation.
-This additional protection can make armored Orcs very tough; armor balancing is deferred.
-The former low-health wild-animal resistance is retired, including its no-armor gate.
-Legacy OrcWildResist config values remain readable but have no effect.
+Orc natural skin uses the complete vanilla tin-bronze lamellar Tier 2 profile,
+from every direction, only with no chest armor, shirt or coat. Head/leg equipment
+is allowed. Every hit checks the actual ArmorBody, UpperBody and UpperBodyOver
+slots; any item blocks skin, including broken or cosmetic items. Normal equipment
+and shields resolve first, then one natural layer. Standard 8 HP tier-2 wolf damage
+becomes approximately 2.094 HP when bare, before other mitigation. Tier is not a
+percentage: .6 flat, .77 relative with vanilla weapon-tier losses apply.
 
-Bracing directly debits 1 satiety point/second initially, rising linearly to 5 after
-30 seconds. Extra cost from rested: 10s = 16.67, 20s = 46.67, 30s = 90, 60s = 240
-points, plus ordinary hunger. Releasing stops debit; full exertion takes 60 seconds
-to settle. Early reactivation retains the remaining exertion and cost. Forced release
-at 30% of actual food capacity; restarting requires 32%. No new Thew/debt or hit cost.
-New settings: EnableOrcNaturalProtection, EnableOrcBracing,
-OrcBraceFrontalArcDegrees, OrcBraceInitialSatietyPerSecond,
-OrcBraceMaxSatietyPerSecond, OrcBraceRampSeconds, OrcBraceRecoverySeconds,
-OrcBraceLowFoodFraction, OrcBraceRestartFoodMargin. Change server config and relaunch
-normally to reload. Existing player config has not been changed by preparation.
+Entity/player/unknown-source blunt, piercing and slashing attacks qualify; other
+damage types, environmental sources and duration-bearing damage bypass protection.
+Source-less physical ticks that vanilla recreates without duration also qualify.
+Mods bypassing vanilla health delegates require separate compatibility testing.
 
-Protection covers entity/player/unknown-source blunt, piercing and slashing attacks.
-Unknown or missing-entity attacks get T1 only. Projectiles use incoming motion;
-missing/stopped/vertical motion has no frontal benefit. Environmental sources,
-internal/bleeding damage and other damage types bypass skin. Vanilla physical DoT
-ticks recreated without a source entity get T1 only. Mods that bypass vanilla health
-delegates or mislabel attacks require separate compatibility testing.
+Orc bracing, its Race Ability binding, food drain, recovery, HUD and announcements
+are retired. Prior prototype history is preserved for future Dwarf consideration,
+not enabled for Dwarves. Legacy bracing settings remain readable but inert.
+EnableOrcNaturalProtection still controls skin. No player-config migration is needed.
+The old health-dependent wild-animal protection remains retired.
 
-Feedback uses one replaceable, fading discovery-style line, with no permanent meter
-or message queue. Active state and exertion are session-only and reset on death,
-disconnect, class/trait change or world exit. Ordinary satiety changes persist through
-the game's existing hunger storage. `/rfbrace` reads server state and the most recent
-natural-protection calculation; `/rfthew dump` includes that report.
-Run `./Verify-OrcBracing.ps1` for offline production-rule checks, and
-`./Build.ps1 -Configuration Release -ReleaseCandidate` for the existing mod package.
-Neither command launches or installs the game. Gameplay remains a player check.
+Use `/rfskin` for a short current-state and last-hit report; `/rfthew dump` includes it.
+Run `./Verify-OrcSkin.ps1`, `./Verify-RacialFeedback.ps1` and the existing
+`./Build.ps1 -Configuration Release -ReleaseCandidate` package workflow.
+Gameplay acceptance remains a player check.
 
 Retained Orc smell **0.1.3-orchunt.2** behavior:
 Orc Ctrl+H (saved stance rebind retained) enables all scent visuals. The first whiff
@@ -116,7 +98,7 @@ arrives on the next 50 ms sample. Moving/sprinting gives occasional whiffs; stop
 or sitting automatically builds concentration in four seconds, extending base range
 from 20 to 64 blocks. Body size scales range 0.7-1.2, capped at 64. Sneaking/slow
 movement below 1.5 blocks/s can build partial focus. Smell uses no Race Ability input;
-the independent bracing toggle now owns Orc Race Ability.
+Orc Race Ability is currently unassigned.
 
 Standing/sitting also fades the surrounding world over six seconds, to maximum 0.90
 ambient weight. Scent shaders keep their own color/alpha so they remain readable.
@@ -166,7 +148,7 @@ arms a real focused-target glimpse with observation time and look-away gate skip
 within ten seconds; hold racial zoom for the glimpse. Previews are not normal
 detection validation. Commands write bounded rendering traces to the client log.
 Disable with Ctrl+H, or `EnableElfWatchfulness=false` in existing config and relaunch.
-Default radius 40, movement cooldown independently 5–15 seconds per target,
+Default radius 40, movement cooldown independently 5â€“15 seconds per target,
 `WatchfulnessObservationSeconds=2`. Visual acceptance and performance are unverified.
 
 **Summary:** Race-specific abilities and survival mechanics, from elven climbing and dwarven Ore-Song to Orc Thew and goblin scavenging.
@@ -181,9 +163,9 @@ That includes generating and explaining code, researching implementation options
 
 RF Mechanics is the gameplay companion to Race Framework. It gives races different ways to explore, gather and survive.
 
-- **Every race, including humans:** step up a full block without jumping — two for elves. Low ceilings and openings too small to fit through still stop you.
+- **Every race, including humans:** step up a full block without jumping â€” two for elves. Low ceilings and openings too small to fit through still stop you.
 - **Dwarves:** mining bonuses that vary with depth, plus **Ore-Song**. Sit beside stone or ore, empty your main hand, and press Race Ability (default R) while aiming at a wall within two blocks. Settle, knock, and listen for distant mineral voices with broad directional cues. Standing or moving ends the listen. Placed ore sings too.
-- **Elves:** step up two blocks rather than one — always on, with no stance to hold or key to press, and the same ceiling and clearance limits as everyone else. They also move through branchy leaves, climb log-grown trees, gain tree-proximity movement, reduced fall damage, leaf gathering, zoom, and 15% lower hunger. Climbing follows the way you are moving and carries you around the outside edge of a trunk rather than dropping you. Chiseled-log climbing is an open diagnostic investigation, not a proven shipped fix.
+- **Elves:** step up two blocks rather than one â€” always on, with no stance to hold or key to press, and the same ceiling and clearance limits as everyone else. They also move through branchy leaves, climb log-grown trees, gain tree-proximity movement, reduced fall damage, leaf gathering, zoom, and 15% lower hunger. Climbing follows the way you are moving and carries you around the outside edge of a trunk rather than dropping you. Chiseled-log climbing is an open diagnostic investigation, not a proven shipped fix.
 - **Orcs:** maintain **Thew** through feeding, with changing body size and physical capabilities. Frenzy offers a burst of speed with recovery costs. Hold scent to locate creatures: walking retains a weaker partial sense, while standing still builds full quality.
 - **Goblins:** eat rot to build an aura that accelerates nearby food spoilage, earn spit charges for block repair, and show separate aura and charge fly systems. They tunnel, take less fall damage, and mine stone/Ore at 0.4x. Tree trunks climb freely; rock and dry earth (soil, packed dirt, bony soil, cob, forest floor) need the Clamber stance on Ctrl+H, which starts off and stays as you leave it. Darkvision is optional and disabled by default.
 
@@ -195,7 +177,7 @@ For the standard setup, install Race Framework and its dependencies, then RF Mec
 
 Diet Setup is an optional companion for race-specific food rules.
 
-### Existing worlds — untested
+### Existing worlds â€” untested
 
 I have not tested adding this mod to an existing world. No new-world requirement is currently known, but compatibility is not guaranteed.
 
@@ -222,7 +204,7 @@ Original work is MIT-licensed. Forks, modifications and contributions are welcom
 
 Thanks to **Fuami's Spyglass** for the FOV implementation reference, **123Gurkensalat's Scaffolding** for climbing/collision research, **Algorytmiczny's More Bugs** for rot-fly inspiration, and **Xandu and El_Neuman's xSkills work** for mechanics references. Thanks also to **Anego Studios** for Vintage Story and its modding tools. Detailed attribution is included with the mod.
 
-[Source code](https://github.com/Miles-Johnson/rfmechanics) · [Report a problem](https://github.com/Miles-Johnson/rfmechanics/issues)
+[Source code](https://github.com/Miles-Johnson/rfmechanics) Â· [Report a problem](https://github.com/Miles-Johnson/rfmechanics/issues)
 
 
 ## Build and contribute

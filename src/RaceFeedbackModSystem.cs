@@ -137,7 +137,7 @@ public sealed class RaceFeedbackModSystem : ModSystem
         bool transition = spec.Priority == 3;
         if (!transition && shown.TryGetValue(key, out long at) && now - at < spec.Cooldown * 1000) return false;
         if (now - lastShow < 3600 && !(transition || spec.Priority > lastPriority)) return false;
-        // A reply with the same transition is redundant; bracing already has its own throttle.
+        // A reply with the same transition is redundant.
         if (transition && lastGroup == key && now - lastShow < 1000) return false;
         string langKey = key.StartsWith("clamber-") ? "rfmechanics:" + key : "rfmechanics:feedback-" + key;
         hud ??= new RaceFeedbackHud(capi);
@@ -153,10 +153,10 @@ public sealed class RaceFeedbackModSystem : ModSystem
         "watch-discovered" => (PlayerRace.Elf, 1, 0),
         "woodland" => (PlayerRace.Elf, 1, 120),
         "depth-1" or "depth-2" or "depth-3" => (PlayerRace.Dwarf, 1, 120),
-        "smell-on" or "smell-off" or "brace" or "release" or "brace-hungry" or "brace-disabled" => (PlayerRace.Orc, 3, 0),
+        "smell-on" or "smell-off" => (PlayerRace.Orc, 3, 0),
         "smell-focused" => (PlayerRace.Orc, 1, 0),
         "blood" => (PlayerRace.Orc, 2, 15),
-        "burn" or "frenzy-on" or "frenzy-off" or "brace-recovered" => (PlayerRace.Orc, 1, 60),
+        "burn" or "frenzy-on" or "frenzy-off" => (PlayerRace.Orc, 1, 60),
         _ => (PlayerRace.None, 0, 0)
     };
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.3-orcskin.1 - Bare-torso protection, unpublished local trial
+
+- Replaces Orc bracing with passive vanilla Tier 2 tin-bronze lamellar protection.
+- Requires empty chest armor, shirt and coat slots, checked on each physical hit.
+- Removes bracing input, drain, recovery, HUD and announcement lines; preserves
+  its historical prototype for future Dwarf design, with no Dwarf implementation.
+- Adds short `/rfskin` diagnostics without chat-markup arrows.
+- Retains feedback/Thew/Frenzy, smell, Watchfulness and movement from feedback.1.
+- Adds production rules, slot eligibility and regression-preservation checks.
+
+
 ## 0.1.3-feedback.1 - Racial feedback and Thew/Frenzy prototype, not installed
 
 - Adds localized, race-themed ephemeral feedback with no historical queue.
@@ -45,7 +56,7 @@
 - Bounds spatial scans and live wisps; restores incoming renderer state.
 - No game/server launch, save migration, profile expansion or publication.
 
-## 0.1.3-watchfulness.9 — local discovery pacing trial, unpublished
+## 0.1.3-watchfulness.9 â€” local discovery pacing trial, unpublished
 
 - Sets focused silhouette peak opacity to 30% and extends natural fade-out from
   0.15 to 0.45 seconds, with smooth easing; quick onset and peak hold are retained.
@@ -54,12 +65,12 @@
   outside the wider focus area and a fresh observation period before reappearing.
 - Explicit glimpse preview bypasses observation and the look-away gate once.
 
-## 0.1.3-watchfulness.8 — local opacity trial, unpublished
+## 0.1.3-watchfulness.8 â€” local opacity trial, unpublished
 
 - Lowers focused glimpse peak opacity from 80% to 65% at Miles's request.
 - Player retest pending; all other Watchfulness behavior remains as in revision 7.
 
-## 0.1.3-watchfulness.7 — local awareness/discovery prototype, unpublished
+## 0.1.3-watchfulness.7 â€” local awareness/discovery prototype, unpublished
 
 - Replaces the tiny awareness dot with a wider, feathered pale wisp and minimum
   projected width; preserves independent movement triggers outside racial zoom.
@@ -73,7 +84,7 @@
 - Adds labelled previews and bounded emission/retirement/submission/projection traces.
 - Build verification is separate from pending player acceptance. No remote deployment.
 
-## 0.1.3-dev.11 — combined local test, unpublished
+## 0.1.3-dev.11 â€” combined local test, unpublished
 
 - Integrates elf two-block stepping and the default-R racial hotkey with the existing
   elf/goblin corner traversal and persistent goblin Clamber stance.
@@ -83,7 +94,7 @@
 - The dev.9/dev.10 entries below describe source increments, not separately deployed packages.
 - Local player acceptance remains pending. No server deployment or public release.
 
-## 0.1.3-dev.10 — race ability hotkey default, unpublished
+## 0.1.3-dev.10 â€” race ability hotkey default, unpublished
 
 - The Race Ability hotkey now defaults to **R**. It defaulted to C, which vanilla already binds to
   the character inventory, so on a fresh install the press opened that dialog and never reached
@@ -95,7 +106,7 @@
 - Ctrl+H Clamber is unchanged, and no retired hotkey identifier was revived.
 - Local build only; in-game acceptance pending.
 
-## 0.1.3-dev.9 — elf two-block stepping, unpublished
+## 0.1.3-dev.9 â€” elf two-block stepping, unpublished
 
 - Elves step up two blocks instead of one. It is automatic and stance-independent: no new toggle,
   no hotkey, and nothing to hold. Every other race, humans included, keeps one-block stepping.
@@ -109,7 +120,7 @@
   `ElfStepHeightOverride`, where it was always meant to apply, instead of onto everyone.
 - Local build only; in-game acceptance pending.
 
-## 0.1.3-dev.8 — elf trunk corner traversal, unpublished
+## 0.1.3-dev.8 â€” elf trunk corner traversal, unpublished
 
 - Elves climbing a tree now wrap around the outside edge of the trunk instead of dropping when
   the gripped column goes diagonal, the same way goblins wrap a building corner.
@@ -124,7 +135,7 @@
   is intended.
 - Local build only; in-game acceptance pending.
 
-## 0.1.3-dev.7 — goblin outside-corner traversal, unpublished
+## 0.1.3-dev.7 â€” goblin outside-corner traversal, unpublished
 
 - Climb around outside (convex) building corners instead of dropping off them. When the wall a
   goblin is holding runs out, gravity stays suspended briefly while a second scan looks at the
@@ -132,13 +143,13 @@
 - Pick the climbing face by preference rather than by scan order: the face already held wins,
   then the one best matching the direction of travel. Inside corners no longer snap the goblin
   to the north face regardless of which way it is going.
-- The window suspends gravity only — it never holds a face whose block has gone — and is cleared
+- The window suspends gravity only â€” it never holds a face whose block has gone â€” and is cleared
   on landing, so stepping away from a wall still falls immediately.
 - Add `EnableGoblinCornerTraversal` and `GoblinCornerGraceTicks` (6 ticks, about 0.2s). Turning
   corner traversal off restores the previous scan exactly, north-first face pick included.
 - Accepted in game on a local client; not published.
 
-## 0.1.3-dev.4 — goblin Clamber stance and dry earth climbing, unpublished
+## 0.1.3-dev.4 â€” goblin Clamber stance and dry earth climbing, unpublished
 
 - Add the Clamber stance on Ctrl+H (goblins only): a sticky per-player mode that gates wall
   climbing. Off by default on a new character, and kept across rejoin and death until toggled
@@ -157,7 +168,7 @@
   the cobblestone family.
 - Local build only; in-game acceptance pending for the earth surfaces and the stance.
 
-## 0.1.3-dev.3 — universal one-block stepping, unpublished
+## 0.1.3-dev.3 â€” universal one-block stepping, unpublished
 
 - Step over a full block as any race, humans included; the elf-only gate and the per-player
   step-height toggle are gone. Vanilla clearance still blocks low ceilings and tight openings.
@@ -167,7 +178,7 @@
   `EnableStepHeight`/`StepHeightValue`; a one-time migration carries a customized value across.
 - Local build only; in-game acceptance pending.
 
-## 0.1.3-dev.1 — seated Ore-Song, unpublished
+## 0.1.3-dev.1 â€” seated Ore-Song, unpublished
 
 - Replace the instant dwarf scan with seated, empty-hand stone contact, a settling period,
   a knock, ten seconds of listening and three seconds of recovery.

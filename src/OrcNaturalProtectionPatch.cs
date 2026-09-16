@@ -15,6 +15,6 @@ public static class OrcNaturalProtectionPatch
     {
         if (__instance.entity is not EntityPlayer self || self.World.Side != EnumAppSide.Server
             || !self.Alive || !float.IsFinite(damage) || damage <= 0 || damageSource == null) return;
-        self.Api.ModLoader.GetModSystem<OrcBracingModSystem>()?.Protect(self, damageSource, ref damage);
+        self.Api.ModLoader.GetModSystem<OrcSkinModSystem>()?.Protect(self, damageSource, ref damage);
     }
 }

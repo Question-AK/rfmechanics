@@ -22,8 +22,8 @@ namespace rfmechanics
     /// "rfclamber" (Ctrl+H) is the shared stance key, retaining existing rebinds. It dispatches
     /// persistent goblin Clamber or session-only elf Watchfulness independently of held abilities.
     ///
-    /// The press handler covers dwarf/goblin/Orc. Elf zoom polls the saved Race Ability
-    /// binding independently. Orc smell is entirely stance-owned; Race Ability toggles bracing.
+    /// The press handler covers dwarf/goblin. Elf zoom polls the saved Race Ability
+    /// binding independently. Orc smell is stance-owned; Orc skin is passive.
     /// </summary>
     public class RaceAbilityHotkeyModSystem : ModSystem
     {
@@ -32,7 +32,6 @@ namespace rfmechanics
         // dictionary entry or a second hotkey.
         private static readonly Dictionary<PlayerRace, System.Func<ICoreClientAPI, bool>> PressAbilities = new()
         {
-            [PlayerRace.Orc] = api => api.ModLoader.GetModSystem<OrcBracingModSystem>().TryToggle(),
             [PlayerRace.Dwarf] = api => api.ModLoader.GetModSystem<DwarfOreSongModSystem>().TryTrigger(api),
             [PlayerRace.Goblin] = api => api.ModLoader.GetModSystem<RFMechanicsModSystem>().TryTriggerGoblinSpit(api),
         };
@@ -43,10 +42,7 @@ namespace rfmechanics
         {
             base.StartClientSide(api);
             api.Input.RegisterHotKey("rfraceability", "Race Ability", GlKeys.R, HotkeyType.CharacterControls);
-            // Forward releases only to Orc's repeat latch. Other race abilities keep
-            // their original press-only dispatch, including after mouse rebindings.
-            api.Input.HotKeys["rfraceability"].TriggerOnUpAlso = true;
-            api.Input.SetHotKeyHandler("rfraceability", key => Dispatch(api, key));
+            api.Input.SetHotKeyHandler("rfraceability", _ => Dispatch(api));
 
             // New code, not the retired "rfelfstepheighttoggle" that held Ctrl+H before M1 --
             // see the orphaned-rebind warning above.
@@ -58,13 +54,8 @@ namespace rfmechanics
         /// RaceTraits.HasTrait call -- a race with no ability, including Human, falls through to
         /// the dictionary miss below and returns false so other mods bound to the same key still see the
         /// press.</summary>
-        private static bool Dispatch(ICoreClientAPI api, KeyCombination key)
+        private static bool Dispatch(ICoreClientAPI api)
         {
-            if (key.OnKeyUp)
-            {
-                api.ModLoader.GetModSystem<OrcBracingModSystem>().ReleaseKey(key.KeyCode);
-                return false;
-            }
             IPlayer? player = api.World.Player;
             PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
 

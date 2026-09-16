@@ -56,6 +56,6 @@ foreach ($case in @(@(100,0),@(76,0),@(75,1),@(50,2),@(25,3),@(0,3))) {
 # Cumulative source invariants: these are not substitutes for in-game verification.
 $oresong = @(git diff 241faa8 -- src/DwarfOreSongClient.cs src/DwarfOreSongModSystem.cs src/DwarfOreSongShared.cs src/DwarfOreSongIndex.cs)
 Assert-True ($oresong.Count -eq 0) 'All Oresong source unchanged'
-$protection = @(git diff 241faa8 -- src/OrcBracingRules.cs src/OrcNaturalProtectionPatch.cs src/BandBehavior.cs src/ThewDebtRepayPatch.cs)
-Assert-True ($protection.Count -eq 0) 'Bracing protection/body/debt repayment calculations preserved'
+$body = @(git diff a613557 -- src/OrcMetabolismFeedbackRules.cs src/BandBehavior.cs src/ThewDebtRepayPatch.cs src/ThewBehavior.cs src/FrenzyBehavior.cs src/BurnBehavior.cs)
+Assert-True ($body.Count -eq 0) 'Feedback.1 body/debt calculations preserved; retired bracing covered by Verify-OrcSkin'
 Write-Output "PASS: $script:checks arithmetic and preservation checks. Rendering, networking and gameplay remain player checks."

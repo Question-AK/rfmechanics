@@ -30,11 +30,6 @@
   "feedback-burn": "Heat gathers beneath your wounds, knitting flesh.",
   "feedback-frenzy-on": "Hunger sharpens your stride.",
   "feedback-frenzy-off": "The hungry urgency subsides.",
-  "feedback-brace": "You brace yourself.",
-  "feedback-release": "You ease your guard.",
-  "feedback-brace-disabled": "Your body cannot brace just now.",
-  "feedback-brace-hungry": "Your empty belly leaves you too weak to brace.",
-  "feedback-brace-recovered": "The tension leaves your body.",
 
   "clamber-on": "You spread your claws. Walls are yours to take hold of.",
   "clamber-off": "You draw your claws in. Walls are just walls again.",
