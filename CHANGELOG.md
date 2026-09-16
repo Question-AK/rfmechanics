@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3-orchunt.1 ? local hunting prototype, unpublished
+
+- Retains Watchfulness revision 9 and accepted dev.11 movement.
+- Adds Orc stance whiffs, quick sniffing, slower walking concentration and automatic
+  recovery from deep-focus loss; removes the speed/ground-contact cancellation latch.
+- Adds small learned scent shapes, ordinary player scent and directional blood droplets.
+- Adds server-owned, real-bleeding-gated pursuit with direction, switching, grace,
+  decay, Frenzy stacking limit and a restrained discovery acknowledgement.
+- Connects BloodTrail 1.2.5 state and The Hunter 0.2.58 active bleeding effects.
+  Neither provider is installed in sparse Diet; pursuit stays inactive there.
+- Bounds spatial scans and live wisps; restores incoming renderer state.
+- No game/server launch, save migration, profile expansion or publication.
+
 ## 0.1.3-watchfulness.9 — local discovery pacing trial, unpublished
 
 - Sets focused silhouette peak opacity to 30% and extends natural fade-out from
