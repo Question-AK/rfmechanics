@@ -1,8 +1,10 @@
 # Current prototype: awareness and discovery, 2026-09-16
 
-Updated: 2026-09-16. Version 0.1.3-watchfulness.8. Player acceptance pending.
+Updated: 2026-09-16. Version 0.1.3-watchfulness.9. Player acceptance pending.
 
-Revision 8 changes only the glimpse's peak opacity from 80% to 65%, at Miles's request.
+Revision 9 sets glimpse peak opacity to 30%. The original 0.08-second onset and
+0.52-second plateau remain; natural fade-out is now 0.45 seconds (three times longer),
+with smooth easing, total duration 1.05 seconds. Attention-loss fade is 0.36 seconds.
 
 The README and current source describe revision 7. Earlier revision notes below
 are historical and do not define this candidate. The canonical task handoff is
@@ -13,8 +15,13 @@ Observation uses the central ellipse with NDC half-axes 0.48 / 0.55, or roughly
 48% of screen width and 55% of screen height. Existing glimpses tolerate 0.62 / 0.68.
 Default observation is two seconds (WatchfulnessObservationSeconds); unfocused
 progress decays at two seconds per second. Zoom release clears progress. Each
-glimpse lasts at most 0.75 seconds; looking away starts an irreversible 0.12-second
-fade. Another glimpse needs a fresh observation period. Limit: eight focused
+glimpse lasts at most 1.05 seconds; looking away starts an irreversible 0.36-second
+fade. A target cannot repeat while continuously attended: it must leave the wider
+attention ellipse for 0.3 seconds, then receive a fresh observation period. Brief
+gaze jitter, solid obstruction and zoom release/re-hold do not rearm it. Lifecycle
+clears (stance/race/world/death/teleport) and removal from the tracked candidate pool
+discard its session-only latch. The explicit glimpse preview bypasses this gate once.
+Limit: eight focused
 centre-ray checks per sample and two simultaneous glimpses.
 
 Actual opaque entity meshes, texture alpha and live animation matrices are borrowed

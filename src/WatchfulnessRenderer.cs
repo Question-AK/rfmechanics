@@ -21,6 +21,8 @@ internal sealed partial class WatchfulnessRenderer : IRenderer
         internal bool WasOnScreen;
         internal bool AwarenessEligible;
         internal double Observation;
+        internal bool NeedsLookAway;
+        internal double AwaySeconds;
     }
     private sealed class Cue
     {
@@ -224,6 +226,7 @@ internal sealed partial class WatchfulnessRenderer : IRenderer
             {
                 s.NextCue = now + api.World.Rand.NextDouble() * 1.2; s.WasOnScreen = false;
                 s.Observation = 0;
+                s.NeedsLookAway = false; s.AwaySeconds = 0;
                 glimpses.RemoveAll(g => ReferenceEquals(g.Source, s));
                 for (int c = cues.Count - 1; c >= 0; c--)
                     if (ReferenceEquals(cues[c].Source, s)) cues.RemoveAt(c);

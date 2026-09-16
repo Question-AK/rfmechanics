@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3-watchfulness.9 — local discovery pacing trial, unpublished
+
+- Sets focused silhouette peak opacity to 30% and extends natural fade-out from
+  0.15 to 0.45 seconds, with smooth easing; quick onset and peak hold are retained.
+- Extends attention-loss fade from 0.12 to 0.36 seconds. Terrain still blocks immediately.
+- Prevents repeated glimpses during continuous attention. Each target needs 0.3 seconds
+  outside the wider focus area and a fresh observation period before reappearing.
+- Explicit glimpse preview bypasses observation and the look-away gate once.
+
 ## 0.1.3-watchfulness.8 — local opacity trial, unpublished
 
 - Lowers focused glimpse peak opacity from 80% to 65% at Miles's request.

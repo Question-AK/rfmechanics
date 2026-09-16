@@ -8,6 +8,8 @@ namespace rfmechanics;
 
 internal sealed partial class WatchfulnessRenderer
 {
+    private const double GlimpseLife = 1.05, GlimpseFadeIn = 0.08, GlimpseFadeOut = 0.45;
+    private const double LookAwayFade = 0.36, RearmAwaySeconds = 0.3;
     private readonly WatchfulnessShapeRenderer shapes;
     private sealed class Glimpse
     {
@@ -34,7 +36,7 @@ internal sealed partial class WatchfulnessRenderer
         previewDeadline = api.World.ElapsedMilliseconds / 1000.0 + 10;
         if (shape) glimpseRequested = true; else previewRequested = true;
         return TextCommandResult.Success(shape
-            ? "GLIMPSE PREVIEW armed for 10s: close chat, aim centrally and hold racial zoom. Skips observation once; living/focus/terrain checks remain. Not normal discovery validation."
+            ? "GLIMPSE PREVIEW armed for 10s: close chat, aim centrally and hold racial zoom. Skips observation and look-away gate once; living/focus/terrain checks remain. Not normal discovery validation."
             : "AWARENESS PREVIEW armed for 10s: close chat without zoom for synthetic wisps at 10, 25 and 38 metres. Terrain still blocks; not a detection test.");
     }
     private void PreviewAwareness(float[] view)
@@ -85,9 +87,25 @@ internal sealed partial class WatchfulnessRenderer
         double required = Setting(cfg.WatchfulnessObservationSeconds, 2, 0.5, 10);
         foreach (var sample in samples.Values)
         {
-            if (!Zooming || !Valid(sample.Entity)) { sample.Observation = 0; continue; }
-            if (glimpses.Exists(g => ReferenceEquals(g.Source, sample))) { sample.Observation = 0; continue; }
+            if (!Valid(sample.Entity)) { sample.Observation = 0; continue; }
             TargetCentre(sample);
+            // A completed discovery stays latched while the target remains in attention.
+            // Brief jitter, a wall occluding it, or releasing/re-holding zoom cannot rearm it.
+            // Process gaze loss even without zoom, so looking away naturally rearms discovery.
+            if (sample.NeedsLookAway)
+            {
+                sample.Observation = 0;
+                sample.AwaySeconds = api.Input.MouseGrabbed && !Attention(point, view, true)
+                    ? sample.AwaySeconds + dt : 0;
+                if (sample.AwaySeconds >= RearmAwaySeconds)
+                {
+                    sample.NeedsLookAway = false; sample.AwaySeconds = 0;
+                    Trace("discovery rearmed after attention left target; fresh observation required");
+                }
+                else if (!preview) continue;
+            }
+            if (!Zooming) { sample.Observation = 0; continue; }
+            if (glimpses.Exists(g => ReferenceEquals(g.Source, sample))) { sample.Observation = 0; continue; }
             bool focused = Attention(point, view) && point.SquareDistanceTo(body) <= radius*radius;
             if (!focused || checkedTargets >= 8)
             {
@@ -103,6 +121,7 @@ internal sealed partial class WatchfulnessRenderer
             if (!shapes.CanDraw(sample.Entity)) { Trace("discovery unavailable: renderer/mesh/animation unsupported or not ready"); continue; }
             if (!ShapeVisible(sample, out _, out _, out _)) { Trace("discovery withheld: solid viewing volume or occlusion budget"); continue; }
             var glimpse = new Glimpse { Source = sample, Born = now, Traced = Tracing };
+            sample.NeedsLookAway = true; sample.AwaySeconds = 0;
             glimpses.Add(glimpse); added++;
             if (glimpse.Traced) Trace($"glimpse emitted preview={preview}, observation={required:0.0}s, distance={point.DistanceTo(body):0.0}m");
         }
@@ -133,9 +152,9 @@ internal sealed partial class WatchfulnessRenderer
             string? reason = !Valid(e) ? "invalid/dead/despawned" : null;
             if (g.Source.Position.SquareDistanceTo(e.Pos.X,e.Pos.InternalY,e.Pos.Z)>4) reason="teleport";
             if (point.SquareDistanceTo(body)>radius*radius) reason="range";
-            if (now-g.Born>=0.75) reason="expired";
+            if (now-g.Born>=GlimpseLife) reason="expired";
             if (!Zooming || !Attention(point,view,true)) { if(g.FadeAt<0) g.FadeAt=now; }
-            if (g.FadeAt>=0 && now-g.FadeAt>=0.12) reason="attention fade";
+            if (g.FadeAt>=0 && now-g.FadeAt>=LookAwayFade) reason="attention fade";
             if (!OnScreen(point,view)) reason="off-screen";
             Vec3f min=new(), max=new();
             if (reason == null && !ShapeVisible(g.Source,out min,out max,out string blocked)) reason=blocked;
@@ -144,8 +163,8 @@ internal sealed partial class WatchfulnessRenderer
                 if(g.Traced) Trace($"glimpse retired={reason}, submitted={g.Submitted}, age={now-g.Born:0.000}s");
                 glimpses.RemoveAt(i); g.Source.Observation=0; continue;
             }
-            float alpha=(float)(0.65 * Math.Min(1,(now-g.Born)/0.08) * Math.Min(1,(0.75-(now-g.Born))/0.15));
-            if(g.FadeAt>=0) alpha *= (float)Math.Clamp(1-(now-g.FadeAt)/0.12,0,1);
+            float alpha=(float)(0.30 * Math.Min(1,(now-g.Born)/GlimpseFadeIn) * SmoothFade((GlimpseLife-(now-g.Born))/GlimpseFadeOut));
+            if(g.FadeAt>=0) alpha *= (float)SmoothFade(1-(now-g.FadeAt)/LookAwayFade);
             bool submitted=shapes.Draw(e,view,projection,min,max,alpha);
             if(g.Traced && (!g.Submitted || (!g.PeakLogged && now-g.Born>=0.2)))
             {
@@ -154,6 +173,11 @@ internal sealed partial class WatchfulnessRenderer
             }
             g.Submitted |= submitted;
         }
+    }
+    private static double SmoothFade(double remaining)
+    {
+        double t = Math.Clamp(remaining, 0, 1);
+        return t*t*(3-2*t);
     }
     private string ProjectedBounds(Vec3f min,Vec3f max,float[] view)
     {
