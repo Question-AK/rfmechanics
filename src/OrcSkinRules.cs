@@ -4,9 +4,6 @@ namespace rfmechanics
 {
     public static class OrcSkinRules
     {
-        public static bool BareTorso(bool chestArmor, bool shirt, bool coat)
-        { return !chestArmor && !shirt && !coat; }
-
         // Complete vanilla 1.22.6 tin-bronze lamellar profile, ProtectionTier=2.
         // Tier controls weapon-tier loss rates; it is not a percentage or divisor.
         public static double Protect(double damage, int weaponTier)

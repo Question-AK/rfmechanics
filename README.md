@@ -2,7 +2,7 @@
 
 Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
 
-Local bare-torso prototype **0.1.3-orcskin.1**, cumulative on delivered feedback.1,
+Local thick-skin prototype **0.1.3-orcskin.2**, cumulative on delivered feedback.1,
 accepted Orc smell .2, Watchfulness .9 and dev.11 movement. Local testing candidate;
 not installed or published. Miles evaluates it in VS - Diet Test after installation.
 
@@ -69,11 +69,10 @@ food-category, maintenance, starvation, Burn-borrowing and band-balance proposal
 remain pending and are not part of this prototype.
 
 Orc natural skin uses the complete vanilla tin-bronze lamellar Tier 2 profile,
-from every direction, only with no chest armor, shirt or coat. Head/leg equipment
-is allowed. Every hit checks the actual ArmorBody, UpperBody and UpperBodyOver
-slots; any item blocks skin, including broken or cosmetic items. Normal equipment
+from every direction, regardless of clothing or armor. All Orcs have this passive
+perk by default. Armor interaction gameplay testing is deferred. Normal equipment
 and shields resolve first, then one natural layer. Standard 8 HP tier-2 wolf damage
-becomes approximately 2.094 HP when bare, before other mitigation. Tier is not a
+becomes approximately 2.094 HP before other mitigation. Tier is not a
 percentage: .6 flat, .77 relative with vanilla weapon-tier losses apply.
 
 Entity/player/unknown-source blunt, piercing and slashing attacks qualify; other

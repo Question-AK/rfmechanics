@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3-orcskin.2 - Thick skin regardless of equipment
+
+- Removes the chest armor, shirt and coat gate: all Orcs receive passive Tier 2 skin.
+- Preserves protection arithmetic and normal armor/shield-first damage order.
+- Updates /rfskin diagnostics; armor interaction gameplay testing remains deferred.
+
+
 ## 0.1.3-orcskin.1 - Bare-torso protection, unpublished local trial
 
 - Replaces Orc bracing with passive vanilla Tier 2 tin-bronze lamellar protection.

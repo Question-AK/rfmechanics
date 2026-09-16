@@ -9,11 +9,6 @@ function Assert-True([bool]$Condition, [string]$Name) {
 function Assert-Near([double]$Actual, [double]$Expected, [string]$Name) {
     Assert-True ([Math]::Abs($Actual - $Expected) -lt 0.000001) $Name
 }
-# Only the completely empty combination is bare. Broken/cosmetic items are still occupied.
-foreach ($armor in @($false,$true)) { foreach ($shirt in @($false,$true)) { foreach ($coat in @($false,$true)) {
-    $occupied = [int]$armor + [int]$shirt + [int]$coat
-    Assert-True ([rfmechanics.OrcSkinRules]::BareTorso($armor,$shirt,$coat) -eq ($occupied -eq 0)) 'All torso-slot combinations'
-}}}
 # Installed vanilla armor.json tin-bronze lamellar: T2, flat .6, relative .77,
 # within/above losses .1/.2 flat, .03/.15 relative. Independent worked examples.
 Assert-Near ([rfmechanics.OrcSkinRules]::Protect(8,0)) 1.702 'Tier-zero attack'
@@ -35,9 +30,7 @@ foreach ($key in @('feedback-brace','feedback-release','feedback-brace-disabled'
     Assert-True ($null -eq $lang.PSObject.Properties[$key]) 'Bracing announcement removed'
 }
 $skin = Get-Content (Join-Path $root 'OrcSkinModSystem.cs') -Raw
-foreach ($slot in @('ArmorBody','UpperBody','UpperBodyOver')) {
-    Assert-True ($skin.Contains('inv[(int)EnumCharacterDressType.' + $slot + ']?.Empty != true')) 'Actual inventory slot checked on hit, missing slots fail closed'
-}
+Assert-True (-not $skin.Contains('InventoryManager')) 'Equipment does not gate natural skin'
 Assert-True (-not $skin.Contains('Saturation')) 'No skin food debit'
 Assert-True (-not $skin.Contains('Yaw')) 'All-direction protection without a frontal gate'
 Assert-True (-not $skin.Contains(' -> ')) 'No markup-unsafe diagnostic arrow'

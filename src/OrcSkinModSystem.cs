@@ -29,7 +29,7 @@ public sealed class OrcSkinModSystem : ModSystem
         try { cfg = api.LoadModConfig<RFMechanicsConfig>("rfmechanics.json") ?? new(); }
         catch (Exception e) { api.Logger.Warning("[rfmechanics] Orc skin defaults: {0}", e.Message); }
         api.Event.PlayerDisconnect += Remove; api.Event.PlayerJoin += Remove; api.Event.PlayerDeath += Death;
-        api.ChatCommands.Create("rfskin").WithDescription("Read bare-torso natural protection and the last physical hit.")
+        api.ChatCommands.Create("rfskin").WithDescription("Read Orc natural protection and the last physical hit.")
             .RequiresPlayer().RequiresPrivilege(Privilege.chat)
             .HandleWith(args => TextCommandResult.Success(Describe((EntityPlayer)args.Caller.Entity)));
     }
@@ -55,26 +55,14 @@ public sealed class OrcSkinModSystem : ModSystem
     }
     private void Death(IServerPlayer player, DamageSource source) => Remove(player);
 
-    internal static bool BareTorso(EntityPlayer self)
-    {
-        var inv = self.Player?.InventoryManager?.GetOwnInventory(GlobalConstants.characterInvClassName);
-        // Fail closed while inventory is unavailable. Any item blocks, even broken
-        // armor or cosmetic clothing; equipment durability is not a topless exemption.
-        if (inv == null || inv.Count <= (int)EnumCharacterDressType.ArmorBody) return false;
-        return OrcSkinRules.BareTorso(inv[(int)EnumCharacterDressType.ArmorBody]?.Empty != true,
-            inv[(int)EnumCharacterDressType.UpperBody]?.Empty != true,
-            inv[(int)EnumCharacterDressType.UpperBodyOver]?.Empty != true);
-    }
-
     internal void Protect(EntityPlayer self, DamageSource source, ref float damage)
     {
         if (sapi == null || !cfg.EnableOrcNaturalProtection || !PhysicalAttack(source)) return;
         var identity = Get(self);
         if (identity?.Orc != true) return;
-        bool bare = BareTorso(self); // Read actual equipment on every hit; no stale slot cache.
         float before = damage;
-        if (bare) damage = (float)OrcSkinRules.Protect(damage, source.DamageTier);
-        identity.Last = $"weapon T{source.DamageTier}, skin {(bare ? "T2" : "off")}, HP {before:F3} to {damage:F3}";
+        damage = (float)OrcSkinRules.Protect(damage, source.DamageTier);
+        identity.Last = $"weapon T{source.DamageTier}, skin T2, HP {before:F3} to {damage:F3}";
     }
 
     internal static bool PhysicalAttack(DamageSource source) =>
@@ -85,9 +73,8 @@ public sealed class OrcSkinModSystem : ModSystem
     internal string Describe(EntityPlayer self)
     {
         var identity = Get(self);
-        bool bare = BareTorso(self);
-        bool enabled = identity?.Orc == true && self.Alive && cfg.EnableOrcNaturalProtection && bare;
-        return $"Orc skin={(enabled ? "T2" : "off")}, bare torso={bare}\nLast: {identity?.Last ?? "none"}";
+        bool enabled = identity?.Orc == true && self.Alive && cfg.EnableOrcNaturalProtection;
+        return $"Orc skin={(enabled ? "T2" : "off")}\nLast: {identity?.Last ?? "none"}";
     }
 
     public override void Dispose()
