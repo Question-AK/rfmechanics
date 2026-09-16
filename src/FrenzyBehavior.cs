@@ -33,6 +33,9 @@ namespace rfmechanics
 
         public override string PropertyName() => "rffrenzy";
 
+        internal static float CurrentSpeedBonus(Entity entity) =>
+            entity.GetBehavior<FrenzyBehavior>()?.lastWalkSpeedDelta ?? 0;
+
         public override void Initialize(EntityProperties properties, JsonObject attributes)
         {
             base.Initialize(properties, attributes);
@@ -122,6 +125,7 @@ namespace rfmechanics
             {
                 entity.Stats.Set("walkspeed", StatSource, walkSpeedDelta);
                 lastWalkSpeedDelta = walkSpeedDelta;
+                OrcHuntModSystem.ClampPursuitSpeed(entity, cfg, walkSpeedDelta);
             }
 
             if (Math.Abs(jumpBonusDelta - lastJumpBonusDelta) > threshold)

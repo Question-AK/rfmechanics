@@ -17,6 +17,7 @@ internal sealed class OrcSmellRenderer : IRenderer
         internal float Size, Alpha;
         internal int R, G, B;
         internal long SourceId;
+        internal ScentCategory Category;
     }
     private readonly ICoreClientAPI capi;
     private readonly List<Wisp> wisps = new();
@@ -27,7 +28,6 @@ internal sealed class OrcSmellRenderer : IRenderer
     private Cuboidf? previousBox;
     private float release = 1;
     private bool failed;
-    private int trailGeneration;
     public double RenderOrder => 0.06;
     public int RenderRange => 256;
     internal int Count => wisps.Count;
@@ -53,7 +53,7 @@ internal sealed class OrcSmellRenderer : IRenderer
         return ok;
     }
 
-    internal void Add(long sourceId, int sourceCount, Vec3d position, double angle, double speed, double life, float size, float alpha, int[] rgb)
+    internal void Add(long sourceId, int sourceCount, Vec3d position, double angle, double speed, double life, float size, float alpha, int[] rgb, ScentCategory category = ScentCategory.Unknown)
     {
         if (failed || !capi.Settings.Bool["renderParticles"] || wisps.Count >= Capacity) return;
         int limit = Math.Clamp(Capacity * capi.Settings.Int["particleLevel"] / 100, 0, Capacity);
@@ -62,8 +62,10 @@ internal sealed class OrcSmellRenderer : IRenderer
         if (wisps.Count >= limit || sourceAlive >= sourceLimit) return;
         wisps.Add(new Wisp { Position = position, Angle = angle, Speed = speed, Life = life,
             Size = size, Alpha = alpha, R = rgb[0], G = rgb[1], B = rgb[2], SourceId = sourceId,
-            Phase = capi.World.Rand.NextDouble()*Math.PI*2 });
+            Category = category, Phase = capi.World.Rand.NextDouble()*Math.PI*2 });
     }
+
+    internal void Clear() { wisps.Clear(); previousBody = previousCamera = null; previousBox = null; release = 1; }
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
@@ -76,12 +78,6 @@ internal sealed class OrcSmellRenderer : IRenderer
             {
                 wisps.Clear(); previousBody = previousCamera = null; previousBox = null;
                 return;
-            }
-            if (trailGeneration != OrcSmellShared.TrailGeneration)
-            {
-                // Walking immediately discards information acquired at the full stationary range.
-                wisps.Clear();
-                trailGeneration = OrcSmellShared.TrailGeneration;
             }
             if (capi.IsGamePaused) return;
             double dt = Math.Max(0, deltaTime);
@@ -102,16 +98,18 @@ internal sealed class OrcSmellRenderer : IRenderer
                 Math.Min(box.X1, previousBox.X1), Math.Min(box.Y1, previousBox.Y1), Math.Min(box.Z1, previousBox.Z1),
                 Math.Max(box.X2, previousBox.X2), Math.Max(box.Y2, previousBox.Y2), Math.Max(box.Z2, previousBox.Z2));
             Vec3d eye = body.AddCopy(self.LocalEyePos.X, self.LocalEyePos.Y, self.LocalEyePos.Z);
-            release = OrcSmellShared.FocusActive ? 1 : Math.Max(0, release - (float)dt / 0.2f);
+            release = OrcSmellShared.SensoryActive ? 1 : Math.Max(0, release - (float)dt / 0.2f);
             if (release <= 0) wisps.Clear();
             for (int i = wisps.Count - 1; i >= 0; i--)
             {
                 Wisp w = wisps[i];
                 w.Age += dt;
+                if (w.Category == ScentCategory.Blood && !capi.ModLoader.GetModSystem<OrcHuntModSystem>().BloodIds.Contains(w.SourceId))
+                { wisps.RemoveAt(i); continue; }
                 Vec3d toward = eye - w.Position;
                 double distance = toward.Length();
                 double ease = Math.Clamp((distance - cfg.SmellArrivalRadius) / 2, 0.35, 1);
-                double sway = cfg.SmellSwayAmplitude * Math.Clamp((distance - cfg.SmellArrivalRadius) / 2, 0, 1);
+                double sway = (w.Category == ScentCategory.Blood ? 0 : w.Category == ScentCategory.Predator ? 0.05 : cfg.SmellSwayAmplitude) * Math.Clamp((distance - cfg.SmellArrivalRadius) / 2, 0, 1);
                 double phase = w.Phase + w.Age * 1.8;
                 double step = w.Speed * ease * dt / Math.Max(0.01, distance);
                 Vec3d next = w.Position.AddCopy(toward.X * step - Math.Sin(w.Angle)*Math.Cos(phase)*sway*dt,
@@ -138,8 +136,8 @@ internal sealed class OrcSmellRenderer : IRenderer
                 double margin = w.Size * 0.7072 + 0.12;
                 double clearance = Math.Min(OrcSmellGeometry.DistanceToBox(w.Position - body, box) - margin,
                     w.Position.DistanceTo(camera) - cfg.SmellArrivalRadius - margin);
-                float alpha = w.Alpha * release * OrcSmellGeometry.Smooth((float)(w.Age / 0.3))
-                    * OrcSmellGeometry.Smooth((float)((w.Life - w.Age) / 0.8))
+                float alpha = w.Alpha * release * OrcSmellGeometry.Smooth((float)(w.Age / 0.08))
+                    * OrcSmellGeometry.Smooth((float)((w.Life - w.Age) / 0.25))
                     * OrcSmellGeometry.Smooth((float)(clearance / 0.65));
                 if (alpha < 0.003) continue;
                 Vec3d p = w.Position - renderOrigin;
@@ -148,14 +146,16 @@ internal sealed class OrcSmellRenderer : IRenderer
                 float z = (float)(view[2]*p.X + view[6]*p.Y + view[10]*p.Z + view[14]);
                 float half = w.Size / 2;
                 int color = OrcSmellVisuals.MeshColor(w.R, w.G, w.B, alpha), start = mesh.VerticesCount;
-                mesh.AddVertex(x-half, y-half, z, 0, 0, color);
-                mesh.AddVertex(x+half, y-half, z, 1, 0, color);
-                mesh.AddVertex(x+half, y+half, z, 1, 1, color);
-                mesh.AddVertex(x-half, y+half, z, 0, 1, color);
+                float u = 2 * (int)w.Category;
+                mesh.AddVertex(x-half, y-half, z, u, 0, color);
+                mesh.AddVertex(x+half, y-half, z, u+1, 0, color);
+                mesh.AddVertex(x+half, y+half, z, u+1, 1, color);
+                mesh.AddVertex(x-half, y+half, z, u, 1, color);
                 mesh.AddIndex(start); mesh.AddIndex(start+1); mesh.AddIndex(start+2);
                 mesh.AddIndex(start); mesh.AddIndex(start+2); mesh.AddIndex(start+3);
             }
             if (mesh.VerticesCount == 0) return;
+            using var state = new WatchfulnessRenderState(capi);
             if (meshRef == null)
             {
                 int vertices = mesh.VerticesCount, indices = mesh.IndicesCount;
@@ -166,20 +166,20 @@ internal sealed class OrcSmellRenderer : IRenderer
             capi.Render.UpdateMesh(meshRef, mesh);
             IShaderProgram previousShader = capi.Render.CurrentActiveShader;
             previousShader?.Stop();
-            capi.Render.GlToggleBlend(true);
+            WatchfulnessRenderState.BeginCue();
             capi.Render.GLEnableDepthTest();
             capi.Render.GLDepthMask(false);
             try
             {
                 shader.Use();
-                shader.UniformMatrix("projectionMatrix", capi.Render.CurrentProjectionMatrix);
+                float[] projection = new float[16];
+                for (int i = 0; i < 16; i++) projection[i] = (float)capi.Render.PerspectiveProjectionMat[i];
+                shader.UniformMatrix("projectionMatrix", projection);
                 capi.Render.RenderMesh(meshRef);
             }
             finally
             {
                 shader.Stop();
-                capi.Render.GLDepthMask(true);
-                capi.Render.GlToggleBlend(false);
                 previousShader?.Use();
             }
         }

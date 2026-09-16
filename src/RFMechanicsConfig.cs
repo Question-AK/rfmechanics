@@ -6,6 +6,23 @@ namespace rfmechanics;
 /// </summary>
 public class RFMechanicsConfig
 {
+    // Local hunting trial; separate names leave older saved smell tuning untouched.
+    public bool EnableOrcHunting { get; set; } = true;
+    public double OrcQuickSniffMs { get; set; } = 100;
+    public double OrcDeepFocusSeconds { get; set; } = 4;
+    public double OrcQuickRange { get; set; } = 24;
+    public double OrcDeepRange { get; set; } = 64;
+    public double OrcPassiveRange { get; set; } = 20;
+    public double OrcWhiffIntervalSeconds { get; set; } = 4;
+    public double OrcWhiffDurationSeconds { get; set; } = 0.65;
+    public double OrcBloodRange { get; set; } = 40;
+    public bool OrcTargetSwimmingBreaksBlood { get; set; } = true;
+    public double OrcPursuitRampSeconds { get; set; } = 6;
+    public double OrcPursuitMaxSpeedBonus { get; set; } = 0.20;
+    public double OrcPursuitGraceSeconds { get; set; } = 2;
+    public double OrcPursuitDecaySeconds { get; set; } = 3;
+    public double OrcPursuitDirectionCosine { get; set; } = 0.35;
+    public double OrcHuntCombinedSpeedBonusCap { get; set; } = 0.35;
     // First movement-cue prototype; client presentation settings, server also gates activation.
     public bool EnableElfWatchfulness { get; set; } = true;
     public double WatchfulnessRadius { get; set; } = 40;

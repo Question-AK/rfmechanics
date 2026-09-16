@@ -48,7 +48,7 @@ namespace rfmechanics
 
             // New code, not the retired "rfelfstepheighttoggle" that held Ctrl+H before M1 --
             // see the orphaned-rebind warning above.
-            api.Input.RegisterHotKey("rfclamber", "Race Stance (Clamber / Watchfulness)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
+            api.Input.RegisterHotKey("rfclamber", "Race Stance (Clamber / Watchfulness / Hunt)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
             api.Input.SetHotKeyHandler("rfclamber", _ => DispatchClamber(api));
         }
 
@@ -71,6 +71,8 @@ namespace rfmechanics
             PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
             if (race == PlayerRace.Elf)
                 return api.ModLoader.GetModSystem<ElfWatchfulnessModSystem>().TryToggle();
+            if (race == PlayerRace.Orc)
+                return api.ModLoader.GetModSystem<OrcHuntModSystem>().TryToggle();
             if (race != PlayerRace.Goblin) return false;
 
             return api.ModLoader.GetModSystem<GoblinClamberStanceModSystem>().TryToggle(api);

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
@@ -14,7 +15,7 @@ namespace rfmechanics
         private long playerId;
         private int hurtCounter;
         private Vec3d? previousPos;
-        private double speedDistance, speedTime, measuredSpeed;
+
 
         public double RenderOrder => 0.05;
         public int RenderRange => 1;
@@ -43,7 +44,7 @@ namespace rfmechanics
             try
             {
                 var cfg = RFMechanicsModSystem.Config;
-                if (cfg == null || !cfg.SmellEnabled)
+                if (cfg == null || !cfg.SmellEnabled || !cfg.EnableOrcHunting)
                 {
                     OrcSmellShared.FocusWeight = 0f;
                     OrcSmellShared.FocusActive = false;
@@ -67,7 +68,11 @@ namespace rfmechanics
                 bool held = false;
                 if (eligible && capi.Input.HotKeys.TryGetValue("rfraceability", out HotKey hotkey))
                 {
-                    held = capi.Input.KeyboardKeyStateRaw[(int)hotkey.CurrentMapping.KeyCode];
+                    var mapping = hotkey.CurrentMapping;
+                    held = !capi.Gui.OpenedGuis.Any(g => g.Focusable) && capi.Input.KeyboardKeyStateRaw[(int)mapping.KeyCode]
+                        && (!mapping.Ctrl || capi.Input.KeyboardKeyStateRaw[(int)GlKeys.ControlLeft] || capi.Input.KeyboardKeyStateRaw[(int)GlKeys.ControlRight])
+                        && (!mapping.Shift || capi.Input.KeyboardKeyStateRaw[(int)GlKeys.ShiftLeft] || capi.Input.KeyboardKeyStateRaw[(int)GlKeys.ShiftRight])
+                        && (!mapping.Alt || capi.Input.KeyboardKeyStateRaw[(int)GlKeys.AltLeft] || capi.Input.KeyboardKeyStateRaw[(int)GlKeys.AltRight]);
                 }
 
                 var self = capi.World.Player?.Entity;
@@ -81,7 +86,6 @@ namespace rfmechanics
                         hurtCounter = counter;
                         focus = new();
                         previousPos = null;
-                        speedDistance = speedTime = measuredSpeed = 0;
                     }
                     hurt = counter != hurtCounter;
                     hurtCounter = counter;
@@ -90,29 +94,21 @@ namespace rfmechanics
                     double dz = previousPos == null ? 0 : self.Pos.Z - previousPos.Z;
                     double tolerance = 0.12 * Math.Max(0.001, deltaTime);
                     double moved = Math.Sqrt(dx*dx + dz*dz);
-                    speedDistance += moved;
-                    speedTime += Math.Max(0, deltaTime);
-                    if (speedTime >= 0.2)
-                    {
-                        measuredSpeed = speedDistance / speedTime;
-                        speedDistance = speedTime = 0;
-                    }
-                    // Average rendered displacement so physics tick steps do not look like sprints.
-                    double actualSpeed = Math.Max(measuredSpeed,
-                        60 * Math.Sqrt(self.Pos.Motion.X*self.Pos.Motion.X + self.Pos.Motion.Z*self.Pos.Motion.Z));
-                    interrupted = !self.OnGround || self.Swimming || controls.IsClimbing || controls.IsFlying
-                        || controls.Jump || controls.Sprint || moved > 0.75 || actualSpeed > cfg.SmellWalkingMaxSpeed;
+                    // Actual old cancellation: Motion*60 / a 3-block speed ceiling and
+                    // transient OnGround=false set interrupted, which latched NeedsRelease.
+                    // Walking is now allowed regardless of physics tick cadence or racial speed.
+                    // These states only downgrade focus and automatically reacquire while held.
+                    interrupted = self.Swimming || controls.IsClimbing || controls.IsFlying
+                        || controls.Jump || controls.Sprint || moved > 2;
                     stationary = !interrupted && !controls.TriesToMove && dx*dx + dz*dz <= tolerance*tolerance
                         && self.Pos.Motion.X*self.Pos.Motion.X + self.Pos.Motion.Z*self.Pos.Motion.Z <= 0.000004;
                     previousPos = self.Pos.XYZ;
                 }
-                float oldQuality = OrcSmellShared.Quality;
-                focus.Update(deltaTime, held, eligible, stationary, hurt, interrupted);
-                OrcSmellShared.Quality = focus.Quality(cfg.SmellParticleFadeInFullMs);
-                if (focus.Active && oldQuality > 0 && OrcSmellShared.Quality == 0) OrcSmellShared.TrailGeneration++;
+                focus.Update(deltaTime, held, eligible, stationary, hurt, interrupted, (float)(cfg.OrcDeepFocusSeconds * 1000));
+                OrcSmellShared.Quality = focus.Quality((float)Math.Clamp(cfg.OrcDeepFocusSeconds * 1000, 1000, 15000));
                 OrcSmellShared.HeldMs = focus.HeldMs;
 
-                float darkness = focus.Darkness(cfg.SmellFocusEngageMs, (float)cfg.SmellWalkingVisionWeight);
+                float darkness = focus.Active ? 0.35f * OrcSmellShared.Quality : 0;
                 // The rising target already follows the long acquisition clock. Restore useful
                 // vision quickly when walking, releasing, or breaking concentration.
                 if (darkness >= OrcSmellShared.FocusWeight) OrcSmellShared.FocusWeight = darkness;
