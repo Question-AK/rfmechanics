@@ -11,7 +11,7 @@ namespace rfmechanics;
 internal sealed class WatchfulnessRenderer : IRenderer
 {
     private const int CandidateCap = 64, QueryBudget = 256, CueCap = 8;
-    private const double Life = 0.5, HalfSize = 0.12;
+    private const double Life = 0.8, HalfSize = 0.22;
     private sealed class Sample
     {
         internal Entity Entity = null!;
@@ -43,7 +43,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
     private double now, sampleAt, refreshAt, logAt, radius;
     private EntityPlayer? self;
     public double RenderOrder => 0.07;
-    public int RenderRange => 32;
+    public int RenderRange => 64;
 
     internal WatchfulnessRenderer(ICoreClientAPI api, ElfWatchfulnessModSystem stance)
     {
@@ -87,7 +87,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
             {
                 if (!samples.TryGetValue(e.EntityId, out var sample) && samples.Count < CandidateCap)
                 {
-                    sample = new Sample { Entity = e, Time = now };
+                    sample = new Sample { Entity = e, Time = now, NextCue = now + api.World.Rand.NextDouble() * 1.2 };
                     sample.Position.Set(point);
                     samples.Add(e.EntityId, sample);
                 }
@@ -110,7 +110,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
             Position(self, body);
             if (haveBody && (dimension != self.Pos.Dimension || body.SquareDistanceTo(lastBody) > 4 || deltaTime > 0.5)) Clear();
             dimension = self.Pos.Dimension; lastBody.Set(body); haveBody = true;
-            radius = Setting(cfg.WatchfulnessRadius, 20, 4, 32);
+            radius = Setting(cfg.WatchfulnessRadius, 40, 10, 64);
             origin.Set(self.CameraPos);
             float[] view = api.Render.CameraMatrixOriginf;
             camera.Set(origin.X - (view[0]*view[12] + view[1]*view[13] + view[2]*view[14]),
@@ -121,7 +121,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
                 refreshAt = now + 1; generation++; visited = 0;
                 // The no-range-test overload invokes our callback for EVERY visited creature,
                 // not just matches. Returning false bounds query traversal itself at 256.
-                // Radius <=32 also bounds empty partition visits. Reuse the game's spatial index.
+                // Radius <=64 also bounds empty partition visits. Reuse the game's spatial index.
                 partitions.WalkEntities(body.X, body.Y, body.Z, radius, visitor, null, EnumEntitySearchType.Creatures);
                 remove.Clear();
                 foreach (var pair in samples)
@@ -159,7 +159,8 @@ internal sealed class WatchfulnessRenderer : IRenderer
     private void SampleMovement(RFMechanicsConfig cfg, float[] view)
     {
         double minimum = Setting(cfg.WatchfulnessMinimumSpeed, 0.2, 0.05, 5);
-        double cooldown = Setting(cfg.WatchfulnessCooldownSeconds, 2, 0.5, 10);
+        double cooldownMin = Setting(cfg.WatchfulnessCooldownMinimumSeconds, 5, 5, 60);
+        double cooldownMax = Setting(cfg.WatchfulnessCooldownMaximumSeconds, 15, cooldownMin, 120);
         int index = 0, rayBudget = 8;
         // Rotate priority so the first moving target does not own the visibility budget.
         remove.Clear(); foreach (long id in samples.Keys) remove.Add(id);
@@ -174,7 +175,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
             bool discontinuity = elapsed > 0.5 || distance > 2 || (elapsed > 0 && distance / elapsed > 15);
             if (discontinuity)
             {
-                s.NextCue = 0; s.WasOnScreen = false;
+                s.NextCue = now + api.World.Rand.NextDouble() * 1.2; s.WasOnScreen = false;
                 for (int c = cues.Count - 1; c >= 0; c--)
                     if (ReferenceEquals(cues[c].Source, s)) cues.RemoveAt(c);
             }
@@ -186,12 +187,12 @@ internal sealed class WatchfulnessRenderer : IRenderer
             bool wasOnScreen = s.WasOnScreen;
             s.WasOnScreen = OnScreen(point, view);
             if (!motion || now < s.NextCue || cues.Count >= CueCap || rayBudget <= 0
-                || point.SquareDistanceTo(body) > radius * radius || !wasOnScreen || !s.WasOnScreen) continue;
+                || point.SquareDistanceTo(body) <= 25 || point.SquareDistanceTo(body) > radius * radius || !wasOnScreen || !s.WasOnScreen) continue;
             rayBudget--;
             if (!Visible(point, view)) continue;
             var cue = new Cue { Source = s, Born = now };
             cue.Position.Set(point); cues.Add(cue);
-            s.NextCue = now + cooldown; emitted++;
+            s.NextCue = now + cooldownMin + api.World.Rand.NextDouble() * (cooldownMax - cooldownMin); emitted++;
         }
         cursor = count == 0 ? 0 : (cursor + 8) % count;
     }
@@ -232,7 +233,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
         double nx=dx == 0 ? double.PositiveInfinity : (x+(sx>0?1:0)-camera.X)/dx;
         double ny=dy == 0 ? double.PositiveInfinity : (y+(sy>0?1:0)-camera.Y)/dy;
         double nz=dz == 0 ? double.PositiveInfinity : (z+(sz>0?1:0)-camera.Z)/dz;
-        for (int step=0; step<128; step++)
+        for (int step=0; step<192; step++)
         {
             blockPos.Set(x, y % BlockPos.DimensionBoundary, z); blockPos.dimension = dimension;
             var accessor = api.World.BlockAccessor;
@@ -252,17 +253,26 @@ internal sealed class WatchfulnessRenderer : IRenderer
     private void Draw(float[] view)
     {
         if (cues.Count == 0 || shader == null) return;
+        using var state = new WatchfulnessRenderState(api);
+        DrawCues(view);
+    }
+    private void DrawCues(float[] view)
+    {
+        if (cues.Count == 0 || shader == null) return;
         mesh.Clear();
         foreach (Cue cue in cues)
         {
             double age = (now-cue.Born)/Life;
-            float alpha = (float)(0.6 * Math.Sin(Math.PI * age));
+            double distance = cue.Position.DistanceTo(body);
+            double nearFade = Math.Clamp((distance - 5) / 7, 0, 1);
+            double farFade = Math.Clamp((radius - distance) / (radius * 0.2), 0, 1);
+            float alpha = (float)(0.34 * Math.Min(1, age / 0.1) * Math.Pow(1 - age, 1.4) * nearFade * farFade);
             double px=cue.Position.X-origin.X, py=cue.Position.Y-origin.Y, pz=cue.Position.Z-origin.Z;
             float x=(float)(view[0]*px+view[4]*py+view[8]*pz+view[12]);
             float y=(float)(view[1]*px+view[5]*py+view[9]*pz+view[13]);
             float z=(float)(view[2]*px+view[6]*py+view[10]*pz+view[14]);
             float h=(float)HalfSize;
-            int color=OrcSmellVisuals.MeshColor(226, 238, 220, alpha), start=mesh.VerticesCount;
+            int color=OrcSmellVisuals.MeshColor(133, 148, 128, alpha), start=mesh.VerticesCount;
             mesh.AddVertex(x-h,y-h,z,0,0,color); mesh.AddVertex(x+h,y-h,z,1,0,color);
             mesh.AddVertex(x+h,y+h,z,1,1,color); mesh.AddVertex(x-h,y+h,z,0,1,color);
             mesh.AddIndex(start); mesh.AddIndex(start+1); mesh.AddIndex(start+2);
@@ -275,18 +285,12 @@ internal sealed class WatchfulnessRenderer : IRenderer
             meshRef=api.Render.UploadMesh(mesh); mesh.VerticesCount=v; mesh.IndicesCount=i;
         }
         api.Render.UpdateMesh(meshRef, mesh);
-        var previous=api.Render.CurrentActiveShader; previous?.Stop();
-        api.Render.GlToggleBlend(true); api.Render.GLDisableDepthTest(); api.Render.GLDepthMask(false);
-        try
-        {
-            shader.Use(); shader.UniformMatrix("projectionMatrix", api.Render.CurrentProjectionMatrix);
-            api.Render.RenderMesh(meshRef);
-        }
-        finally
-        {
-            shader.Stop(); api.Render.GLDepthMask(true); api.Render.GLEnableDepthTest();
-            api.Render.GlToggleBlend(false); previous?.Use();
-        }
+        WatchfulnessRenderState.BeginCue();
+        // This shader has no engine includes, samplers or UBOs. Switch only the GL
+        // program so the previous shader's Stop/Use cannot disturb its bindings.
+        OpenTK.Graphics.OpenGL4.GL.UseProgram(shader.ProgramId);
+        shader.UniformMatrix("projectionMatrix", api.Render.CurrentProjectionMatrix);
+        api.Render.RenderMesh(meshRef);
     }
     public void Dispose()
     {

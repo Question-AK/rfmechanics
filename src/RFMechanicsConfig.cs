@@ -8,8 +8,9 @@ public class RFMechanicsConfig
 {
     // First movement-cue prototype; client presentation settings, server also gates activation.
     public bool EnableElfWatchfulness { get; set; } = true;
-    public double WatchfulnessRadius { get; set; } = 20;
-    public double WatchfulnessCooldownSeconds { get; set; } = 2;
+    public double WatchfulnessRadius { get; set; } = 40;
+    public double WatchfulnessCooldownMinimumSeconds { get; set; } = 5;
+    public double WatchfulnessCooldownMaximumSeconds { get; set; } = 15;
     public double WatchfulnessMinimumSpeed { get; set; } = 0.2;
     public bool WatchfulnessDiagnostics { get; set; } = false;
     /// <summary>Default trait code for the dwarf race. Loaded from config so it is trivially changeable.</summary>
@@ -36,7 +37,7 @@ public class RFMechanicsConfig
     /// <summary>Master toggle for the ore yield curve.</summary>
     public bool EnableOreCurve { get; set; } = true;
 
-    // ── Phase 3: Climb cost ──
+    // â”€â”€ Phase 3: Climb cost â”€â”€
 
     /// <summary>Scales climbUpSpeed/climbDownSpeed by (1 + ClimbSpeedFactor); negative slows the
     /// dwarf. LANDMINE: vanilla field names are inverted -- Sneak (descend) reads climbUpSpeed, Jump (ascend) reads climbDownSpeed.</summary>
@@ -60,7 +61,7 @@ public class RFMechanicsConfig
     /// after the entity-link race (player.Entity null during construction).</summary>
     public int ClimbLinkRetryDelayMs { get; set; } = 2000;
 
-    // ── Branchy leaves passthrough (Elf) ──
+    // â”€â”€ Branchy leaves passthrough (Elf) â”€â”€
 
     /// <summary>Trait code granting the branchy-leaves collision passthrough. Loaded from
     /// config so it is trivially changeable, mirroring DwarfTraitCode.</summary>
@@ -74,7 +75,7 @@ public class RFMechanicsConfig
     /// the manual test pass, not meant to run in production (this is a per-substep hot path).</summary>
     public bool LogLeafStandingBoxCounts { get; set; } = false;
 
-    // ── Tree proximity speed (Elf) ──
+    // â”€â”€ Tree proximity speed (Elf) â”€â”€
 
     /// <summary>Master toggle for the near-trees walkspeed bonus.</summary>
     public bool EnableTreeProximitySpeed { get; set; } = true;
@@ -94,7 +95,7 @@ public class RFMechanicsConfig
     /// <summary>Tick cadence, in seconds, for RFTreeProximityBehavior's tree scan.</summary>
     public double TreeProximityTickInterval { get; set; } = 3.0;
 
-    // ── Elf reduced hunger drain ──
+    // â”€â”€ Elf reduced hunger drain â”€â”€
 
     /// <summary>Master toggle for the Elf reduced-hunger-drain effect, parity with every other
     /// mechanic in this config. Unconditional for elves now (no attunement threshold) -- applied
@@ -106,7 +107,7 @@ public class RFMechanicsConfig
     /// HungerRateMult's convention. 0.85 = 15% less hunger drain.</summary>
     public double ElfHungerRateMult { get; set; } = 0.85;
 
-    // ── Tree climbing (Elf) ──
+    // â”€â”€ Tree climbing (Elf) â”€â”€
 
     /// <summary>Master toggle for letting Elves climb standing tree trunks ("log-grown"
     /// blocks) as if they were ladders, at plain vanilla ladder speed (no separate cost or
@@ -124,7 +125,7 @@ public class RFMechanicsConfig
     /// Zero disables the window, which also disables the diagonal scan.</summary>
     public int ElfCornerGraceTicks { get; set; } = 6;
 
-    // ── Fall damage reduction (Elf) ──
+    // â”€â”€ Fall damage reduction (Elf) â”€â”€
 
     /// <summary>Master toggle for the Elf fall damage reduction.</summary>
     public bool EnableFallDamageReduction { get; set; } = true;
@@ -132,7 +133,7 @@ public class RFMechanicsConfig
     /// <summary>Fraction of fall damage removed for Elves, e.g. 0.6 = 60% less fall damage.</summary>
     public double FallDamageReductionFactor { get; set; } = 0.6;
 
-    // ── Telescopic vision / zoom (Elf) ──
+    // â”€â”€ Telescopic vision / zoom (Elf) â”€â”€
 
     /// <summary>Master toggle for Elf telescopic vision.</summary>
     public bool EnableElfZoom { get; set; } = true;
@@ -150,13 +151,13 @@ public class RFMechanicsConfig
     /// without this, a container/block click can read as a one-tick zoom-then-cancel flicker.</summary>
     public double ElfZoomEngageDelayMs { get; set; } = 120.0;
 
-    // ── Elf identity ──
+    // â”€â”€ Elf identity â”€â”€
 
     /// <summary>Tick cadence, in seconds, for PlayerRaceBehavior's race-cache refresh (after the
     /// immediate Initialize()-time refresh). Matches GoblinRotAuraTickInterval's 2.0s precedent.</summary>
     public double ElfIdentityTickInterval { get; set; } = 2.0;
 
-    // ── Step height (baseline + per-race override) ──
+    // â”€â”€ Step height (baseline + per-race override) â”€â”€
 
     /// <summary>Master toggle for the whole step-height system. False restores each player entity's
     /// own pre-existing StepHeight, elves included.</summary>
@@ -214,7 +215,7 @@ public class RFMechanicsConfig
         return true;
     }
 
-    // ── Elf living harvest yield (Phase 4 stub, E3.1) ──
+    // â”€â”€ Elf living harvest yield (Phase 4 stub, E3.1) â”€â”€
 
     /// <summary>Yield multiplier at attunement 0. Stub only -- Phase 4 wires this to the actual
     /// harvest tool once D3 (shears vs. knife) is settled; ComputeHarvestYieldMultiplier is not
@@ -224,7 +225,7 @@ public class RFMechanicsConfig
     /// <summary>Yield multiplier at attunement 100.</summary>
     public double ElfHarvestYieldFull { get; set; } = 1.0;
 
-    // ── Thew (Orc) ──
+    // â”€â”€ Thew (Orc) â”€â”€
 
     /// <summary>Master toggle for the Thew mechanic (gain/decay tick and preserved-protein multiplier).</summary>
     public bool EnableThew { get; set; } = true;
@@ -313,7 +314,7 @@ public class RFMechanicsConfig
     /// several hours of Lean.</summary>
     public double ThewCreationFloor { get; set; } = 0.4;
 
-    // ── Thew Debt (Orc) ──
+    // â”€â”€ Thew Debt (Orc) â”€â”€
 
     /// <summary>Per-in-game-hour Thew moved from ThewBehavior's own tick into paying down
     /// outstanding Burn/Frenzy debt (see BurnDebt/FrenzyDebt), applied to the sum of both
@@ -325,7 +326,7 @@ public class RFMechanicsConfig
     /// frenzy debt (see ThewDebtRepayPatch).</summary>
     public double DebtRepaidPerSaturationPoint { get; set; } = 0.0000533;
 
-    // ── Puff Cue (Orc) ──
+    // â”€â”€ Puff Cue (Orc) â”€â”€
 
     /// <summary>Master toggle for the client-side orc state particle cue.</summary>
     public bool EnablePuff { get; set; } = true;
@@ -386,7 +387,7 @@ public class RFMechanicsConfig
     public bool PuffWindAffected { get; set; } = true;
     public double PuffWindAffectedness { get; set; } = 0.20;
 
-    // ── Bands (Orc, Phase 3) ──
+    // â”€â”€ Bands (Orc, Phase 3) â”€â”€
 
     /// <summary>Master toggle for the Band mechanic (state machine, entitySize, and stat
     /// application). Independent of EnableThew -- Thew must still be on for bands to have
@@ -479,7 +480,7 @@ public class RFMechanicsConfig
     /// orc. "Applies on hit" has the same problem in reverse (no player-outgoing-melee hook found). Both need a Harmony patch design decision, not a speculative build.</summary>
     public double StandardKnockbackTakenReduction_UNWIRED { get; set; } = 0.30;
 
-    // ── Burn-to-survive (Orc, Phase 4) ──
+    // â”€â”€ Burn-to-survive (Orc, Phase 4) â”€â”€
 
     /// <summary>Master toggle for the Burn-to-Survive mechanic. Independent of EnableThew's own
     /// toggle, same convention as EnableBands -- Thew must still be on for there to be anything
@@ -530,7 +531,7 @@ public class RFMechanicsConfig
     /// deliberately much faster than the 6s Thew/Band cadence, but only runs while burning.</summary>
     public int BurnFastTickMs { get; set; } = 500;
 
-    // ── Frenzy (Orc) ──
+    // â”€â”€ Frenzy (Orc) â”€â”€
 
     /// <summary>Master toggle for Frenzy.</summary>
     public bool EnableFrenzy { get; set; } = true;
@@ -574,7 +575,7 @@ public class RFMechanicsConfig
     /// WatchedAttributes dirty/sync on every tick.</summary>
     public double FrenzyStatWriteThreshold { get; set; } = 0.02;
 
-    // ── Orc Wild-Animal Resist (standalone, no Thew/Frenzy dependency) ──
+    // â”€â”€ Orc Wild-Animal Resist (standalone, no Thew/Frenzy dependency) â”€â”€
 
     /// <summary>Master toggle for orc damage resistance against wild-animal attackers.
     /// Deliberately independent of EnableFrenzy/EnableThew -- this exists specifically for an
@@ -601,7 +602,7 @@ public class RFMechanicsConfig
     /// only has to learn "armor turns this off."</summary>
     public bool OrcWildResistRequiresNoArmor { get; set; } = true;
 
-    // ── Darkvision (Goblin) ──
+    // â”€â”€ Darkvision (Goblin) â”€â”€
 
     /// <summary>Master toggle for the Goblin darkvision effect. Client-side only feature (no
     /// server authority), but still gets a toggle for parity with every other mechanic in this
@@ -617,7 +618,7 @@ public class RFMechanicsConfig
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
     public double GoblinDarkvisionStrength { get; set; } = 0.8;
 
-    // ── Fall damage reduction (Goblin) ──
+    // â”€â”€ Fall damage reduction (Goblin) â”€â”€
 
     /// <summary>Master toggle for the Goblin fall damage reduction. Separate from
     /// EnableFallDamageReduction (Elf) so either race's reduction can be tuned/disabled
@@ -627,7 +628,7 @@ public class RFMechanicsConfig
     /// <summary>Fraction of fall damage removed for Goblins, e.g. 0.5 = 50% less fall damage.</summary>
     public double GoblinFallDamageReductionFactor { get; set; } = 0.5;
 
-    // ── Goblin dig speed (Phase G2) ──
+    // â”€â”€ Goblin dig speed (Phase G2) â”€â”€
 
     /// <summary>DORMANT: GoblinDigModifierBehavior is re-homed to src/BugRace/ and no longer
     /// registered, so this flag currently has no effect. Left in place so existing
@@ -649,7 +650,7 @@ public class RFMechanicsConfig
     /// tedious" -- roughly 2.5x slower across every pick tier).</summary>
     public double GoblinStoneMiningFactor { get; set; } = 0.4;
 
-    // ── Goblin climbing (Phase G2) ──
+    // â”€â”€ Goblin climbing (Phase G2) â”€â”€
 
     /// <summary>Master toggle for Goblin raw-rock climbing (GoblinClimbingPatch). Independent
     /// of EnableGoblinTreeClimbing -- either match group can be disabled without the other.</summary>
@@ -736,7 +737,7 @@ public class RFMechanicsConfig
         return changed;
     }
 
-    // ── Goblin tunnel speed (Phase G2) ──
+    // â”€â”€ Goblin tunnel speed (Phase G2) â”€â”€
 
     /// <summary>Master toggle for the goblin tunnel-speed walkspeed bonus.</summary>
     public bool EnableGoblinTunnelSpeed { get; set; } = true;
@@ -752,7 +753,7 @@ public class RFMechanicsConfig
     /// per-tick sync writes.</summary>
     public double GoblinTunnelStatWriteThreshold { get; set; } = 0.02;
 
-    // ── Goblin spit-packed earth (Phase G2) ──
+    // â”€â”€ Goblin spit-packed earth (Phase G2) â”€â”€
 
     /// <summary>DORMANT: GoblinSpitPackingPatch is re-homed to src/BugRace/ and its Harmony
     /// attributes are commented out, so this flag currently has no effect. Left in place so
@@ -760,7 +761,7 @@ public class RFMechanicsConfig
     /// spit-packed earth conversion (Soil -&gt; packeddirt, Sand/Gravel -&gt; this mod's spitpacked{family} blocktypes).</summary>
     public bool EnableGoblinSpitPacking { get; set; } = true;
 
-    // ── Goblin rot aura (Phase G3) ──
+    // â”€â”€ Goblin rot aura (Phase G3) â”€â”€
 
     /// <summary>Master toggle for the rot aura (spoilage acceleration, larder hold, and crop
     /// stunting -- Tasks 1-3 of the Phase G3 rebuild that replaced spit-packed earth).</summary>
@@ -890,7 +891,7 @@ public class RFMechanicsConfig
     /// not a food source.</summary>
     public float GoblinRotEdibleSatiety { get; set; } = 3.0f;
 
-    // ── Goblin spit charges (rot repair) ──
+    // â”€â”€ Goblin spit charges (rot repair) â”€â”€
 
     /// <summary>Master toggle for goblin spit charges (GoblinSpitChargeGrantPatch +
     /// RFMechanicsModSystem.RegisterGoblinSpitCommand). A goblin's gut renders decay into a
@@ -917,7 +918,7 @@ public class RFMechanicsConfig
     /// single load; lowering the global cap to close that gap would cost the other six blocks room instead.</summary>
     public double SpitRepairGain { get; set; } = 0.125;
 
-    // ── Goblin rot flies (Phase G4) ──
+    // â”€â”€ Goblin rot flies (Phase G4) â”€â”€
 
     /// <summary>Enable the ambient voxel fly population. Does not disable aura consumption or gameplay effects.</summary>
     public bool EnableGoblinRotFlies { get; set; } = true;
@@ -994,7 +995,7 @@ public class RFMechanicsConfig
     /// <summary>Legacy setting: charge flies no longer fade in/out.</summary>
     public double GoblinSpitFliesFadeSeconds { get; set; } = 0.4;
 
-    // ── Elf leaf gathering (Phase G2) ──
+    // â”€â”€ Elf leaf gathering (Phase G2) â”€â”€
 
     /// <summary>Master toggle for the Elf leaf self-drop (ElfLeafDropPatch). Appends the
     /// harvested leaves-*/leavesbranchy-* block's own placed/obtainable form to vanilla's
@@ -1002,7 +1003,7 @@ public class RFMechanicsConfig
     /// branchy-leaves ingredient-sourcing gap (see notes/goblin-phase-g1-as-built.md).</summary>
     public bool EnableElfLeafGathering { get; set; } = true;
 
-    // ── Dwarf ore-song (v1 wire-up) ──
+    // â”€â”€ Dwarf ore-song (v1 wire-up) â”€â”€
 
     /// <summary>Master toggle for the Dwarf ore-song mechanic (the shared "rfraceability" hotkey,
     /// as a dwarf, makes nearby ore/gem deposits answer with a positioned sound per material).
@@ -1049,8 +1050,8 @@ public class RFMechanicsConfig
     /// <summary>Client-only coarse sensory captions for players unable to use directional audio.</summary>
     public bool OreSongCaptions { get; set; } = false;
 
-    // ── Chunk scar tracker (passive data collector, no gameplay consumer -- see
-    // ChunkScarTracker.cs's header and notes/race-mechanics/chunk-scar-archived.md) ──
+    // â”€â”€ Chunk scar tracker (passive data collector, no gameplay consumer -- see
+    // ChunkScarTracker.cs's header and notes/race-mechanics/chunk-scar-archived.md) â”€â”€
 
     /// <summary>Master toggle for ChunkScarBreakPatch's write path only -- false makes the
     /// Harmony postfix return immediately with no moddata written. Does not gate /rfscar's
@@ -1077,7 +1078,7 @@ public class RFMechanicsConfig
     /// Radius 1 = the 3x3 grid centered on the calling player's map chunk.</summary>
     public int ChunkScarNeighborSampleRadius { get; set; } = 1;
 
-    // ── Orc Smell ──
+    // â”€â”€ Orc Smell â”€â”€
 
     /// <summary>Master toggle for the Orc Smell mechanic. Client-side only, no server authority.</summary>
     public bool SmellEnabled { get; set; } = true;

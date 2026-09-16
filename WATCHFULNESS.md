@@ -1,4 +1,20 @@
-# Watchfulness cue prototype — 2026-09-16
+> Revision 2 (2026-09-16): supersedes presentation/settings below. Radius defaults
+> to 40 (clamped 10–64); saved local radius is updated during installation. No cues
+> within 5 blocks, fade-in over 5–12, fade-out across the outer 20% of the radius.
+> Muted broken grey-green streak, 0.44-block billboard independent of creature size,
+> quick 0.08-second onset then fade, total 0.8 seconds. Per-target initial eligibility
+> jitter 0–1.2 seconds; each emitted notice draws a fresh cooldown uniformly from
+> WatchfulnessCooldownMinimumSeconds=5 to WatchfulnessCooldownMaximumSeconds=15.
+> Old WatchfulnessCooldownSeconds is retired. No queued delayed motion: fresh visible
+> displacement is required after eligibility. Sampling remains shared at 100 ms,
+> but targets no longer share an identical cooldown. DDA cap is now 192 voxels/ray.
+> Render state is captured before mesh operations and restored with a using/finally
+> scope: buffer-zero blend enable/factors/equations, depth enable/write mask, GL
+> program, VAO and vertex/index buffers. No global blend helper, engine shader
+> Stop/Use, texture, colour-uniform, framebuffer or cull-state mutation is used.
+> Chat symptom has a concrete state-leak fix; visual resolution still needs Miles.
+> Hearing investigation uses existing offscreen sounds first, per the later handoff.
+# Watchfulness cue prototype â€” 2026-09-16
 
 Status: needs player test. Isolated prototype over accepted dev.11; no deployment.
 
@@ -13,9 +29,9 @@ Settings in `ModConfig/rfmechanics.json` (relaunch after editing):
 | Setting | Default | Clamp |
 | --- | --- | --- |
 | EnableElfWatchfulness | true | Server activation gate and client presentation gate |
-| WatchfulnessRadius | 20 blocks | 4–32 |
-| WatchfulnessCooldownSeconds | 2 seconds | 0.5–10 |
-| WatchfulnessMinimumSpeed | 0.2 blocks/second | 0.05–5 |
+| WatchfulnessRadius | 20 blocks | 4â€“32 |
+| WatchfulnessCooldownSeconds | 2 seconds | 0.5â€“10 |
+| WatchfulnessMinimumSpeed | 0.2 blocks/second | 0.05â€“5 |
 | WatchfulnessDiagnostics | false | Opt-in five-second client log counters |
 
 Client-side positions use Entity.Pos / InternalY, the renderers' translation source.
