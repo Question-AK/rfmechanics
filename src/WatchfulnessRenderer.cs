@@ -8,10 +8,10 @@ using Vintagestory.GameContent;
 
 namespace rfmechanics;
 
-internal sealed class WatchfulnessRenderer : IRenderer
+internal sealed partial class WatchfulnessRenderer : IRenderer
 {
     private const int CandidateCap = 64, QueryBudget = 256, CueCap = 8;
-    private const double Life = 0.8, HalfSize = 0.22;
+    private const double Life = 0.9;
     private sealed class Sample
     {
         internal Entity Entity = null!;
@@ -19,12 +19,15 @@ internal sealed class WatchfulnessRenderer : IRenderer
         internal double Time, NextCue;
         internal int Generation;
         internal bool WasOnScreen;
+        internal bool AwarenessEligible;
+        internal double Observation;
     }
     private sealed class Cue
     {
-        internal Sample Source = null!;
+        internal Sample? Source;
         internal readonly Vec3d Position = new();
         internal double Born;
+        internal bool Traced, Submitted, PeakLogged;
     }
     private readonly ICoreClientAPI api;
     private readonly ElfWatchfulnessModSystem stance;
@@ -42,6 +45,10 @@ internal sealed class WatchfulnessRenderer : IRenderer
     private bool testRequested;
     private int dimension, generation, visited, cursor, checks, emitted;
     private double now, sampleAt, refreshAt, logAt, radius;
+    private double traceUntil;
+    private int traceBudget;
+    private bool previewRequested;
+    private readonly float[] projection = new float[16];
     private EntityPlayer? self;
     public double RenderOrder => 0.07;
     public int RenderRange => 64;
@@ -53,6 +60,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
         visitor = Visit;
         api.Event.ReloadShader += LoadShader;
         LoadShader();
+        shapes = new WatchfulnessShapeRenderer(api);
         api.Event.RegisterRenderer(this, EnumRenderStage.AfterBlit, "rfwatchfulness");
     }
     private bool LoadShader()
@@ -69,9 +77,10 @@ internal sealed class WatchfulnessRenderer : IRenderer
     }
     internal void Clear()
     {
-        testRequested = false;
+        testRequested = previewRequested = glimpseRequested = false;
+        glimpses.Clear();
         samples.Clear(); cues.Clear(); remove.Clear(); haveBody = false;
-        sampleAt = refreshAt = 0;
+        sampleAt = refreshAt = focusAt = 0;
     }
     internal TextCommandResult RequestTest()
     {
@@ -79,6 +88,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
         if (!stance.Active || api.World.Player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race != PlayerRace.Elf)
             return TextCommandResult.Error("Enable elf Watchfulness first (Ctrl+H or your stance binding).");
         testRequested = true;
+        StartTrace();
         return TextCommandResult.Success("Testing on the next movement sample: up to 64 tracked visible targets, 5–40 blocks at default range. Cooldowns bypassed once.");
     }
     private static double Setting(double value, double fallback, double min, double max)
@@ -90,14 +100,15 @@ internal sealed class WatchfulnessRenderer : IRenderer
     private bool Visit(Entity e)
     {
         visited++;
-        if (Valid(e) && (e is EntityPlayer || OrcSmellClassifier.IsSmellableFauna(e)))
+        if (Valid(e) && e is EntityAgent)
         {
             Position(e, point);
             if (point.SquareDistanceTo(body) <= radius * radius)
             {
                 if (!samples.TryGetValue(e.EntityId, out var sample) && samples.Count < CandidateCap)
                 {
-                    sample = new Sample { Entity = e, Time = now, NextCue = now + api.World.Rand.NextDouble() * 1.2 };
+                    sample = new Sample { Entity = e, Time = now, NextCue = now + api.World.Rand.NextDouble() * 1.2,
+                        AwarenessEligible = e is EntityPlayer || OrcSmellClassifier.IsSmellableFauna(e) };
                     sample.Position.Set(point);
                     samples.Add(e.EntityId, sample);
                 }
@@ -117,12 +128,16 @@ internal sealed class WatchfulnessRenderer : IRenderer
                 || self.GetBehavior<PlayerRaceBehavior>()?.Race != PlayerRace.Elf || api.IsGamePaused)
             { Clear(); return; }
             now = api.World.ElapsedMilliseconds / 1000.0;
+            volumeCells=0;
             Position(self, body);
             if (haveBody && (dimension != self.Pos.Dimension || body.SquareDistanceTo(lastBody) > 4 || deltaTime > 0.5)) Clear();
             dimension = self.Pos.Dimension; lastBody.Set(body); haveBody = true;
             radius = Setting(cfg.WatchfulnessRadius, 40, 10, 64);
             origin.Set(self.CameraPos);
             float[] view = api.Render.CameraMatrixOriginf;
+            // Stable world projection captured by the engine before Opaque, including racial zoom.
+            // CurrentProjectionMatrix is stage-dependent; use this same matrix for tests AND drawing.
+            for (int p = 0; p < 16; p++) projection[p] = (float)api.Render.PerspectiveProjectionMat[p];
             camera.Set(origin.X - (view[0]*view[12] + view[1]*view[13] + view[2]*view[14]),
                 origin.Y - (view[4]*view[12] + view[5]*view[13] + view[6]*view[14]),
                 origin.Z - (view[8]*view[12] + view[9]*view[13] + view[10]*view[14]));
@@ -142,22 +157,40 @@ internal sealed class WatchfulnessRenderer : IRenderer
             {
                 sampleAt = now + 0.1;
                 SampleMovement(cfg, view);
+                SampleFocus(cfg, view);
             }
+            if(previewRequested && now>previewDeadline) previewRequested=false;
+            if (previewRequested && api.Input.MouseGrabbed && !Zooming)
+            { previewRequested = false; StartTrace(); PreviewAwareness(view); }
             // Retire, don't hide: leaving the frustum or losing visibility must never queue a cue.
             for (int i = cues.Count - 1; i >= 0; i--)
             {
                 Cue cue = cues[i];
-                Position(cue.Source.Entity, point);
-                if (now - cue.Born >= Life || !Valid(cue.Source.Entity)
-                    || point.SquareDistanceTo(cue.Source.Position) > 4
-                    || !OnScreen(cue.Position, view) || !Visible(cue.Position, view)) cues.RemoveAt(i);
+                string? reason = now - cue.Born >= Life ? "expired" : null;
+                if(Zooming) reason="racial zoom entered";
+                if (cue.Source != null)
+                {
+                    Position(cue.Source.Entity, point);
+                    if (!Valid(cue.Source.Entity)) reason = "invalid/dead/despawned";
+                    else if (point.SquareDistanceTo(cue.Source.Position) > 4) reason = "teleport";
+                }
+                if (reason == null && !OnScreen(cue.Position, view)) reason = "off-screen";
+                if (reason == null && !Visible(cue.Position, view)) reason = "occlusion/size";
+                if (reason != null)
+                {
+                    if (cue.Traced) Trace($"awareness retired={reason} submitted={cue.Submitted} age={now-cue.Born:0.000}s");
+                    cues.RemoveAt(i);
+                }
             }
             Draw(view);
+            DrawGlimpses(view, deltaTime);
             if (cfg.WatchfulnessDiagnostics && now >= logAt)
             {
                 logAt = now + 5;
-                api.Logger.Notification("[rfmechanics] Watchfulness candidates={0}, queryVisits={1}/256, live={2}/8, visibilityChecks={3}, emitted={4} (5s)", samples.Count, visited, cues.Count, checks, emitted);
+                traceBudget = 160;
+                api.Logger.Notification("[rfmechanics] Watchfulness candidates={0}, queryVisits={1}/256, live={2}/8, visibilityChecks={3}, emitted={4}, peakVolumeVoxels={5}/8192, glimpses={6}/2 (5s)", samples.Count, visited, cues.Count, checks, emitted,peakVolumeCells,glimpses.Count);
                 checks = emitted = 0;
+                peakVolumeCells=0;
             }
         }
         catch (Exception e)
@@ -190,6 +223,8 @@ internal sealed class WatchfulnessRenderer : IRenderer
             if (discontinuity)
             {
                 s.NextCue = now + api.World.Rand.NextDouble() * 1.2; s.WasOnScreen = false;
+                s.Observation = 0;
+                glimpses.RemoveAll(g => ReferenceEquals(g.Source, s));
                 for (int c = cues.Count - 1; c >= 0; c--)
                     if (ReferenceEquals(cues[c].Source, s)) cues.RemoveAt(c);
             }
@@ -198,16 +233,19 @@ internal sealed class WatchfulnessRenderer : IRenderer
             if (motion) moving++;
             // Always advance, including offscreen/blocked motion: no accumulated stale movement.
             s.Position.Set(point); s.Time = now;
-            point.Y += Math.Clamp(s.Entity.SelectionBox.Y2 * 0.5, 0.2, 1.2);
+            point.Y += Math.Clamp(s.Entity.SelectionBox.Y2 * 0.5, 0.8, 1.2);
             bool wasOnScreen = s.WasOnScreen;
             s.WasOnScreen = OnScreen(point, view);
             if (motion && s.WasOnScreen) visibleMoving++;
-            if (!motion || (!test && now < s.NextCue) || cues.Count >= (test ? CandidateCap : CueCap) || rayBudget <= 0
+            if (!s.AwarenessEligible || Zooming || !motion || (!test && now < s.NextCue) || cues.Count >= (test ? CandidateCap : CueCap) || rayBudget <= 0
                 || point.SquareDistanceTo(body) <= 25 || point.SquareDistanceTo(body) > radius * radius || !wasOnScreen || !s.WasOnScreen) continue;
             rayBudget--;
             if (!Visible(point, view)) continue;
-            var cue = new Cue { Source = s, Born = now };
+            var cue = new Cue { Source = s, Born = now, Traced = Tracing };
+            // Stable rough location, never attached to the moving target. The broad wisp obscures
+            // precise position without moving the cue across an unchecked terrain boundary.
             cue.Position.Set(point); cues.Add(cue);
+            if (cue.Traced) Trace($"awareness emitted distance={point.DistanceTo(body):0.0}m (not pixel proof)");
             added++;
             s.NextCue = now + cooldownMin + api.World.Rand.NextDouble() * (cooldownMax - cooldownMin); emitted++;
         }
@@ -225,7 +263,6 @@ internal sealed class WatchfulnessRenderer : IRenderer
         double vx = view[0]*x+view[4]*y+view[8]*z+view[12];
         double vy = view[1]*x+view[5]*y+view[9]*z+view[13];
         double vz = view[2]*x+view[6]*y+view[10]*z+view[14];
-        float[] projection = api.Render.CurrentProjectionMatrix;
         double w = projection[3]*vx+projection[7]*vy+projection[11]*vz+projection[15];
         return w > 0 && Math.Abs(projection[0]*vx+projection[4]*vy+projection[8]*vz+projection[12]) < w
             && Math.Abs(projection[1]*vx+projection[5]*vy+projection[9]*vz+projection[13]) < w;
@@ -234,12 +271,13 @@ internal sealed class WatchfulnessRenderer : IRenderer
     {
         checks++;
         if (!ClearRay(p.X, p.Y, p.Z)) return false;
-        // Check the billboard corners as well as its center before disabling depth testing.
-        for (int a = -1; a <= 1; a += 2)
-            for (int b = -1; b <= 1; b += 2)
-                if (!ClearRay(p.X+HalfSize*(a*view[0]+b*view[1]),
-                    p.Y+HalfSize*(a*view[4]+b*view[5]), p.Z+HalfSize*(a*view[8]+b*view[9]))) return false;
-        return true;
+        // Check the whole volume, not a few rays: a thin adjacent wall must not sit
+        // between corner rays while the widened wisp is rendered over it.
+        double halfSize = AwarenessHalfSize(p, view);
+        double ex=halfSize*(Math.Abs(view[0])+0.7*Math.Abs(view[1]))+0.002;
+        double ey=halfSize*(Math.Abs(view[4])+0.7*Math.Abs(view[5]))+0.002;
+        double ez=halfSize*(Math.Abs(view[8])+0.7*Math.Abs(view[9]))+0.002;
+        return ClearVolume(p.X-ex,p.Y-ey,p.Z-ez,p.X+ex,p.Y+ey,p.Z+ez,out _);
     }
     private bool ClearRay(double tx, double ty, double tz)
     {
@@ -287,17 +325,23 @@ internal sealed class WatchfulnessRenderer : IRenderer
         {
             double age = (now-cue.Born)/Life;
             double distance = cue.Position.DistanceTo(body);
-            double nearFade = Math.Clamp((distance - 5) / 2, 0, 1);
-            double farFade = Math.Clamp((radius - distance) / (radius * 0.2), 0, 1);
+            double nearFade = cue.Source==null ? 1 : Math.Clamp((distance - 5) / 2, 0, 1);
+            double farFade = cue.Source==null ? 1 : Math.Clamp((radius - distance) / (radius * 0.08), 0, 1);
             float alpha = (float)(0.9 * Math.Sin(Math.PI * age) * nearFade * farFade);
             double px=cue.Position.X-origin.X, py=cue.Position.Y-origin.Y, pz=cue.Position.Z-origin.Z;
             float x=(float)(view[0]*px+view[4]*py+view[8]*pz+view[12]);
             float y=(float)(view[1]*px+view[5]*py+view[9]*pz+view[13]);
             float z=(float)(view[2]*px+view[6]*py+view[10]*pz+view[14]);
-            float h=(float)HalfSize;
-            int color=OrcSmellVisuals.MeshColor(226, 238, 220, alpha), start=mesh.VerticesCount;
-            mesh.AddVertex(x-h,y-h,z,0,0,color); mesh.AddVertex(x+h,y-h,z,1,0,color);
-            mesh.AddVertex(x+h,y+h,z,1,1,color); mesh.AddVertex(x-h,y+h,z,0,1,color);
+            float h=(float)AwarenessHalfSize(cue.Position, view);
+            if (cue.Traced && (!cue.Submitted || (!cue.PeakLogged && age >= 0.45)))
+            {
+                double w=projection[11]*z+projection[15];
+                Trace($"awareness retained -> submitting ndc=({projection[0]*x/w:0.000},{projection[5]*y/w:0.000}), size={h*projection[0]/w*api.Render.FrameWidth:0.0}px, alpha={alpha:0.000}, z={z:0.00}, perspective11={projection[11]:0.0}, current11={api.Render.CurrentProjectionMatrix[11]:0.0}, origin=({origin.X:0.0},{origin.Y:0.0},{origin.Z:0.0})");
+                if (age >= 0.45) cue.PeakLogged = true;
+            }
+            int color=OrcSmellVisuals.MeshColor(190, 229, 235, alpha), start=mesh.VerticesCount;
+            mesh.AddVertex(x-h,y-h*0.7f,z,0,0,color); mesh.AddVertex(x+h,y-h*0.7f,z,1,0,color);
+            mesh.AddVertex(x+h,y+h*0.7f,z,1,1,color); mesh.AddVertex(x-h,y+h*0.7f,z,0,1,color);
             mesh.AddIndex(start); mesh.AddIndex(start+1); mesh.AddIndex(start+2);
             mesh.AddIndex(start); mesh.AddIndex(start+2); mesh.AddIndex(start+3);
         }
@@ -316,8 +360,13 @@ internal sealed class WatchfulnessRenderer : IRenderer
         try
         {
             shader.Use();
-            shader.UniformMatrix("projectionMatrix", api.Render.CurrentProjectionMatrix);
+            shader.UniformMatrix("projectionMatrix", projection);
             api.Render.RenderMesh(meshRef);
+            foreach (var cue in cues)
+            {
+                if (cue.Traced && !cue.Submitted) Trace($"awareness mesh submitted vertices={mesh.VerticesCount}, indices={mesh.IndicesCount}; framebuffer visibility unverified");
+                cue.Submitted = true;
+            }
         }
         finally
         {
@@ -328,6 +377,6 @@ internal sealed class WatchfulnessRenderer : IRenderer
     public void Dispose()
     {
         api.Event.UnregisterRenderer(this, EnumRenderStage.AfterBlit);
-        api.Event.ReloadShader -= LoadShader; Clear(); meshRef?.Dispose(); shader?.Dispose();
+        api.Event.ReloadShader -= LoadShader; Clear(); meshRef?.Dispose(); shader?.Dispose(); shapes.Dispose();
     }
 }

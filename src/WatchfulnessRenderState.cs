@@ -18,13 +18,27 @@ internal sealed class WatchfulnessRenderState : IDisposable
     private readonly int srcRgb = Indexed(0x80C9), dstRgb = Indexed(0x80C8);
     private readonly int srcAlpha = Indexed(0x80CB), dstAlpha = Indexed(0x80CA);
     private readonly int equationRgb = Indexed(0x8009), equationAlpha = Indexed(0x883D);
+    private readonly bool cull = GL.IsEnabled(EnableCap.CullFace);
+    private readonly int activeTexture = GL.GetInteger(GetPName.ActiveTexture);
+    private readonly int texture0, sampler0;
+    private readonly int uniformBuffer = GL.GetInteger(GetPName.UniformBufferBinding);
+    private readonly int uniform0, uniformStart0, uniformSize0;
 
     private static int Indexed(int name)
     {
         GL.GetInteger((GetIndexedPName)name, 0, out int value);
         return value;
     }
-    internal WatchfulnessRenderState(ICoreClientAPI api) { }
+    internal WatchfulnessRenderState(ICoreClientAPI api)
+    {
+        GL.ActiveTexture(TextureUnit.Texture0);
+        texture0=GL.GetInteger(GetPName.TextureBinding2D);
+        sampler0=GL.GetInteger((GetPName)0x8919); // GL_SAMPLER_BINDING for active texture unit zero
+        GL.GetInteger(GetIndexedPName.UniformBufferBinding,0,out uniform0);
+        GL.GetInteger(GetIndexedPName.UniformBufferStart,0,out uniformStart0);
+        GL.GetInteger(GetIndexedPName.UniformBufferSize,0,out uniformSize0);
+        GL.ActiveTexture((TextureUnit)activeTexture);
+    }
     internal static void BeginCue()
     {
         // Change only draw buffer zero; don't alter other buffers' blend state via the
@@ -34,6 +48,7 @@ internal sealed class WatchfulnessRenderState : IDisposable
         GL.BlendFuncSeparate(0, BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
             BlendingFactorSrc.One, BlendingFactorDest.OneMinusSrcAlpha);
         GL.Disable(EnableCap.DepthTest); GL.DepthMask(false);
+        GL.Disable(EnableCap.CullFace);
     }
     public void Dispose()
     {
@@ -47,5 +62,12 @@ internal sealed class WatchfulnessRenderState : IDisposable
         if (blend) GL.Enable(IndexedEnableCap.Blend, 0); else GL.Disable(IndexedEnableCap.Blend, 0);
         if (depth) GL.Enable(EnableCap.DepthTest); else GL.Disable(EnableCap.DepthTest);
         GL.DepthMask(depthWrite);
+        if(cull) GL.Enable(EnableCap.CullFace); else GL.Disable(EnableCap.CullFace);
+        GL.ActiveTexture(TextureUnit.Texture0); GL.BindTexture(TextureTarget.Texture2D,texture0);
+        GL.BindSampler(0,sampler0); GL.ActiveTexture((TextureUnit)activeTexture);
+        if(uniform0!=0 && uniformSize0>0)
+            GL.BindBufferRange(BufferRangeTarget.UniformBuffer,0,uniform0,(IntPtr)uniformStart0,uniformSize0);
+        else GL.BindBufferBase(BufferRangeTarget.UniformBuffer,0,uniform0);
+        GL.BindBuffer(BufferTarget.UniformBuffer,uniformBuffer);
     }
 }

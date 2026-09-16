@@ -42,6 +42,12 @@ public sealed class ElfWatchfulnessModSystem : ModSystem
         api.ChatCommands.Create("rfwatchtest")
             .WithDescription("Show a simultaneous Watchfulness test batch on moving visible targets.")
             .HandleWith(_ => renderer.RequestTest());
+        api.ChatCommands.Create("rfwatchpreview")
+            .WithDescription("Synthetic awareness preview at 10, 25 and 38 metres; not a detection test.")
+            .HandleWith(_ => renderer.RequestPreview(false));
+        api.ChatCommands.Create("rfwatchglimpse")
+            .WithDescription("Preview a focused living shape once, bypassing observation time only.")
+            .HandleWith(_ => renderer.RequestPreview(true));
         api.Event.LeaveWorld += LeaveWorld;
     }
 

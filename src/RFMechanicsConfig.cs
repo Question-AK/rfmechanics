@@ -13,6 +13,7 @@ public class RFMechanicsConfig
     public double WatchfulnessCooldownMaximumSeconds { get; set; } = 15;
     public double WatchfulnessMinimumSpeed { get; set; } = 0.2;
     public bool WatchfulnessDiagnostics { get; set; } = false;
+    public double WatchfulnessObservationSeconds { get; set; } = 2;
     /// <summary>Default trait code for the dwarf race. Loaded from config so it is trivially changeable.</summary>
     public string DwarfTraitCode { get; set; } = "rf-dwarf-positive";
 

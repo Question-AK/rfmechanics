@@ -1,9 +1,46 @@
+# Current prototype: awareness and discovery, 2026-09-16
+
+Updated: 2026-09-16. Version 0.1.3-watchfulness.7. Player acceptance pending.
+
+The README and current source describe revision 7. Earlier revision notes below
+are historical and do not define this candidate. The canonical task handoff is
+`notes/race-mechanics/session-handoffs/2026-09-16-watchfulness-discovery-codex.md`
+in the workspace, with exact build/install identities and the player checklist.
+
+Observation uses the central ellipse with NDC half-axes 0.48 / 0.55, or roughly
+48% of screen width and 55% of screen height. Existing glimpses tolerate 0.62 / 0.68.
+Default observation is two seconds (WatchfulnessObservationSeconds); unfocused
+progress decays at two seconds per second. Zoom release clears progress. Each
+glimpse lasts at most 0.75 seconds; looking away starts an irreversible 0.12-second
+fade. Another glimpse needs a fresh observation period. Limit: eight focused
+centre-ray checks per sample and two simultaneous glimpses.
+
+Actual opaque entity meshes, texture alpha and live animation matrices are borrowed
+read-only from EntityShapeRenderer, including PlayerModelLib's subclass family.
+The shader clips to expanded selection bounds and erases broad bands. Unsupported
+renderers or unready meshes are skipped; no generic shape substitute is shown.
+Solids in the conservative camera-to-clip-volume hull suppress the entire effect.
+This can over-suppress near terrain; it avoids single-ray wall leakage. Missing
+chunks and the shared 8192-voxel/frame budget fail closed. Leaves/plants/fluids/fire
+pass. Partial/chiselled solids and glass occupy a fully blocking voxel. Very large
+animated extremities outside the clip box are omitted; shader-specific warping,
+separately rendered held items and alternate-dimension partition queries are not
+covered. Runtime shader compilation, alignment and performance need player testing.
+
+Awareness is a fixed world-space pale wisp, 0.9 seconds, base width 1.3 blocks and
+minimum projected billboard width 28 framebuffer pixels; feathering occupies less
+than that full rectangle. It does not follow the target. Synthetic previews bypass
+range fading and motion, while normal awareness retains 5-block near suppression,
+40-block default range and independent 5–15-second cooldowns. Discovery also includes
+living EntityAgent creatures without the ordinary fauna classifier's creatureDiet.
+
+## Historical revision notes
 > Revision 2 (2026-09-16): supersedes presentation/settings below. Radius defaults
-> to 40 (clamped 10–64); saved local radius is updated during installation. No cues
-> within 5 blocks, fade-in over 5–12, fade-out across the outer 20% of the radius.
+> to 40 (clamped 10â€“64); saved local radius is updated during installation. No cues
+> within 5 blocks, fade-in over 5â€“12, fade-out across the outer 20% of the radius.
 > Muted broken grey-green streak, 0.44-block billboard independent of creature size,
 > quick 0.08-second onset then fade, total 0.8 seconds. Per-target initial eligibility
-> jitter 0–1.2 seconds; each emitted notice draws a fresh cooldown uniformly from
+> jitter 0â€“1.2 seconds; each emitted notice draws a fresh cooldown uniformly from
 > WatchfulnessCooldownMinimumSeconds=5 to WatchfulnessCooldownMaximumSeconds=15.
 > Old WatchfulnessCooldownSeconds is retired. No queued delayed motion: fresh visible
 > displacement is required after eligibility. Sampling remains shared at 100 ms,
@@ -14,7 +51,7 @@
 > Stop/Use, texture, colour-uniform, framebuffer or cull-state mutation is used.
 > Chat symptom has a concrete state-leak fix; visual resolution still needs Miles.
 > Hearing investigation uses existing offscreen sounds first, per the later handoff.
-# Watchfulness cue prototype â€” 2026-09-16
+# Watchfulness cue prototype Ã¢â‚¬â€ 2026-09-16
 
 Status: needs player test. Isolated prototype over accepted dev.11; no deployment.
 
@@ -29,9 +66,9 @@ Settings in `ModConfig/rfmechanics.json` (relaunch after editing):
 | Setting | Default | Clamp |
 | --- | --- | --- |
 | EnableElfWatchfulness | true | Server activation gate and client presentation gate |
-| WatchfulnessRadius | 20 blocks | 4â€“32 |
-| WatchfulnessCooldownSeconds | 2 seconds | 0.5â€“10 |
-| WatchfulnessMinimumSpeed | 0.2 blocks/second | 0.05â€“5 |
+| WatchfulnessRadius | 20 blocks | 4Ã¢â‚¬â€œ32 |
+| WatchfulnessCooldownSeconds | 2 seconds | 0.5Ã¢â‚¬â€œ10 |
+| WatchfulnessMinimumSpeed | 0.2 blocks/second | 0.05Ã¢â‚¬â€œ5 |
 | WatchfulnessDiagnostics | false | Opt-in five-second client log counters |
 
 Client-side positions use Entity.Pos / InternalY, the renderers' translation source.

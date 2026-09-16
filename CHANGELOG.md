@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.3-watchfulness.7 — local awareness/discovery prototype, unpublished
+
+- Replaces the tiny awareness dot with a wider, feathered pale wisp and minimum
+  projected width; preserves independent movement triggers outside racial zoom.
+- Adds two-second focused observation while Watchfulness and racial zoom are active,
+  including stationary living agents. Brief broken silhouettes borrow actual entity
+  meshes and current animation poses, with no permanent material changes.
+- Conservatively tests the viewing volume against solid voxels, clips glimpses to
+  that checked volume, and fails closed on missing chunks or budget exhaustion.
+- Uses the engine's saved perspective projection for both admission and rendering;
+  extends scoped state restoration to the new texture, culling and animation bindings.
+- Adds labelled previews and bounded emission/retirement/submission/projection traces.
+- Build verification is separate from pending player acceptance. No remote deployment.
+
 ## 0.1.3-dev.11 — combined local test, unpublished
 
 - Integrates elf two-block stepping and the default-R racial hotkey with the existing
