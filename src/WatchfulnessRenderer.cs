@@ -305,7 +305,11 @@ internal sealed class WatchfulnessRenderer : IRenderer
         // This shader has no engine includes, samplers or UBOs. Switch only the GL
         // program so the previous shader's Stop/Use cannot disturb its bindings.
         OpenTK.Graphics.OpenGL4.GL.UseProgram(shader.ProgramId);
-        shader.UniformMatrix("projectionMatrix", api.Render.CurrentProjectionMatrix);
+        // UniformMatrix on the engine wrapper checks its current-shader bookkeeping.
+        // This draw deliberately uses a scoped raw GL program binding, so upload the
+        // matrix through GL too, without touching the interrupted engine shader.
+        int projectionLocation = OpenTK.Graphics.OpenGL4.GL.GetUniformLocation(shader.ProgramId, "projectionMatrix");
+        OpenTK.Graphics.OpenGL4.GL.UniformMatrix4(projectionLocation, 1, false, api.Render.CurrentProjectionMatrix);
         api.Render.RenderMesh(meshRef);
     }
     public void Dispose()
