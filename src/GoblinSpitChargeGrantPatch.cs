@@ -80,6 +80,7 @@ namespace rfmechanics
                     int current = player.WatchedAttributes.GetInt(SpitChargesKey, 0);
                     int granted = Math.Min(current + cfg.SpitChargesPerRot, cfg.SpitChargeCap);
                     player.WatchedAttributes.SetInt(SpitChargesKey, granted);
+                    if (granted > current) RaceFeedbackModSystem.Send(player, "rot-spit");
                 }
 
                 if (cfg.EnableGoblinRotFlies)

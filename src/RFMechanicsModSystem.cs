@@ -360,15 +360,15 @@ namespace rfmechanics
                         const string SpitChargesKey = "rfmechanics:spitCharges";
                         int charges = entityPlayer.WatchedAttributes.GetInt(SpitChargesKey, 0);
                         if (charges <= 0)
-                            return TextCommandResult.Success("No spit left -- eat rot to refill.");
+                            { RaceFeedbackModSystem.Send(entityPlayer, "spit-empty"); return TextCommandResult.Success(); }
 
                         Block block = world.BlockAccessor.GetBlock(blockSel.Position);
                         var bec = block?.GetBEBehavior<BEBehaviorShapeFromAttributes>(blockSel.Position);
                         if (bec == null)
-                            return TextCommandResult.Success("Nothing to repair here.");
+                            { RaceFeedbackModSystem.Send(entityPlayer, "spit-invalid"); return TextCommandResult.Success(); }
 
                         if (bec.repairState >= 1f || bec.reparability <= 1)
-                            return TextCommandResult.Success("Nothing more to repair here.");
+                            { RaceFeedbackModSystem.Send(entityPlayer, "spit-full"); return TextCommandResult.Success(); }
 
                         double repairQuantity = cfg.SpitRepairGain;
                         if (repairQuantity < 0.001)
@@ -391,7 +391,8 @@ namespace rfmechanics
                         // no client-side branch needed here, unlike the old dual-invocation block behavior.
                         world.PlaySoundAt(AssetLocation.Create("sounds/player/gluerepair"), blockSel.Position, 0, player, true, 8);
 
-                        return TextCommandResult.Success(string.Format("Spit thins -- {0} left.", remaining));
+                        RaceFeedbackModSystem.Send(entityPlayer, remaining == 0 ? "spit-last" : "spit-repaired");
+                        return TextCommandResult.Success();
                     })
                 .EndSubCommand();
         }
@@ -843,6 +844,7 @@ namespace rfmechanics
                             frenzyStr = string.Format(
                                 "frenzyCurveMult={0:F3} stalled={1} walkspeedBonus={2:F3} jumpBonus={3:F3} debtGate={4:F2} debtPerGameHour={5:F3}",
                                 frenzyCurveMult, frenzyStalled, (float)cfg.FrenzyMaxSpeedBonus * frenzyCurveMult, (float)cfg.FrenzyMaxJumpBonus * frenzyCurveMult, cfg.FrenzyDebtSatietyThreshold, cfg.FrenzyDebtPerGameHour);
+                            frenzyStr += $" exertion={frenzyBhv.LastExertion:F2} actualDebtPerHour={frenzyBhv.LastDebtPerHour:F4} netThewLossPerHour={entity.WatchedAttributes.GetFloat(ThewBehavior.LossRateKey):F4}";
                         }
 
                         string debtStr = thewBhv != null

@@ -123,6 +123,7 @@ internal sealed partial class WatchfulnessRenderer
             var glimpse = new Glimpse { Source = sample, Born = now, Traced = Tracing };
             sample.NeedsLookAway = true; sample.AwaySeconds = 0;
             glimpses.Add(glimpse); added++;
+            if (!preview) api.ModLoader.GetModSystem<RaceFeedbackModSystem>().Discovered();
             if (glimpse.Traced) Trace($"glimpse emitted preview={preview}, observation={required:0.0}s, distance={point.DistanceTo(body):0.0}m");
         }
         if (preview)

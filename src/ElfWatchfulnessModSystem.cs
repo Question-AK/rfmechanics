@@ -36,7 +36,7 @@ public sealed class ElfWatchfulnessModSystem : ModSystem
         {
             Active = reply.Active;
             if (!Active) renderer?.Clear();
-            api.ShowChatMessage(reply.Active ? "Watchfulness on" : "Watchfulness off");
+            api.ModLoader.GetModSystem<RaceFeedbackModSystem>().Watch(reply.Active);
         });
         renderer = new WatchfulnessRenderer(api, this);
         api.ChatCommands.Create("rfwatchtest")

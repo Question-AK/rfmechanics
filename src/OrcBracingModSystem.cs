@@ -46,7 +46,6 @@ public sealed class OrcBracingModSystem : ModSystem
     private long inputTick;
     private int heldKey = -1;
     private long nextClientHint;
-    private OrcBraceHud? hud;
 
     public override void Start(ICoreAPI api) => api.Network.RegisterChannel(Channel)
         .RegisterMessageType<OrcBraceRequest>().RegisterMessageType<OrcBraceNotice>();
@@ -89,7 +88,7 @@ public sealed class OrcBracingModSystem : ModSystem
         var keys = heldKey >= KeyCombination.MouseStart ? capi.Input.KeyboardKeyState : capi.Input.KeyboardKeyStateRaw;
         if (heldKey >= keys.Length || !keys[heldKey]) heldKey = -1;
     }
-    private void ClearClient() { heldKey = -1; nextClientHint = 0; hud?.Dispose(); hud = null; }
+    private void ClearClient() { heldKey = -1; nextClientHint = 0; }
     private void Notice(OrcBraceNotice notice)
     {
         var self = capi?.World.Player?.Entity;
@@ -98,7 +97,7 @@ public sealed class OrcBracingModSystem : ModSystem
         // Never retain our own queue; stale/repeated transition notices are discarded.
         long now = capi!.World.ElapsedMilliseconds;
         bool urgent = notice.Hint == "hungry";
-        if (!urgent && now < nextClientHint) return;
+        if (!urgent && notice.Hint != "brace" && notice.Hint != "release" && now < nextClientHint) return;
         string? text = notice.Hint switch
         {
             "brace" => "You brace yourself.",
@@ -110,8 +109,9 @@ public sealed class OrcBracingModSystem : ModSystem
         };
         if (text == null) return;
         nextClientHint = now + 3000;
-        hud ??= new OrcBraceHud(capi);
-        hud.Show(text, self.EntityId);
+        RaceFeedbackModSystem.Local(capi, notice.Hint == "hungry" ? "brace-hungry"
+            : notice.Hint == "recovered" ? "brace-recovered"
+            : notice.Hint == "disabled" ? "brace-disabled" : notice.Hint);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -169,7 +169,7 @@ public sealed class OrcBracingModSystem : ModSystem
     private void Hint(Session session, string hint, bool force = false)
     {
         long now = sapi!.World.ElapsedMilliseconds;
-        if (!force && now < session.NextHint) return;
+        if (!force && hint != "brace" && hint != "release" && now < session.NextHint) return;
         session.NextHint = now + 3000;
         server?.SendPacket(new OrcBraceNotice { EntityId = session.Self.EntityId, Hint = hint }, session.Player);
     }

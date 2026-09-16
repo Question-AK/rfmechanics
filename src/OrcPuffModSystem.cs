@@ -5,138 +5,98 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 
-namespace rfmechanics
+namespace rfmechanics;
+
+// Smoke means actual net reserve loss. No branch reads hunger, debt, Burn or Frenzy.
+// All observers, including the local player, read the same server-owned loss rate.
+public class OrcPuffModSystem : ModSystem
 {
-    /// <summary>
-    /// Client-only visual cue for ThewBehavior.StateAttributeKey ("rf-orc-state"): a short
-    /// particle burst repeated on an interval that scales with state (never the burst size).
-    /// State 1 (gaining) renders local-player-only; states 2/3 (debt), 4 (Burn), and 5 (loss) render for every nearby
-    /// player. Per-tick reposition-and-spawn -- no attach-to-entity option exists in the particle
-    /// API (see Entity.OnGameTick's IsOnFire branch, the same pattern OrcSmellModSystem uses).
-    /// Reads the raw WatchedAttributes key directly, with no trait check of its own -- the byte
-    /// is only ever nonzero for an orc (ThewBehavior clears it on race-swap-away), so any
-    /// EntityPlayer carrying it is a valid render target.
-    /// </summary>
-    public class OrcPuffModSystem : ModSystem
+    private ICoreClientAPI? capi;
+    private long tick;
+    private bool disabled;
+    private readonly Dictionary<long, float> accum = new();
+    private readonly HashSet<long> seen = new();
+    private readonly List<long> remove = new();
+    public override bool ShouldLoad(EnumAppSide side) => side == EnumAppSide.Client;
+    public override void StartClientSide(ICoreClientAPI api)
     {
-        private ICoreClientAPI? capi;
-        private SimpleParticleProperties? puffParticle;
-        private static bool loggedException = false;
-        private bool disabled = false;
-
-        private readonly Dictionary<long, float> accumByEntity = new Dictionary<long, float>();
-
-        public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Client;
-
-        public override void StartClientSide(ICoreClientAPI api)
+        capi = api;
+        tick = api.Event.RegisterGameTickListener(Tick, Math.Clamp(RFMechanicsModSystem.Config?.PuffTickIntervalMs ?? 100, 50, 1000));
+        api.Event.LeaveWorld += Clear;
+    }
+    private void Clear() { accum.Clear(); seen.Clear(); remove.Clear(); }
+    private void Tick(float dt)
+    {
+        if (capi == null || disabled || capi.IsGamePaused) return;
+        var cfg = RFMechanicsModSystem.Config;
+        var self = capi.World.Player?.Entity;
+        if (cfg?.EnablePuff != true || self == null) { Clear(); return; }
+        try
         {
-            capi = api;
-            var cfg = RFMechanicsModSystem.Config ?? new RFMechanicsConfig();
-            BuildParticleTemplate(cfg);
-            capi.Event.RegisterGameTickListener(OnGameTick, cfg.PuffTickIntervalMs);
-        }
-
-        private void BuildParticleTemplate(RFMechanicsConfig cfg)
-        {
-            puffParticle = new SimpleParticleProperties
+            float range = (float)OrcMetabolismFeedbackRules.Finite(cfg.PuffRenderRange, 32, 4, 64);
+            seen.Clear();
+            // Explicit local call: some entity partitions do not return the observing player.
+            Consider(self, self, cfg, dt);
+            foreach (var e in capi.World.GetEntitiesAround(self.Pos.XYZ, range, range, e => e is EntityPlayer && e.Alive))
             {
-                ParticleModel = EnumParticleModel.Quad,
-                GravityEffect = (float)cfg.PuffGravityEffect,
-                LifeLength = (float)cfg.PuffLifeSeconds,
-                addLifeLength = (float)cfg.PuffLifeVariationSeconds,
-                MinSize = (float)cfg.PuffMinSize,
-                MaxSize = (float)cfg.PuffMaxSize,
-                MinQuantity = 1,
-                AddQuantity = 0,
-                MinPos = new Vec3d(),
-                AddPos = new Vec3d(cfg.PuffHorizontalSpread, cfg.PuffVerticalSpread, cfg.PuffHorizontalSpread),
-                MinVelocity = new Vec3f(-(float)cfg.PuffHorizontalSpeed, (float)cfg.PuffRiseSpeedMin, -(float)cfg.PuffHorizontalSpeed),
-                AddVelocity = new Vec3f(2f * (float)cfg.PuffHorizontalSpeed,
-                    (float)(cfg.PuffRiseSpeedMax - cfg.PuffRiseSpeedMin), 2f * (float)cfg.PuffHorizontalSpeed),
-                WindAffected = cfg.PuffWindAffected,
-                WindAffectednes = (float)cfg.PuffWindAffectedness,
-                WithTerrainCollision = true,
-            };
-            // LINEAR subtracts alpha units, not a fraction: fade the entire configured opacity.
-            puffParticle.OpacityEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, -cfg.PuffOpacity);
-            puffParticle.SizeEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, (float)cfg.PuffSizeGrowth);
-        }
-
-        private void OnGameTick(float dt)
-        {
-            if (disabled || capi == null || puffParticle == null) return;
-
-            var cfg = RFMechanicsModSystem.Config;
-            if (cfg == null || !cfg.EnablePuff) return;
-
-            try
-            {
-                EntityPlayer? self = capi.World.Player?.Entity;
-                if (self == null) return;
-
-                float range = (float)cfg.PuffRenderRange;
-                Entity[] nearby = capi.World.GetEntitiesAround(self.Pos.XYZ, range, range, e => e is EntityPlayer && e.Alive);
-
-                foreach (Entity e in nearby)
-                {
-                    int state = e.WatchedAttributes.GetInt(ThewBehavior.StateAttributeKey, 0);
-                    if (state <= 0 || state > 5)
-                    {
-                        accumByEntity.Remove(e.EntityId);
-                        continue;
-                    }
-
-                    bool isSelf = e.EntityId == self.EntityId;
-                    if (state == 1 && !isSelf) continue;
-
-                    double dx = e.Pos.X - self.Pos.X;
-                    double dy = e.Pos.Y - self.Pos.Y;
-                    double dz = e.Pos.Z - self.Pos.Z;
-                    double distSq = dx * dx + dy * dy + dz * dz;
-                    if (distSq > (double)range * range) continue;
-
-                    double interval = state switch
-                    {
-                        1 => cfg.PuffIntervalGaining,
-                        2 => cfg.PuffIntervalLightDebt,
-                        4 => cfg.PuffIntervalBurning,
-                        5 => cfg.PuffIntervalLosing,
-                        _ => cfg.PuffIntervalHeavyDebt
-                    };
-                    if (interval <= 0.0) continue;
-
-                    float accum = accumByEntity.TryGetValue(e.EntityId, out float existing) ? existing : 0f;
-                    accum += dt;
-                    if (accum >= interval)
-                    {
-                        EmitBurst(cfg, e, state);
-                        accum -= (float)interval;
-                    }
-                    accumByEntity[e.EntityId] = accum;
-                }
+                if (e.EntityId == self.EntityId || seen.Count >= 32 || e.Pos.Dimension != self.Pos.Dimension) continue;
+                Consider(e, self, cfg, dt);
             }
-            catch (Exception ex)
-            {
-                disabled = true;
-                if (!loggedException)
-                {
-                    loggedException = true;
-                    capi.Logger?.Warning("[rfmechanics] Exception in OrcPuffModSystem, disabling: {0}", ex);
-                }
-            }
+            remove.Clear();
+            foreach (long id in accum.Keys) if (!seen.Contains(id)) remove.Add(id);
+            foreach (long id in remove) accum.Remove(id);
         }
-
-        private void EmitBurst(RFMechanicsConfig cfg, Entity e, int state)
+        catch (Exception e)
         {
-            double eyeY = e.LocalEyePos.Y * cfg.PuffSpawnHeightEyeFraction;
-            double halfSpread = cfg.PuffHorizontalSpread / 2.0;
-            int[] rgb = state == 1 ? cfg.PuffSteamColorRgb : state == 4 ? cfg.PuffBurnColorRgb : cfg.PuffSmokeColorRgb;
-
-            puffParticle!.Color = ColorUtil.ToRgba(cfg.PuffOpacity, rgb[0], rgb[1], rgb[2]);
-            puffParticle.MinPos.Set(e.Pos.X - halfSpread, e.Pos.Y + eyeY, e.Pos.Z - halfSpread);
-            puffParticle.MinQuantity = (float)cfg.PuffParticleCount;
-
-            capi!.World.SpawnParticles(puffParticle);
+            disabled = true; Clear();
+            capi.Logger.Warning("[rfmechanics] Thew loss wisps disabled: {0}", e);
         }
+    }
+    private void Consider(Entity e, Entity self, RFMechanicsConfig cfg, float dt)
+    {
+        if (!e.Alive || e.GetBehavior<PlayerRaceBehavior>()?.Race != PlayerRace.Orc) return;
+        float rate = e.WatchedAttributes.GetFloat(ThewBehavior.LossRateKey);
+        if (!float.IsFinite(rate) || rate <= 0) return;
+        seen.Add(e.EntityId);
+        double fullRate = OrcMetabolismFeedbackRules.Finite(cfg.ThewLossSmokeFullRate, 0.12, 0.001, 10);
+        double strength = Math.Clamp(Math.Sqrt(rate / fullRate), 0, 1);
+        double thin = OrcMetabolismFeedbackRules.Finite(cfg.ThewLossSmokeThinInterval, 6, 1, 30);
+        double full = OrcMetabolismFeedbackRules.Finite(cfg.ThewLossSmokeFullInterval, 1.2, 0.4, thin);
+        double interval = thin + (full - thin) * strength;
+        float elapsed = accum.TryGetValue(e.EntityId, out float value) ? value : 0;
+        elapsed += Math.Clamp(dt, 0, 0.5f);
+        if (elapsed >= interval) { Emit(e, self, cfg, (float)strength); elapsed = 0; }
+        accum[e.EntityId] = elapsed;
+    }
+    private void Emit(Entity e, Entity self, RFMechanicsConfig cfg, float strength)
+    {
+        bool local = e.EntityId == self.EntityId;
+        double side = capi!.World.Rand.Next(2) == 0 ? -1 : 1;
+        double yaw = e.Pos.Yaw;
+        // Side/back of torso, below eyes: first-person wisps escape past the shoulders.
+        double x = e.Pos.X + Math.Cos(yaw) * side * 0.32 + Math.Sin(yaw) * 0.16;
+        double z = e.Pos.Z - Math.Sin(yaw) * side * 0.32 + Math.Cos(yaw) * 0.16;
+        int[] rgb = cfg.PuffSmokeColorRgb?.Length >= 3 ? cfg.PuffSmokeColorRgb : new[] { 100, 95, 90 };
+        int alpha = (int)(Math.Clamp(cfg.PuffOpacity, 20, 120) * (0.55 + strength * 0.45));
+        var particle = new SimpleParticleProperties {
+            ParticleModel = EnumParticleModel.Quad,
+            Color = ColorUtil.ToRgba(alpha, Math.Clamp(rgb[0],0,255), Math.Clamp(rgb[1],0,255), Math.Clamp(rgb[2],0,255)),
+            MinQuantity = 1, AddQuantity = strength * (local ? 1 : 2),
+            MinPos = new Vec3d(x, e.Pos.Y + e.LocalEyePos.Y * (local ? 0.62 : 0.7), z),
+            AddPos = new Vec3d(0.08, 0.16, 0.08),
+            MinVelocity = new Vec3f(-0.025f, 0.12f, -0.025f), AddVelocity = new Vec3f(0.05f, 0.1f, 0.05f),
+            MinSize = 0.08f, MaxSize = 0.12f + strength * 0.06f,
+            LifeLength = local ? 0.9f : 1.3f, addLifeLength = 0.3f,
+            GravityEffect = 0, WindAffected = cfg.PuffWindAffected, WindAffectednes = 0.1f,
+            WithTerrainCollision = true,
+            OpacityEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, -alpha),
+            SizeEvolve = EvolvingNatFloat.create(EnumTransformFunction.LINEAR, 0.18f)
+        };
+        capi.World.SpawnParticles(particle);
+    }
+    public override void Dispose()
+    {
+        if (capi != null) { capi.Event.UnregisterGameTickListener(tick); capi.Event.LeaveWorld -= Clear; }
+        Clear(); base.Dispose();
     }
 }

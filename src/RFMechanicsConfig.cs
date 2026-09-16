@@ -6,6 +6,15 @@ namespace rfmechanics;
 /// </summary>
 public class RFMechanicsConfig
 {
+    // Racial feedback prototype: new settings leave legacy saved tuning intact.
+    public bool EnableRacialFeedback { get; set; } = true;
+    public double FrenzyResponseExponent { get; set; } = 1.5;
+    public double FrenzyResponseWriteThreshold { get; set; } = 0.0025;
+    public double FrenzyWalkingDebtMultiplier { get; set; } = 0.35;
+    public double ThewLossSmokeFullRate { get; set; } = 0.12;
+    public double ThewLossSmokeThinInterval { get; set; } = 6;
+    public double ThewLossSmokeFullInterval { get; set; } = 1.2;
+
     // Local hunting trial; separate names leave older saved smell tuning untouched.
     public bool EnableOrcHunting { get; set; } = true;
     public double OrcFocusRecoverySeconds { get; set; } = 2;
@@ -568,6 +577,7 @@ public class RFMechanicsConfig
 
     /// <summary>Exponent on the Frenzy ramp: curveMult = (1 - satFrac/FrenzySatietyGate)^this,
     /// zero at FrenzySatietyGate, full at satFrac 0. Same shape family as Burn's curve.</summary>
+    // Legacy prototype curve; use FrenzyResponseExponent for current Frenzy.
     public double FrenzyCurveExponent { get; set; } = 3.0;
 
     /// <summary>Walkspeed delta (Stats.Set-delta units, matching WalkSpeedDelta's convention) at
@@ -599,6 +609,7 @@ public class RFMechanicsConfig
     /// they're re-written via Stats.Set -- Frenzy recomputes every fast tick (the bonus tracks
     /// current satFrac continuously), so without a write-avoidance threshold this would spam
     /// WatchedAttributes dirty/sync on every tick.</summary>
+    // Legacy write threshold; use FrenzyResponseWriteThreshold.
     public double FrenzyStatWriteThreshold { get; set; } = 0.02;
 
     // â”€â”€ Orc Wild-Animal Resist (standalone, no Thew/Frenzy dependency) â”€â”€

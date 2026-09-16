@@ -2,6 +2,7 @@ using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent;
 
 namespace rfmechanics
@@ -25,10 +26,23 @@ namespace rfmechanics
         /// <summary>Written by the eat-hook patch on every qualifying eat, read here to gate the hourly tick gain -- public so both sides share one attribute key.</summary>
         public const string LastFoodCategoryKey = "rf-orc-last-food-category";
 
-        /// <summary>Client-visible (WatchedAttributes) puff-cue state: 0 idle, 1 gaining, 2 light
-        /// debt, 3 heavy debt, 4 actively burning, 5 net Thew loss. Public so OrcPuffModSystem reads the same key without duplicating
-        /// the string. Written only on change -- see OnGameTick's puff-state step.</summary>
+        // Legacy state is cleared; smoke now reads only measured net metabolic loss.
         public const string StateAttributeKey = "rf-orc-state";
+        public const string LossRateKey = "rf-orc-loss-rate";
+
+        public override void Initialize(EntityProperties properties, JsonObject attributes)
+        {
+            base.Initialize(properties, attributes);
+            if (entity.World.Side == EnumAppSide.Server) PublishLoss(0);
+        }
+        private void PublishLoss(float rate)
+        {
+            if (entity.WatchedAttributes.GetInt(StateAttributeKey) != 0)
+                entity.WatchedAttributes.SetInt(StateAttributeKey, 0);
+            rate = (float)Math.Round(rate, 4);
+            if (entity.WatchedAttributes.GetFloat(LossRateKey) != rate)
+                entity.WatchedAttributes.SetFloat(LossRateKey, rate);
+        }
 
         private float accum;
 
@@ -84,7 +98,8 @@ namespace rfmechanics
             if (entity.World.Side != EnumAppSide.Server) return;
 
             var cfg = RFMechanicsModSystem.Config;
-            if (cfg == null || !cfg.EnableThew) return;
+            if (cfg == null || !cfg.EnableThew || !entity.Alive)
+            { PublishLoss(0); lastElapsedHours = double.NaN; return; }
 
             accum += deltaTime;
             if (accum < (float)cfg.ThewTickInterval) return;
@@ -107,17 +122,12 @@ namespace rfmechanics
 
             if (!isOrc)
             {
-                // Clears a leftover puff-cue state after a race-swap away -- OrcPuffModSystem
-                // reads this key for any player, with no trait check of its own.
-                if (entity.WatchedAttributes.GetInt(StateAttributeKey, 0) != 0)
-                {
-                    entity.WatchedAttributes.SetInt(StateAttributeKey, 0);
-                }
+                PublishLoss(0);
                 return;
             }
 
             var hunger = entity.GetBehavior<EntityBehaviorHunger>();
-            if (hunger == null || hunger.MaxSaturation <= 0f) return;
+            if (hunger == null || hunger.MaxSaturation <= 0f) { PublishLoss(0); return; }
 
             float satFrac = hunger.Saturation / hunger.MaxSaturation;
             var band = entity.GetBehavior<BandBehavior>()?.CurrentBand ?? BandBehavior.Band.Lean;
@@ -163,22 +173,11 @@ namespace rfmechanics
                 }
             }
 
-            if (cfg.EnablePuff)
-            {
-                float debtAfterDrain = BurnDebt + FrenzyDebt;
-                int state;
-                if (entity.GetBehavior<BurnBehavior>()?.Burning == true) state = 4;
-                else if (debtAfterDrain > (float)cfg.HeavyDebtThreshold) state = 3;
-                else if (debtAfterDrain > 0f) state = 2;
-                else if (Thew < thewBeforeTick) state = 5;
-                else if (satFrac > (float)cfg.ThewGainSatietyGate) state = 1;
-                else state = 0;
-
-                if (entity.WatchedAttributes.GetInt(StateAttributeKey, 0) != state)
-                {
-                    entity.WatchedAttributes.SetInt(StateAttributeKey, state);
-                }
-            }
+            // Bracket this tick's own metabolism only. Admin edits, creation-floor changes
+            // and death resets occur outside the bracket and cannot become false loss pulses.
+            float lossRate = hourFraction > 0 && hourFraction <= 0.25f
+                ? (float)OrcMetabolismFeedbackRules.LossPerHour(thewBeforeTick, Thew, hourFraction) : 0;
+            PublishLoss(cfg.EnablePuff ? lossRate : 0);
         }
 
         /// <summary>Vanilla MaxSaturation before any multiplier (player.json); the target is computed
@@ -209,6 +208,8 @@ namespace rfmechanics
         /// cap is left alone, never raised.</summary>
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
+            if (entity.World.Side == EnumAppSide.Server) PublishLoss(0);
+            lastElapsedHours = double.NaN;
             if (entity.World.Side != EnumAppSide.Server) return;
 
             var cfg = RFMechanicsModSystem.Config;

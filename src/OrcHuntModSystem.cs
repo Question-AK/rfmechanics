@@ -60,7 +60,7 @@ public sealed class OrcHuntModSystem : ModSystem
         {
             status = packet; lastStatus = api.World.ElapsedMilliseconds;
             BloodIds.Clear(); foreach (long id in packet.BloodIds) BloodIds.Add(id);
-            if (packet.Engaged) api.TriggerIngameDiscovery(this, "orchunt", "Blood is in the air.");
+            if (packet.Engaged) RaceFeedbackModSystem.Local(api, "blood");
         });
         api.Event.LeaveWorld += ClearClient;
         api.ChatCommands.Create("rfhunttest").WithDescription("Report Orc sniff and real bleeding integration state; does not create bleeding.")
@@ -80,7 +80,7 @@ public sealed class OrcHuntModSystem : ModSystem
         OrcSmellShared.StanceRevision++;
         OrcSmellShared.Quality = 0;
         OrcSmellShared.SensoryActive = Stance;
-        capi.ShowChatMessage(Stance ? "Hunting stance on" : "Hunting stance off");
+        capi.ModLoader.GetModSystem<RaceFeedbackModSystem>().Smell(Stance);
         return true;
     }
     internal void ClearClient() { Stance = false; BloodIds.Clear(); status = new(); lastStatus = -100000; toggleAt = 0; }
