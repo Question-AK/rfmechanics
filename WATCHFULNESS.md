@@ -1,6 +1,8 @@
 # Current prototype: awareness and discovery, 2026-09-16
 
-Updated: 2026-09-16. Version 0.1.3-watchfulness.7. Player acceptance pending.
+Updated: 2026-09-16. Version 0.1.3-watchfulness.8. Player acceptance pending.
+
+Revision 8 changes only the glimpse's peak opacity from 80% to 65%, at Miles's request.
 
 The README and current source describe revision 7. Earlier revision notes below
 are historical and do not define this candidate. The canonical task handoff is

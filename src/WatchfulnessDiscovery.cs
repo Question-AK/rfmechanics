@@ -144,7 +144,7 @@ internal sealed partial class WatchfulnessRenderer
                 if(g.Traced) Trace($"glimpse retired={reason}, submitted={g.Submitted}, age={now-g.Born:0.000}s");
                 glimpses.RemoveAt(i); g.Source.Observation=0; continue;
             }
-            float alpha=(float)(0.8 * Math.Min(1,(now-g.Born)/0.08) * Math.Min(1,(0.75-(now-g.Born))/0.15));
+            float alpha=(float)(0.65 * Math.Min(1,(now-g.Born)/0.08) * Math.Min(1,(0.75-(now-g.Born))/0.15));
             if(g.FadeAt>=0) alpha *= (float)Math.Clamp(1-(now-g.FadeAt)/0.12,0,1);
             bool submitted=shapes.Draw(e,view,projection,min,max,alpha);
             if(g.Traced && (!g.Submitted || (!g.PeakLogged && now-g.Born>=0.2)))

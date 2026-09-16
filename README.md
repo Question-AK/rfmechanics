@@ -2,10 +2,11 @@
 
 Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
 
-Local Watchfulness trial **0.1.3-watchfulness.7**: elf Ctrl+H enables the stance.
+Local Watchfulness trial **0.1.3-watchfulness.8**: elf Ctrl+H enables the stance.
 Without racial zoom, moving animals/players can produce a broad pale wisp.
 Hold Race Ability (default R, existing rebind retained) and observe a living agent
-near the centre for two seconds for a 0.75-second broken glimpse of its animated shape.
+near the centre for two seconds for a 0.75-second broken glimpse of its animated shape,
+with peak opacity 65% before texture, band and fade masks.
 Leaves permit detection; solid occupied voxels conservatively suppress the full effect.
 Looking away fades a glimpse within 0.12 seconds. Continued viewing requires another
 observation period. No hearing, night-vision or goblin Clamber changes.

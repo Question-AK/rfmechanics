@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3-watchfulness.8 — local opacity trial, unpublished
+
+- Lowers focused glimpse peak opacity from 80% to 65% at Miles's request.
+- Player retest pending; all other Watchfulness behavior remains as in revision 7.
+
 ## 0.1.3-watchfulness.7 — local awareness/discovery prototype, unpublished
 
 - Replaces the tiny awareness dot with a wider, feathered pale wisp and minimum
