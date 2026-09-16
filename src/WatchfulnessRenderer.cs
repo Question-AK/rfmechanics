@@ -282,13 +282,13 @@ internal sealed class WatchfulnessRenderer : IRenderer
             double distance = cue.Position.DistanceTo(body);
             double nearFade = Math.Clamp((distance - 5) / 7, 0, 1);
             double farFade = Math.Clamp((radius - distance) / (radius * 0.2), 0, 1);
-            float alpha = (float)(0.34 * Math.Min(1, age / 0.1) * Math.Pow(1 - age, 1.4) * nearFade * farFade);
+            float alpha = (float)(0.72 * Math.Min(1, age / 0.075) * Math.Pow(1 - age, 0.85) * nearFade * farFade);
             double px=cue.Position.X-origin.X, py=cue.Position.Y-origin.Y, pz=cue.Position.Z-origin.Z;
             float x=(float)(view[0]*px+view[4]*py+view[8]*pz+view[12]);
             float y=(float)(view[1]*px+view[5]*py+view[9]*pz+view[13]);
             float z=(float)(view[2]*px+view[6]*py+view[10]*pz+view[14]);
             float h=(float)HalfSize;
-            int color=OrcSmellVisuals.MeshColor(133, 148, 128, alpha), start=mesh.VerticesCount;
+            int color=OrcSmellVisuals.MeshColor(216, 224, 202, alpha), start=mesh.VerticesCount;
             mesh.AddVertex(x-h,y-h,z,0,0,color); mesh.AddVertex(x+h,y-h,z,1,0,color);
             mesh.AddVertex(x+h,y+h,z,1,1,color); mesh.AddVertex(x-h,y+h,z,0,1,color);
             mesh.AddIndex(start); mesh.AddIndex(start+1); mesh.AddIndex(start+2);
