@@ -17,7 +17,7 @@ namespace rfmechanics
         private long fastListenerId = -1;
         private double lastElapsedHours = double.NaN;
         private Vec3d? previousPosition;
-        private int previousDimension;
+        private int previousDimension, previousPositionVersion;
         private long previousMs, hurtUntil;
         private bool previousEligible, previousSprint;
         private double previousWalkX, previousWalkZ;
@@ -26,9 +26,10 @@ namespace rfmechanics
         internal double LastExertion { get; private set; }
         internal double LastDebtPerHour { get; private set; }
 
+        internal void ExternalMotion() => hurtUntil = entity.World.ElapsedMilliseconds + 1500;
         public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
         {
-            if (damage > 0) hurtUntil = entity.World.ElapsedMilliseconds + 1500;
+            if (damage > 0) ExternalMotion();
         }
         public override void OnEntityDeath(DamageSource source)
         {
@@ -46,11 +47,13 @@ namespace rfmechanics
                 && !entity.CollidedHorizontally && (entity as EntityAgent)?.MountedOn == null && !entity.Swimming
                 && !controls.IsFlying && !controls.IsClimbing && !controls.FloorSitting
                 && entity.Attributes.GetInt("dmgkb") == 0 && now >= hurtUntil;
+            int positionVersion = entity.WatchedAttributes.GetInt("positionVersionNumber");
             double result = previousPosition != null && p.Dimension == previousDimension
+                && positionVersion == previousPositionVersion
                 ? OrcMetabolismFeedbackRules.Exertion(p.X - previousPosition.X, p.Z - previousPosition.Z,
                     seconds, previousWalkX, previousWalkZ, eligible && previousEligible,
                     controls?.Sprint == true && previousSprint, cfg.FrenzyWalkingDebtMultiplier) : 0;
-            previousPosition = p.XYZ; previousDimension = p.Dimension; previousMs = now;
+            previousPosition = p.XYZ; previousDimension = p.Dimension; previousMs = now; previousPositionVersion = positionVersion;
             previousEligible = eligible; previousSprint = controls?.Sprint == true;
             // Compute the intent vector without assuming server physics updated WalkVector.
             sampledControls.FromInt(controls?.ToInt() ?? 0);

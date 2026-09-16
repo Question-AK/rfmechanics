@@ -41,6 +41,7 @@ Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Exertion(1,0,0.5,0,1,$tru
 Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Exertion(0,1,0.5,0,1,$true,$true,0.35)) 1 'Sprinting cost'
 Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Exertion(0,1,0.5,0,1,$true,$false,0.35)) 0.35 'Ordinary movement reduced cost'
 Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Exertion(0,50,0.5,0,1,$true,$true,0.35)) 0 'Teleport-sized sample is free'
+Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Exertion(0,0.5,0.5,0,1,$false,$true,0.35)) 0 'Rejected short teleport/push interval is free'
 Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Exertion(0,1,3,0,1,$true,$true,0.35)) 0 'Stale interval is free'
 Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Debt(0.6,1,1,0)) 0 'Idle Frenzy adds no debt'
 Assert-Near ([rfmechanics.OrcMetabolismFeedbackRules]::Debt(0.6,1,1,0.35)) 0.21 'Peak walking hourly cost'
