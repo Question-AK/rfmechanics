@@ -87,21 +87,21 @@ namespace rfmechanics
 
     public static class OrcProtectionRules
     {
-        // VS 1.22.6 armor.json: sewn leather (T1), iron lamellar (T3). Tier alone
+        // VS 1.22.6 armor.json: leather jerkin (T1), iron lamellar (T3). Tier alone
         // does not specify strength. These are complete, explicit interim profiles.
         public static double Protect(double damage, int weaponTier, int protectionTier)
         {
             if (!OrcBraceTuning.Finite(damage) || damage <= 0) return damage;
             bool braced = protectionTier == 3;
-            double flat = braced ? 0.7 : 0.6;
-            double relative = braced ? 0.79 : 0.6;
+            double flat = braced ? 0.7 : 0.25;
+            double relative = braced ? 0.79 : 0.4;
             int tier = braced ? 3 : 1;
             int attack = Math.Max(0, weaponTier);
             int within = Math.Min(attack, tier), above = attack - within;
             // Same per-weapon-tier losses and flat-then-relative order as vanilla
             // ModSystemWearableStats.handleDamaged, in closed form (bounded work).
-            flat -= within * (braced ? 0.1 : 0.05) + above * (braced ? 0.2 : 0.1);
-            relative *= Math.Pow(braced ? 0.97 : 0.985, within) * Math.Pow(braced ? 0.85 : 0.925, above);
+            flat -= within * 0.1 + above * 0.2;
+            relative *= Math.Pow(0.97, within) * Math.Pow(0.85, above);
             // Vanilla can make flat negative at high weapon tiers. Natural skin must
             // never INCREASE incoming damage; clip that term at zero explicitly.
             return Math.Max(0, damage - Math.Max(0, flat)) * (1 - Math.Max(0, relative));
