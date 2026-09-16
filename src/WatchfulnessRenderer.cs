@@ -171,7 +171,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
         bool test = testRequested;
         testRequested = false;
         if (test) cues.Clear();
-        int added = 0;
+        int added = 0, moving = 0, visibleMoving = 0;
         double minimum = Setting(cfg.WatchfulnessMinimumSpeed, 0.2, 0.05, 5);
         double cooldownMin = Setting(cfg.WatchfulnessCooldownMinimumSeconds, 5, 5, 60);
         double cooldownMax = Setting(cfg.WatchfulnessCooldownMaximumSeconds, 15, cooldownMin, 120);
@@ -195,11 +195,13 @@ internal sealed class WatchfulnessRenderer : IRenderer
             }
             bool motion = elapsed >= 0.05 && elapsed <= 0.5 && distance >= 0.025
                 && distance <= 2 && distance / elapsed <= 15 && distance / elapsed >= minimum;
+            if (motion) moving++;
             // Always advance, including offscreen/blocked motion: no accumulated stale movement.
             s.Position.Set(point); s.Time = now;
             point.Y += Math.Clamp(s.Entity.SelectionBox.Y2 * 0.5, 0.2, 1.2);
             bool wasOnScreen = s.WasOnScreen;
             s.WasOnScreen = OnScreen(point, view);
+            if (motion && s.WasOnScreen) visibleMoving++;
             if (!motion || (!test && now < s.NextCue) || cues.Count >= (test ? CandidateCap : CueCap) || rayBudget <= 0
                 || point.SquareDistanceTo(body) <= 25 || point.SquareDistanceTo(body) > radius * radius || !wasOnScreen || !s.WasOnScreen) continue;
             rayBudget--;
@@ -210,7 +212,12 @@ internal sealed class WatchfulnessRenderer : IRenderer
             s.NextCue = now + cooldownMin + api.World.Rand.NextDouble() * (cooldownMax - cooldownMin); emitted++;
         }
         cursor = count == 0 ? 0 : (cursor + 8) % count;
-        if (test) api.ShowChatMessage($"Watchfulness test: {added} moving visible targets cued simultaneously ({count} tracked; discovery capped at 256 visits). Nearby suppression and terrain blocking retained.");
+        if (test)
+        {
+            string result = $"Watchfulness test: {added} cued, {count} tracked, {moving} moving, {visibleMoving} moving on screen. Range 5–{radius:0} blocks; walls block. Discovery capped at 256 visits.";
+            api.ShowChatMessage(result);
+            api.Logger.Notification("[rfmechanics] {0}", result);
+        }
     }
     private bool OnScreen(Vec3d p, float[] view)
     {
@@ -280,15 +287,15 @@ internal sealed class WatchfulnessRenderer : IRenderer
         {
             double age = (now-cue.Born)/Life;
             double distance = cue.Position.DistanceTo(body);
-            double nearFade = Math.Clamp((distance - 5) / 7, 0, 1);
+            double nearFade = Math.Clamp((distance - 5) / 2, 0, 1);
             double farFade = Math.Clamp((radius - distance) / (radius * 0.2), 0, 1);
-            float alpha = (float)(0.72 * Math.Min(1, age / 0.075) * Math.Pow(1 - age, 0.85) * nearFade * farFade);
+            float alpha = (float)(0.9 * Math.Sin(Math.PI * age) * nearFade * farFade);
             double px=cue.Position.X-origin.X, py=cue.Position.Y-origin.Y, pz=cue.Position.Z-origin.Z;
             float x=(float)(view[0]*px+view[4]*py+view[8]*pz+view[12]);
             float y=(float)(view[1]*px+view[5]*py+view[9]*pz+view[13]);
             float z=(float)(view[2]*px+view[6]*py+view[10]*pz+view[14]);
             float h=(float)HalfSize;
-            int color=OrcSmellVisuals.MeshColor(216, 224, 202, alpha), start=mesh.VerticesCount;
+            int color=OrcSmellVisuals.MeshColor(226, 238, 220, alpha), start=mesh.VerticesCount;
             mesh.AddVertex(x-h,y-h,z,0,0,color); mesh.AddVertex(x+h,y-h,z,1,0,color);
             mesh.AddVertex(x+h,y+h,z,1,1,color); mesh.AddVertex(x-h,y+h,z,0,1,color);
             mesh.AddIndex(start); mesh.AddIndex(start+1); mesh.AddIndex(start+2);
@@ -302,15 +309,21 @@ internal sealed class WatchfulnessRenderer : IRenderer
         }
         api.Render.UpdateMesh(meshRef, mesh);
         WatchfulnessRenderState.BeginCue();
-        // This shader has no engine includes, samplers or UBOs. Switch only the GL
-        // program so the previous shader's Stop/Use cannot disturb its bindings.
-        OpenTK.Graphics.OpenGL4.GL.UseProgram(shader.ProgramId);
-        // UniformMatrix on the engine wrapper checks its current-shader bookkeeping.
-        // This draw deliberately uses a scoped raw GL program binding, so upload the
-        // matrix through GL too, without touching the interrupted engine shader.
-        int projectionLocation = OpenTK.Graphics.OpenGL4.GL.GetUniformLocation(shader.ProgramId, "projectionMatrix");
-        OpenTK.Graphics.OpenGL4.GL.UniformMatrix4(projectionLocation, 1, false, api.Render.CurrentProjectionMatrix);
-        api.Render.RenderMesh(meshRef);
+        // Restore the first prototype's engine-managed activation and uniform upload.
+        // The outer state scope still restores blend/depth/buffer state after this.
+        var previous = api.Render.CurrentActiveShader;
+        previous?.Stop();
+        try
+        {
+            shader.Use();
+            shader.UniformMatrix("projectionMatrix", api.Render.CurrentProjectionMatrix);
+            api.Render.RenderMesh(meshRef);
+        }
+        finally
+        {
+            shader.Stop();
+            previous?.Use();
+        }
     }
     public void Dispose()
     {
