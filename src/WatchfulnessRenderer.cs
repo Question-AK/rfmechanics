@@ -32,13 +32,14 @@ internal sealed class WatchfulnessRenderer : IRenderer
     private readonly Dictionary<long, Sample> samples = new(CandidateCap);
     private readonly List<long> remove = new(CandidateCap);
     private readonly List<Cue> cues = new(CueCap);
-    private readonly MeshData mesh = new(CueCap * 4, CueCap * 6, false, true, true, false);
+    private readonly MeshData mesh = new(CandidateCap * 4, CandidateCap * 6, false, true, true, false);
     private readonly Vec3d origin = new(), camera = new(), body = new(), lastBody = new(), point = new();
     private readonly BlockPos blockPos = new(0);
     private readonly Vintagestory.API.Common.ActionConsumable<Entity> visitor;
     private MeshRef? meshRef;
     private IShaderProgram? shader;
     private bool failed, haveBody;
+    private bool testRequested;
     private int dimension, generation, visited, cursor, checks, emitted;
     private double now, sampleAt, refreshAt, logAt, radius;
     private EntityPlayer? self;
@@ -68,8 +69,17 @@ internal sealed class WatchfulnessRenderer : IRenderer
     }
     internal void Clear()
     {
+        testRequested = false;
         samples.Clear(); cues.Clear(); remove.Clear(); haveBody = false;
         sampleAt = refreshAt = 0;
+    }
+    internal TextCommandResult RequestTest()
+    {
+        if (failed) return TextCommandResult.Error("Watchfulness renderer unavailable; check the client log.");
+        if (!stance.Active || api.World.Player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race != PlayerRace.Elf)
+            return TextCommandResult.Error("Enable elf Watchfulness first (Ctrl+H or your stance binding).");
+        testRequested = true;
+        return TextCommandResult.Success("Testing on the next movement sample: up to 64 tracked visible targets, 5–40 blocks at default range. Cooldowns bypassed once.");
     }
     private static double Setting(double value, double fallback, double min, double max)
         => double.IsFinite(value) ? Math.Clamp(value, min, max) : fallback;
@@ -158,10 +168,14 @@ internal sealed class WatchfulnessRenderer : IRenderer
     }
     private void SampleMovement(RFMechanicsConfig cfg, float[] view)
     {
+        bool test = testRequested;
+        testRequested = false;
+        if (test) cues.Clear();
+        int added = 0;
         double minimum = Setting(cfg.WatchfulnessMinimumSpeed, 0.2, 0.05, 5);
         double cooldownMin = Setting(cfg.WatchfulnessCooldownMinimumSeconds, 5, 5, 60);
         double cooldownMax = Setting(cfg.WatchfulnessCooldownMaximumSeconds, 15, cooldownMin, 120);
-        int index = 0, rayBudget = 8;
+        int index = 0, rayBudget = test ? CandidateCap : 8;
         // Rotate priority so the first moving target does not own the visibility budget.
         remove.Clear(); foreach (long id in samples.Keys) remove.Add(id);
         int count = remove.Count;
@@ -186,15 +200,17 @@ internal sealed class WatchfulnessRenderer : IRenderer
             point.Y += Math.Clamp(s.Entity.SelectionBox.Y2 * 0.5, 0.2, 1.2);
             bool wasOnScreen = s.WasOnScreen;
             s.WasOnScreen = OnScreen(point, view);
-            if (!motion || now < s.NextCue || cues.Count >= CueCap || rayBudget <= 0
+            if (!motion || (!test && now < s.NextCue) || cues.Count >= (test ? CandidateCap : CueCap) || rayBudget <= 0
                 || point.SquareDistanceTo(body) <= 25 || point.SquareDistanceTo(body) > radius * radius || !wasOnScreen || !s.WasOnScreen) continue;
             rayBudget--;
             if (!Visible(point, view)) continue;
             var cue = new Cue { Source = s, Born = now };
             cue.Position.Set(point); cues.Add(cue);
+            added++;
             s.NextCue = now + cooldownMin + api.World.Rand.NextDouble() * (cooldownMax - cooldownMin); emitted++;
         }
         cursor = count == 0 ? 0 : (cursor + 8) % count;
+        if (test) api.ShowChatMessage($"Watchfulness test: {added} moving visible targets cued simultaneously ({count} tracked; discovery capped at 256 visits). Nearby suppression and terrain blocking retained.");
     }
     private bool OnScreen(Vec3d p, float[] view)
     {
@@ -281,7 +297,7 @@ internal sealed class WatchfulnessRenderer : IRenderer
         if (meshRef == null)
         {
             int v=mesh.VerticesCount, i=mesh.IndicesCount;
-            mesh.VerticesCount=CueCap*4; mesh.IndicesCount=CueCap*6;
+            mesh.VerticesCount=CandidateCap*4; mesh.IndicesCount=CandidateCap*6;
             meshRef=api.Render.UploadMesh(mesh); mesh.VerticesCount=v; mesh.IndicesCount=i;
         }
         api.Render.UpdateMesh(meshRef, mesh);

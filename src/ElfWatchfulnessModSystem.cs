@@ -39,6 +39,9 @@ public sealed class ElfWatchfulnessModSystem : ModSystem
             api.ShowChatMessage(reply.Active ? "Watchfulness on" : "Watchfulness off");
         });
         renderer = new WatchfulnessRenderer(api, this);
+        api.ChatCommands.Create("rfwatchtest")
+            .WithDescription("Show a simultaneous Watchfulness test batch on moving visible targets.")
+            .HandleWith(_ => renderer.RequestTest());
         api.Event.LeaveWorld += LeaveWorld;
     }
 
