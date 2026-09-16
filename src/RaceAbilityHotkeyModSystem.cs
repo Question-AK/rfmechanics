@@ -19,8 +19,8 @@ namespace rfmechanics
     /// C (characterdialog) and X (fliphandslots) swallow it before Dispatch ever runs. See
     /// notes/race-mechanics/race-ability-hotkey-default-2026-09-16.md.
     ///
-    /// "rfclamber" (Ctrl+H) is a separate key on purpose: the Clamber stance is a persistent mode,
-    /// not one of the one-per-race abilities the dispatch table below assumes.
+    /// "rfclamber" (Ctrl+H) is the shared stance key, retaining existing rebinds. It dispatches
+    /// persistent goblin Clamber or session-only elf Watchfulness independently of held abilities.
     ///
     /// The hotkey handler only covers the two discrete-press abilities (dwarf, goblin). Orc smell focus and elf zoom
     /// are held ramps driven by their own render/tick pollers (OrcSmellFocusModSystem,
@@ -48,7 +48,7 @@ namespace rfmechanics
 
             // New code, not the retired "rfelfstepheighttoggle" that held Ctrl+H before M1 --
             // see the orphaned-rebind warning above.
-            api.Input.RegisterHotKey("rfclamber", "Clamber Stance (Goblin)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
+            api.Input.RegisterHotKey("rfclamber", "Race Stance (Clamber / Watchfulness)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
             api.Input.SetHotKeyHandler("rfclamber", _ => DispatchClamber(api));
         }
 
@@ -64,12 +64,13 @@ namespace rfmechanics
             return PressAbilities.TryGetValue(race, out var ability) && ability(api);
         }
 
-        /// <summary>Returns false for every non-goblin so their Ctrl+H stays available to other
-        /// mods, and so no other race ever acquires hidden stance state.</summary>
+        /// <summary>Other races fall through; the server validates each stance request independently.</summary>
         private static bool DispatchClamber(ICoreClientAPI api)
         {
             IPlayer? player = api.World.Player;
             PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
+            if (race == PlayerRace.Elf)
+                return api.ModLoader.GetModSystem<ElfWatchfulnessModSystem>().TryToggle();
             if (race != PlayerRace.Goblin) return false;
 
             return api.ModLoader.GetModSystem<GoblinClamberStanceModSystem>().TryToggle(api);

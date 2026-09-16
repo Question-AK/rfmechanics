@@ -6,6 +6,12 @@ namespace rfmechanics;
 /// </summary>
 public class RFMechanicsConfig
 {
+    // First movement-cue prototype; client presentation settings, server also gates activation.
+    public bool EnableElfWatchfulness { get; set; } = true;
+    public double WatchfulnessRadius { get; set; } = 20;
+    public double WatchfulnessCooldownSeconds { get; set; } = 2;
+    public double WatchfulnessMinimumSpeed { get; set; } = 0.2;
+    public bool WatchfulnessDiagnostics { get; set; } = false;
     /// <summary>Default trait code for the dwarf race. Loaded from config so it is trivially changeable.</summary>
     public string DwarfTraitCode { get; set; } = "rf-dwarf-positive";
 
