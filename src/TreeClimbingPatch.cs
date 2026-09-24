@@ -8,8 +8,8 @@ using Vintagestory.GameContent;
 namespace rfmechanics
 {
     /// <summary>
-    /// Lets Elves climb standing tree trunks ("log-grown"-prefixed, vanilla's convention for a
-    /// living tree vs. a cut/placed log) as if they were ladders, at plain vanilla ladder speed.
+    /// Lets Elves climb living tree trunks recognized by TreeBlockClassifier as if they were
+    /// ladders, at plain vanilla ladder speed.
     /// Two postfixes on EntityBehaviorControlledPhysics, not EntityBehaviorPlayerPhysics: that
     /// subclass overrides OnPhysicsTick but not these two methods, so patching the base class
     /// covers players (see BranchyLeavesPassthroughPatch.SimPhysicsPrefix for the OnPhysicsTick case).
@@ -111,25 +111,8 @@ namespace rfmechanics
             public bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos) => IsClimbableLog(world, block, pos);
         }
 
-        /// <summary>Chiseling replaces a block's own Code.Path with the generic "chiseledblock",
-        /// so a carved log trunk no longer matches the "log-grown" prefix directly -- the
-        /// fallback reads BlockEntityMicroBlock.BlockIds (the constituent materials chisel/schematic
-        /// placement preserves) so a decorated tree stays climbable, not just an unmodified one.</summary>
         private static bool IsClimbableLog(IWorldAccessor world, Block block, BlockPos pos)
-        {
-            if (block?.Code?.Path != null && block.Code.Path.StartsWith("log-grown")) return true;
-
-            BlockEntity blockEntity = world.BlockAccessor.GetBlockEntity(pos);
-            if (blockEntity is BlockEntityMicroBlock micro && micro.BlockIds != null)
-            {
-                foreach (int id in micro.BlockIds)
-                {
-                    if (world.GetBlock(id)?.Code?.Path?.StartsWith("log-grown") == true) return true;
-                }
-            }
-
-            return false;
-        }
+            => TreeBlockClassifier.IsLivingTrunk(world, block, pos);
 
         private static void LogExceptionOnce(Exception ex)
         {

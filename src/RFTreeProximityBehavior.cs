@@ -52,7 +52,8 @@ namespace rfmechanics
             TrySet(walkspeed, cfg);
         }
 
-        /// <summary>"log-grown" prefix identifies a standing tree log; cut/placed logs and firewood are excluded on purpose.</summary>
+        /// <summary>The shared living-trunk classifier identifies standing tree blocks; cut/placed
+        /// logs and firewood are excluded on purpose.</summary>
         private float GetNearTreeStrength(int radius)
         {
             BlockPos centerPos = entity.Pos.AsBlockPos;
@@ -66,7 +67,7 @@ namespace rfmechanics
             float strength = 0f;
             entity.World.BlockAccessor.WalkBlocks(min, max, (block, x, y, z) =>
             {
-                if (block?.Code?.Path == null || !block.Code.Path.StartsWith("log-grown")) return;
+                if (!TreeBlockClassifier.IsLivingTrunkPath(block?.Code?.Path)) return;
 
                 double dx = x + 0.5 - px;
                 double dy = y + 0.5 - py;

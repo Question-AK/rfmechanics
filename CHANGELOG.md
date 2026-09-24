@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2 - 2026-09-24
+
+- Cumulative repair based on 1.1.0; restores the accepted mechanics omitted by the
+  non-cumulative 1.1.1 candidate, including Orc mechanics and Elf Watchfulness.
+- Adds shared exact-prefix classification for standard living trunks, redwood trunk
+  sections and narrow living trunks, retaining separate Elf/Goblin permissions.
+- Keeps branch foliage classification separate and excludes placed trunk variants.
+- Redwood climbing gameplay acceptance remains pending.
+
+
 ## 1.1.0 - 2026-09-17
 
 - All races can step up one block; Elves can step up two.
