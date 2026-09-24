@@ -1,13 +1,13 @@
 # RF Mechanics
 
-RF Mechanics **1.1.0** for Vintage Story **1.22.6**.
+RF Mechanics **1.1.2** for Vintage Story **1.22.6**.
 
-Packages the cumulative locally tested 0.1.3-orcskin.2 gameplay source, including
-racial feedback, Orc thick skin and scent, Elf Watchfulness, and climbing/stepping
-improvements. See CHANGELOG.md for changes since 1.0.0. Armor interaction and
-broader multiplayer checks remain incomplete; this package adds no gameplay changes
-to that development build. The detailed design and testing notes below retain
-their original prototype context.
+Cumulative repair from 1.1.0, retaining Orc mechanics, Elf Watchfulness, Goblin
+Clamber and accepted climbing/stepping improvements. Adds exact-prefix support for
+redwood trunk sections and narrow living trunks. The incomplete 1.1.1 candidate is
+withdrawn. See CHANGELOG.md. Redwood gameplay, armor interaction and broader
+multiplayer checks remain pending; the detailed notes below retain their original
+prototype context.
 
 Brief racial messages use one noninteractive fading line, distinct race colors and
 built-in fonts. Goblin rot consumption/repair and Clamber, Elf Watchfulness/woodland
