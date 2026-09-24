@@ -102,8 +102,8 @@ public class RFMechanicsConfig
 
     // ── Tree climbing (Elf) ──
 
-    /// <summary>Master toggle for letting Elves climb standing tree trunks ("log-grown"
-    /// blocks) as if they were ladders, at plain vanilla ladder speed (no separate cost or
+    /// <summary>Master toggle for letting Elves climb living tree trunks as if they were ladders,
+    /// at plain vanilla ladder speed (no separate cost or
     /// speed curve, unlike ClimbSpeedFactor/ClimbSaturationPerSecond for dwarves).</summary>
     public bool EnableTreeClimbing { get; set; } = true;
 
@@ -654,8 +654,8 @@ public class RFMechanicsConfig
     /// EnableGoblinRockClimbing for that. Tree trunks are never gated, matching the Elf.</summary>
     public bool EnableGoblinClamberStance { get; set; } = true;
 
-    /// <summary>Master toggle for Goblin tree climbing (same "log-grown" mechanism as Elf's
-    /// TreeClimbingPatch, parallel implementation in GoblinClimbingPatch). Independent of
+    /// <summary>Master toggle for Goblin tree climbing (same shared living-trunk classifier as
+    /// Elf's TreeClimbingPatch, parallel implementation in GoblinClimbingPatch). Independent of
     /// EnableGoblinRockClimbing.</summary>
     public bool EnableGoblinTreeClimbing { get; set; } = true;
 

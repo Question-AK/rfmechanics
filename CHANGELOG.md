@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3-dev.12 — tree classifier and redwood trunk coverage, unpublished
+
+- Centralizes living-trunk recognition for Elves, Goblins and tree proximity.
+- Adds exact bounded support for `logsection-grown-*` redwood trunk sections and
+  `lognarrow-grown-*` trunks such as Greenspire Cypress, while continuing to reject placed logs.
+- Keeps Goblin tree, rock and earth permissions separate.
+- Replaces Elf foliage substring matching with exact branch-foliage family matching.
+- Local build only; redwood section edge/corner gameplay acceptance remains pending.
+
 ## 0.1.3-dev.11 — combined local test, unpublished
 
 - Integrates elf two-block stepping and the default-R racial hotkey with the existing

@@ -148,7 +148,7 @@ namespace rfmechanics
             for (int read = 0; read < list.Count; read++)
             {
                 Block block = list.blocks[read];
-                bool isBranchy = block?.Code?.Path != null && block.Code.Path.Contains("branchy");
+                bool isBranchy = TreeBlockClassifier.IsBranchFoliagePath(block?.Code?.Path);
                 if (isBranchy)
                 {
                     bool strip = !retainFootSupport || list.cuboids[read].Y2 > footY;

@@ -8,7 +8,7 @@ using Vintagestory.GameContent;
 namespace rfmechanics
 {
     /// <summary>
-    /// Lets Goblins climb standing tree trunks ("log-grown"-prefixed, same as Elf) and raw
+    /// Lets Goblins climb living tree trunks (shared classifier, same as Elf) and raw
     /// natural rock (whitelist below) as if they were ladders, at plain vanilla ladder speed --
     /// no saturation cost, since vanilla's own baseline hunger drain has no IsClimbing-specific
     /// term at all (only Dwarf's ClimbSaturationPatch is a deliberately ADDED cost).
@@ -147,25 +147,29 @@ namespace rfmechanics
             /// to cover both the tree and rock match groups here.</summary>
             public bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos)
             {
-                if (MatchesPath(block?.Code?.Path)) return true;
+                // Tree classification is shared with Elf, but tree permission remains this
+                // Goblin filter's independent checkTrees decision.
+                if (checkTrees && TreeBlockClassifier.IsLivingTrunk(world, block, pos)) return true;
+                if (MatchesNonTreePath(block?.Code?.Path)) return true;
 
                 BlockEntity blockEntity = world.BlockAccessor.GetBlockEntity(pos);
                 if (blockEntity is BlockEntityMicroBlock micro && micro.BlockIds != null)
                 {
                     foreach (int id in micro.BlockIds)
                     {
-                        if (MatchesPath(world.GetBlock(id)?.Code?.Path)) return true;
+                        string? path = world.GetBlock(id)?.Code?.Path;
+                        if ((checkTrees && TreeBlockClassifier.IsLivingTrunkPath(path))
+                            || MatchesNonTreePath(path)) return true;
                     }
                 }
 
                 return false;
             }
 
-            private bool MatchesPath(string? path)
+            private bool MatchesNonTreePath(string? path)
             {
                 if (path == null) return false;
-                return (checkTrees && path.StartsWith("log-grown"))
-                    || (checkRock && MatchesAnyPrefix(path, rockPrefixes))
+                return (checkRock && MatchesAnyPrefix(path, rockPrefixes))
                     || (checkEarth && MatchesAnyCode(path, earthCodes));
             }
         }
