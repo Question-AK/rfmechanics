@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.3-ag2.1 - 2026-09-29
+
+- Skip racial feedback callbacks while a spawning player lacks initialized entity
+  behavior state; clear stale feedback state and resume normally once it is ready.
+- Guard the corresponding client notice/identity/HUD and server send/mining paths.
+  Preserve racial calculations, thresholds, notifications and cumulative 1.1.2 features.
+- Isolated full-pack loading fix; player entry and normal feedback checks remain pending.
+
 ## 1.1.2 - 2026-09-24
 
 - Cumulative repair based on 1.1.0; restores the accepted mechanics omitted by the

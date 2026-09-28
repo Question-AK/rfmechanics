@@ -47,7 +47,7 @@ internal sealed class RaceFeedbackHud : HudElement
     {
         var self = capi.World.Player?.Entity;
         double age = (capi.InWorldEllapsedMilliseconds - shownAt) / 1000.0;
-        if (self?.Alive != true || self.EntityId != entityId
+        if (!RaceFeedbackModSystem.HasBehaviorState(self) || self?.Alive != true || self.EntityId != entityId
             || self.GetBehavior<PlayerRaceBehavior>()?.Race != race || age >= 3.6)
         { TryClose(); return; }
         tint.A = (float)Math.Clamp(Math.Min(age / 0.15, (3.6 - age) / 0.65), 0, 1);

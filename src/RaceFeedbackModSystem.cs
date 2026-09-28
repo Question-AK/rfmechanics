@@ -49,7 +49,7 @@ public sealed class RaceFeedbackModSystem : ModSystem
         capi = api;
         api.Network.GetChannel(Channel).SetMessageHandler<RaceFeedbackNotice>(notice => {
             var self = api.World.Player?.Entity;
-            if (self?.EntityId == notice.EntityId && (int)(self.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None) == notice.Race)
+            if (HasBehaviorState(self) && self?.EntityId == notice.EntityId && (int)(self.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None) == notice.Race)
                 Show(notice.Key);
         });
         clientTick = api.Event.RegisterGameTickListener(ClientTick, 100);
@@ -65,7 +65,7 @@ public sealed class RaceFeedbackModSystem : ModSystem
     }
     internal static void Send(Entity entity, string key)
     {
-        if (entity.World.Side != EnumAppSide.Server || entity is not EntityPlayer player) return;
+        if (!HasBehaviorState(entity) || entity.World.Side != EnumAppSide.Server || entity is not EntityPlayer player) return;
         var system = entity.Api.ModLoader.GetModSystem<RaceFeedbackModSystem>();
         if (entity.World.PlayerByUid(player.PlayerUID) is IServerPlayer recipient)
             system.server?.SendPacket(new RaceFeedbackNotice { EntityId = entity.EntityId, Key = key,
@@ -102,7 +102,8 @@ public sealed class RaceFeedbackModSystem : ModSystem
     private void EnsureClientIdentity()
     {
         var self = capi?.World.Player?.Entity;
-        var race = self?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
+        if (!HasBehaviorState(self)) { ClearClient(); return; }
+        var race = self!.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
         if (self?.Alive != true || self.EntityId != localEntity || race != localRace)
         {
             ClearClient(); localEntity = self?.EntityId ?? 0; localRace = race;
@@ -162,9 +163,17 @@ public sealed class RaceFeedbackModSystem : ModSystem
 
     private void Remove(IServerPlayer player) => states.Remove(player.PlayerUID);
     private void Death(IServerPlayer player, DamageSource _) => Remove(player);
-    private State GetState(IServerPlayer player)
+
+    // Online players can be visible during delayed spawn before Entity.Initialize.
+    // GetBehavior dereferences SidedProperties; Alive alone does not make it safe.
+    internal static bool HasBehaviorState(Entity? entity) =>
+        entity?.World != null && entity.Api != null && entity.SidedProperties?.Behaviors != null;
+
+    private State? GetState(IServerPlayer player)
     {
-        var e = player.Entity; var race = e.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
+        var e = player.Entity;
+        if (!HasBehaviorState(e) || !e.Alive) { Remove(player); return null; }
+        var race = e.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
         if (!states.TryGetValue(player.PlayerUID, out var state) || state.Entity != e.EntityId || state.Race != race)
         {
             state = new State { Entity = e.EntityId, Race = race,
@@ -182,8 +191,8 @@ public sealed class RaceFeedbackModSystem : ModSystem
         {
             if (online is not IServerPlayer player) continue;
             var e = player.Entity;
-            if (!e.Alive) { Remove(player); continue; }
             var s = GetState(player);
+            if (s == null) continue;
             if (s.Race == PlayerRace.Goblin)
             {
                 bool aura = GoblinRotAuraState.ReadVisual(e).Active;
@@ -209,9 +218,9 @@ public sealed class RaceFeedbackModSystem : ModSystem
     }
     private void Mined(IServerPlayer player, int oldId, BlockSelection selection)
     {
-        if (sapi == null || !player.Entity.Alive || RFMechanicsModSystem.Config?.EnableMiningCurve != true) return;
+        if (sapi == null || RFMechanicsModSystem.Config?.EnableMiningCurve != true) return;
         var s = GetState(player);
-        if (s.Race != PlayerRace.Dwarf) return;
+        if (s == null || s.Race != PlayerRace.Dwarf) return;
         var material = sapi.World.GetBlock(oldId).BlockMaterial;
         if (material != EnumBlockMaterial.Ore && material != EnumBlockMaterial.Stone) return;
         int band = OrcMetabolismFeedbackRules.DepthBand(selection.Position.Y, sapi.World.SeaLevel);
