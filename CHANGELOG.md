@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.3-halfgiant.1 - 2026-10-01
+
+- Recognises the Half-Giant (Race Framework `rf-halfgiant-positive`, 1.1.0-halfgiant.2 or
+  later) as a fifth race. Step height 2.1.
+- Half-Giants wade and breathe in water up to about 3 blocks deep and wade about 1.5× as
+  fast as a human. They swim up heavily (Space alone is enough) and sink when idle.
+- The third-person camera starts two zoom steps further out once per session.
+- Local Diet Test build on 1.1.3-ag2.1. Independent technical review and player checks
+  are pending. The race handbook and the dwarf migration are not included.
+
 ## 1.1.3-ag2.1 - 2026-09-29
 
 - Skip racial feedback callbacks while a spawning player lacks initialized entity
