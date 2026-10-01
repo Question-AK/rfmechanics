@@ -702,9 +702,9 @@ public class RFMechanicsConfig
     /// as a human (Miles, 2026-10-01).</summary>
     public double HalfGiantWadingSpeedFactor { get; set; } = 1.2;
 
-    /// <summary>Client: after picking the Half-Giant, press "-" (zoomout) HalfGiantCameraZoomOutSteps
-    /// times on the first third-person view, then leave the camera to the player (Miles, 2026-10-01).
-    /// The game resets the distance to 3 each session, so this re-arms once per session.</summary>
+    /// <summary>Client: on a Half-Giant's first-ever third-person view, zoom out HalfGiantCameraZoomOutSteps;
+    /// afterwards remember the player's own distance across sessions, which the game does not save
+    /// (Miles, 2026-10-01: "just once ever as long as it remembers that setting").</summary>
     public bool EnableHalfGiantCamera { get; set; } = true;
 
     public int HalfGiantCameraZoomOutSteps { get; set; } = 2;
