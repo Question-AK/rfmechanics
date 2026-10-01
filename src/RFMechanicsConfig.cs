@@ -697,6 +697,11 @@ public class RFMechanicsConfig
     /// (the dwarf trait's buoyancy -0.3). Not applied while wading.</summary>
     public double HalfGiantSwimSink { get; set; } = 0.3;
 
+    /// <summary>Multiplies the Half-Giant's walk speed while wading (vanilla divides any walk in
+    /// liquid by 2.5). 1.2 on top of the trait's walkspeed +0.25 makes it wade about 1.5x as fast
+    /// as a human (Miles, 2026-10-01).</summary>
+    public double HalfGiantWadingSpeedFactor { get; set; } = 1.2;
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
