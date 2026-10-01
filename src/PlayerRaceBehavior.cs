@@ -70,8 +70,8 @@ namespace rfmechanics
         }
 
         /// <summary>Races are mutually exclusive per player (per commit 11d2e0e's own stated
-        /// assumption), so the first trait match wins -- order among the four doesn't matter in
-        /// practice, only that all four get checked.</summary>
+        /// assumption), so the first trait match wins -- order among the races doesn't matter in
+        /// practice, only that every race gets checked.</summary>
         private void RefreshRaceCache()
         {
             var cfg = RFMechanicsModSystem.Config;
@@ -84,6 +84,7 @@ namespace rfmechanics
             else if (RaceTraits.HasTrait(iplayer, cfg.DwarfTraitCode)) Race = PlayerRace.Dwarf;
             else if (RaceTraits.HasTrait(iplayer, cfg.OrcTraitCode)) Race = PlayerRace.Orc;
             else if (RaceTraits.HasTrait(iplayer, cfg.GoblinTraitCode)) Race = PlayerRace.Goblin;
+            else if (RaceTraits.HasTrait(iplayer, cfg.HalfGiantTraitCode)) Race = PlayerRace.HalfGiant;
             else Race = PlayerRace.None;
         }
     }

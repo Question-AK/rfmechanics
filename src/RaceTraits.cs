@@ -4,9 +4,9 @@ using Vintagestory.GameContent;
 namespace rfmechanics
 {
     // None covers both "no character class yet" and "human" -- there's no human trait code to
-    // check against, and every consumer only needs to distinguish "has one of the four abilities"
-    // from "doesn't."
-    public enum PlayerRace { None, Elf, Dwarf, Orc, Goblin }
+    // check against, and every consumer only needs to distinguish "has a race's abilities" from
+    // "doesn't." Append new races: RaceFeedbackModSystem sends the int value over the network.
+    public enum PlayerRace { None, Elf, Dwarf, Orc, Goblin, HalfGiant }
 
     public static class RaceTraits
     {

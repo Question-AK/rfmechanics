@@ -6,8 +6,9 @@ using Vintagestory.GameContent;
 namespace rfmechanics
 {
     /// <summary>
-    /// Sets StepHeight per race -- ElfStepHeightOverride for elves, StepHeightValue for everyone
-    /// else (humans cache as PlayerRace.None and are therefore included) -- and restores whatever
+    /// Sets StepHeight per race -- ElfStepHeightOverride for elves, HalfGiantStepHeightOverride for
+    /// Half-Giants, StepHeightValue for everyone else (humans cache as PlayerRace.None and are
+    /// therefore included) -- and restores whatever
     /// value the entity had before this behavior touched it when EnableStepHeight is off. A plain
     /// field write, not a Harmony patch -- StepHeight is public on EntityBehaviorControlledPhysics
     /// (BehaviorControlledPhysics.cs:67) and MotionAndCollision (the FindSteppableCollisionBox call
@@ -64,7 +65,7 @@ namespace rfmechanics
 
         /// <summary>Recomputed from the live race cache every tick rather than latched at
         /// Initialize(): a character-class change hands the entity back to the baseline on the next
-        /// tick after PlayerRaceBehavior notices, so an elf's 2.0 can never stick to another race.
+        /// tick after PlayerRaceBehavior notices, so an override can never stick to another race.
         /// A missing identity behavior reads as baseline for the same reason, never as elf.</summary>
         private float ResolveTarget(RFMechanicsConfig cfg)
         {
@@ -74,7 +75,12 @@ namespace rfmechanics
             // one at a time in array order, so rfelfidentity need not exist yet when this one starts.
             identity ??= entity.GetBehavior<PlayerRaceBehavior>();
 
-            return (float)(identity?.IsElf == true ? cfg.ElfStepHeightOverride : cfg.StepHeightValue);
+            return (float)(identity?.Race switch
+            {
+                PlayerRace.Elf => cfg.ElfStepHeightOverride,
+                PlayerRace.HalfGiant => cfg.HalfGiantStepHeightOverride,
+                _ => cfg.StepHeightValue
+            });
         }
     }
 }

@@ -209,6 +209,11 @@ public class RFMechanicsConfig
     /// because the ability is automatic and stance-independent.</summary>
     public double ElfStepHeightOverride { get; set; } = 2.0;
 
+    /// <summary>StepHeight for Half-Giants only (proposal B13, approved 2026-10-01: walks up
+    /// 2-block ledges). Replaces the model's own StepHeight, which the per-tick baseline reset
+    /// would otherwise overwrite.</summary>
+    public double HalfGiantStepHeightOverride { get; set; } = 2.1;
+
     /// <summary>DORMANT: superseded by EnableStepHeight -- stepping is no longer elf-gated. No
     /// longer read anywhere; left in place so existing rfmechanics.json installs don't drop the key.</summary>
     public bool EnableElfStepHeight { get; set; } = true;
@@ -669,6 +674,11 @@ public class RFMechanicsConfig
     /// <summary>Trait code for the goblin race. Loaded from config so it is trivially changeable,
     /// mirroring DwarfTraitCode/ElfTraitCode/OrcTraitCode.</summary>
     public string GoblinTraitCode { get; set; } = "rf-goblin-positive";
+
+    /// <summary>Trait code for the Half-Giant. Race Framework attaches it to Racial Equality's
+    /// `halfgiant` model as a PlayerModelLib ExtraTrait; vanilla HasTrait reads those from the
+    /// "extraTraits" watched attribute (CharacterSystem.cs:534), so no model-code lookup is needed.</summary>
+    public string HalfGiantTraitCode { get; set; } = "rf-halfgiant-positive";
 
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
