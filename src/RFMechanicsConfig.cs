@@ -702,6 +702,13 @@ public class RFMechanicsConfig
     /// as a human (Miles, 2026-10-01).</summary>
     public double HalfGiantWadingSpeedFactor { get; set; } = 1.2;
 
+    /// <summary>Client: after picking the Half-Giant, press "-" (zoomout) HalfGiantCameraZoomOutSteps
+    /// times on the first third-person view, then leave the camera to the player (Miles, 2026-10-01).
+    /// The game resets the distance to 3 each session, so this re-arms once per session.</summary>
+    public bool EnableHalfGiantCamera { get; set; } = true;
+
+    public int HalfGiantCameraZoomOutSteps { get; set; } = 2;
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
