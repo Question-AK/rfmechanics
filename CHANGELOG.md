@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.3-halfgiant.2 - 2026-10-01
+
+- The Half-Giant's camera is pushed two zoom steps out only on the first third-person view
+  ever. After that, the player's own distance is remembered across sessions (client file
+  `ModConfig/rfmechanics-halfgiant-camera.json`), because the game resets it to 3 each session.
+- Swim-up weight (0.45) and 4-deep water behaviour are kept as tested (Miles, 2026-10-01).
+
 ## 1.1.3-halfgiant.1 - 2026-10-01
 
 - Recognises the Half-Giant (Race Framework `rf-halfgiant-positive`, 1.1.0-halfgiant.2 or
