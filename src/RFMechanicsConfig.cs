@@ -688,6 +688,15 @@ public class RFMechanicsConfig
     /// human's gap (eye 1.7, vanilla swim line 1.85 x 0.66), so it wades in 3-deep water.</summary>
     public double HalfGiantSwimLineBelowEye { get; set; } = 0.48;
 
+    /// <summary>Scales the Half-Giant's upward swim stroke. 0.5 with HalfGiantSwimSink 0.3 matches a
+    /// dwarf's swimSpeed -0.5 / buoyancy -0.3 rise; 0.45 is Miles's "slightly worse" (2026-10-01).
+    /// At 0.4 look-up+forward only holds the eye 0.02 above water (model in the SQ-33 handoff).</summary>
+    public double HalfGiantSwimUpFactor { get; set; } = 0.45;
+
+    /// <summary>Extra downward pull while the Half-Giant swims, as a fraction of in-water gravity
+    /// (the dwarf trait's buoyancy -0.3). Not applied while wading.</summary>
+    public double HalfGiantSwimSink { get; set; } = 0.3;
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
