@@ -680,6 +680,14 @@ public class RFMechanicsConfig
     /// "extraTraits" watched attribute (CharacterSystem.cs:534), so no model-code lookup is needed.</summary>
     public string HalfGiantTraitCode { get; set; } = "rf-halfgiant-positive";
 
+    /// <summary>Master toggle for the Half-Giant's water body (wading, breath, swim-up, wading
+    /// speed). False restores vanilla water handling for Half-Giants.</summary>
+    public bool EnableHalfGiantWater { get; set; } = true;
+
+    /// <summary>The Half-Giant swims only once water reaches this far below its eye. 0.48 is a
+    /// human's gap (eye 1.7, vanilla swim line 1.85 x 0.66), so it wades in 3-deep water.</summary>
+    public double HalfGiantSwimLineBelowEye { get; set; } = 0.48;
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
