@@ -5,6 +5,10 @@ using Vintagestory.GameContent;
 
 namespace rfmechanics;
 
+// Contract with Race Framework, which no longer defines these classes: CharacterSystem.HasTrait
+// only reads extraTraits for a class it can resolve, so an unmigrated dwarf loses rf-dwarf-positive
+// and Diet Setup drops them to the base diet. This must ship alongside or before that asset removal.
+
 // Run before vanilla sends character selection state to the joining client.
 // This changes only retired class codes; racial model/extra traits and gear stay intact.
 [HarmonyPatch(typeof(CharacterSystem), "Event_PlayerJoinServer")]

@@ -9,6 +9,9 @@ withdrawn. See CHANGELOG.md. Redwood gameplay, armor interaction and broader
 multiplayer checks remain pending; the detailed notes below retain their original
 prototype context.
 
+When paired with the Race Framework release that removes retired dwarf subrace classes, saved
+`rf-mountain-dwarf` and `rf-hill-dwarf` characters migrate to `commoner` without replacing their race model, inventory or gear.
+
 Brief racial messages use one noninteractive fading line, distinct race colors and
 built-in fonts. Goblin rot consumption/repair and Clamber, Elf Watchfulness/woodland
 movement, Dwarf mining-depth milestones, and Orc scent/Burn/Frenzy use confirmed

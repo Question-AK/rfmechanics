@@ -14,6 +14,7 @@ public class HalfGiantCameraModSystem : ModSystem
     private HalfGiantCameraState state = new();
     private PlayerRace lastRace;
     private bool pending;
+    private bool saveWarningLogged;
 
     public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Client;
 
@@ -74,7 +75,13 @@ public class HalfGiantCameraModSystem : ModSystem
     private void Save(int distance)
     {
         state.Distance = distance;
-        capi!.StoreModConfig(state, StateFile);
+        try { capi!.StoreModConfig(state, StateFile); }
+        catch (Exception e)
+        {
+            if (saveWarningLogged) return;
+            saveWarningLogged = true;
+            capi!.Logger.Warning("[rfmechanics] Half-Giant camera memory could not be saved; keeping this session's distance: {0}", e.Message);
+        }
     }
 }
 

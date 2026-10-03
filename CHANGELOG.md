@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Migrate retired `rf-mountain-dwarf` and `rf-hill-dwarf` classes to `commoner` at login before
+  initialization, preserving their race model, inventory and gear; pair this with the Race Framework
+  release that removes those classes.
+- A failed Half-Giant camera-distance save now keeps the in-memory distance and no longer interrupts play.
+
 ## 1.1.3-halfgiant.2 - 2026-10-01
 
 - The Half-Giant's camera is pushed two zoom steps out only on the first third-person view
