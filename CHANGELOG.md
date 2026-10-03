@@ -1,36 +1,28 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-10-04
 
-- Migrate retired `rf-mountain-dwarf` and `rf-hill-dwarf` classes to `commoner` at login before
-  initialization, preserving their race model, inventory and gear; pair this with the Race Framework
-  release that removes those classes.
-- A failed Half-Giant camera-distance save now keeps the in-memory distance and no longer interrupts play.
+- Adds Half-Giant support (requires Race Framework 1.1.0, which adds the race): step height 2.1 blocks.
+- Half-Giants wade and breathe in water up to about 3 blocks deep and wade about 1.5× as fast as a Human.
+  They swim up heavily with Space and sink when idle.
+- The Half-Giant third-person camera starts two zoom steps further out the first time. After that, the
+  player's own distance is remembered between sessions (client file
+  `ModConfig/rfmechanics-halfgiant-camera.json`), because the game resets it each session. A failed save of
+  that file keeps the distance in memory and no longer interrupts play.
+- Existing Mountain and Hill Dwarf characters (retired classes `rf-mountain-dwarf` and `rf-hill-dwarf`) become
+  Commoners at login, before initialization, keeping their race model, inventory and gear. Pair this with Race
+  Framework 1.1.0, which removes those classes.
+- Fixes racial feedback errors while a player is still loading in: feedback waits until the player's entity
+  state is ready, then resumes normally.
+- Keeps all 1.1.2 mechanics, thresholds and notifications.
 
-## 1.1.3-halfgiant.2 - 2026-10-01
+Known limitations:
 
-- The Half-Giant's camera is pushed two zoom steps out only on the first third-person view
-  ever. After that, the player's own distance is remembered across sessions (client file
-  `ModConfig/rfmechanics-halfgiant-camera.json`), because the game resets it to 3 each session.
-- Swim-up weight (0.45) and 4-deep water behaviour are kept as tested (Miles, 2026-10-01).
+- Movement settings in `ModConfig/rfmechanics.json` (step height and Half-Giant water) are read separately by
+  the server and each client and are not synced. Keep them the same on both; the defaults already match.
+- Half-Giant multiplayer and armor-interaction testing remain limited.
 
-## 1.1.3-halfgiant.1 - 2026-10-01
-
-- Recognises the Half-Giant (Race Framework `rf-halfgiant-positive`, 1.1.0-halfgiant.2 or
-  later) as a fifth race. Step height 2.1.
-- Half-Giants wade and breathe in water up to about 3 blocks deep and wade about 1.5× as
-  fast as a human. They swim up heavily (Space alone is enough) and sink when idle.
-- The third-person camera starts two zoom steps further out once per session.
-- Local Diet Test build on 1.1.3-ag2.1. Independent technical review and player checks
-  are pending. The race handbook and the dwarf migration are not included.
-
-## 1.1.3-ag2.1 - 2026-09-29
-
-- Skip racial feedback callbacks while a spawning player lacks initialized entity
-  behavior state; clear stale feedback state and resume normally once it is ready.
-- Guard the corresponding client notice/identity/HUD and server send/mining paths.
-  Preserve racial calculations, thresholds, notifications and cumulative 1.1.2 features.
-- Isolated full-pack loading fix; player entry and normal feedback checks remain pending.
+For Vintage Story 1.22.6.
 
 ## 1.1.2 - 2026-09-24
 

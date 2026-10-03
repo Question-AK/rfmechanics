@@ -1,16 +1,18 @@
 # RF Mechanics
 
-RF Mechanics **1.1.2** for Vintage Story **1.22.6**.
+RF Mechanics **1.2.0** for Vintage Story **1.22.6**.
 
-Cumulative repair from 1.1.0, retaining Orc mechanics, Elf Watchfulness, Goblin
-Clamber and accepted climbing/stepping improvements. Adds exact-prefix support for
-redwood trunk sections and narrow living trunks. The incomplete 1.1.1 candidate is
-withdrawn. See CHANGELOG.md. Redwood gameplay, armor interaction and broader
-multiplayer checks remain pending; the detailed notes below retain their original
-prototype context.
+Adds Half-Giant support for Race Framework 1.1.0: 2.1-block step height, wading and breathing in water up to
+about 3 blocks deep, heavy swimming and a remembered third-person camera distance. Retains all 1.1.2
+mechanics: Orc mechanics, Elf Watchfulness, Goblin Clamber, climbing/stepping and redwood trunk support.
+See CHANGELOG.md. Half-Giant multiplayer, redwood gameplay and armor interaction checks remain limited; the
+detailed notes below retain their original prototype context.
 
-When paired with the Race Framework release that removes retired dwarf subrace classes, saved
-`rf-mountain-dwarf` and `rf-hill-dwarf` characters migrate to `commoner` without replacing their race model, inventory or gear.
+Movement settings in `ModConfig/rfmechanics.json` (step height and Half-Giant water) are not synced from the
+server; keep them the same on the server and every client. The defaults already match.
+
+With Race Framework 1.1.0, which removes the dwarf subrace classes, saved `rf-mountain-dwarf` and
+`rf-hill-dwarf` characters migrate to `commoner` at login without replacing their race model, inventory or gear.
 
 Brief racial messages use one noninteractive fading line, distinct race colors and
 built-in fonts. Goblin rot consumption/repair and Clamber, Elf Watchfulness/woodland
