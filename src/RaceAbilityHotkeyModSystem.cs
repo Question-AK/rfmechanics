@@ -20,7 +20,8 @@ namespace rfmechanics
     /// notes/race-mechanics/race-ability-hotkey-default-2026-09-16.md.
     ///
     /// "rfclamber" (Ctrl+H) is the shared stance key, retaining existing rebinds. It dispatches
-    /// persistent goblin Clamber or session-only elf Watchfulness independently of held abilities.
+    /// Dwarf Stonebrace, persistent Goblin Clamber, or session-only Elf Watchfulness independently
+    /// of held abilities.
     ///
     /// The press handler covers dwarf/goblin. Elf zoom polls the saved Race Ability
     /// binding independently. Orc smell is stance-owned; Orc skin is passive.
@@ -71,6 +72,8 @@ namespace rfmechanics
                 return api.ModLoader.GetModSystem<ElfWatchfulnessModSystem>().TryToggle();
             if (race == PlayerRace.Orc)
                 return api.ModLoader.GetModSystem<OrcHuntModSystem>().TryToggle();
+            if (race == PlayerRace.Dwarf)
+                return api.ModLoader.GetModSystem<DwarfStonebraceModSystem>().TryToggle(api);
             if (race != PlayerRace.Goblin) return false;
 
             return api.ModLoader.GetModSystem<GoblinClamberStanceModSystem>().TryToggle(api);

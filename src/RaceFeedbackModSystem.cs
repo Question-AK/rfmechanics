@@ -28,7 +28,7 @@ public sealed class RaceFeedbackModSystem : ModSystem
     private PlayerRace localRace;
     private int lastPriority, smellRevision = -1;
     private string lastGroup = "";
-    private bool? clamber, watch;
+    private bool? clamber, watch, stonebrace;
     private bool discovered, concentrated;
     private readonly Dictionary<string, long> shown = new();
     private readonly Dictionary<string, State> states = new();
@@ -87,6 +87,13 @@ public sealed class RaceFeedbackModSystem : ModSystem
         watch = active; discovered = false;
         Show(active ? "watch-on" : "watch-off");
     }
+    internal void Stonebrace(bool active)
+    {
+        EnsureClientIdentity();
+        if (stonebrace == active || stonebrace == null && !active) { stonebrace = active; return; }
+        stonebrace = active;
+        Show(active ? "stonebrace-on" : "stonebrace-off");
+    }
     internal void Discovered()
     {
         EnsureClientIdentity();
@@ -112,7 +119,7 @@ public sealed class RaceFeedbackModSystem : ModSystem
     private void ClearClient()
     {
         hud?.Dispose(); hud = null; shown.Clear(); lastShow = -100000; lastPriority = 0; lastGroup = "";
-        clamber = watch = null; discovered = concentrated = false; smellRevision = -1;
+        clamber = watch = stonebrace = null; discovered = concentrated = false; smellRevision = -1;
         localEntity = 0; localRace = PlayerRace.None;
     }
     private void ClientTick(float dt)
@@ -140,7 +147,9 @@ public sealed class RaceFeedbackModSystem : ModSystem
         if (now - lastShow < 3600 && !(transition || spec.Priority > lastPriority)) return false;
         // A reply with the same transition is redundant.
         if (transition && lastGroup == key && now - lastShow < 1000) return false;
-        string langKey = key.StartsWith("clamber-") ? "rfmechanics:" + key : "rfmechanics:feedback-" + key;
+        string langKey = key.StartsWith("clamber-") ? "rfmechanics:" + key
+            : key.StartsWith("stonebrace-") ? "rfmechanics:dwarf-" + key
+            : "rfmechanics:feedback-" + key;
         hud ??= new RaceFeedbackHud(capi);
         hud.Show(Lang.Get(langKey), self.EntityId, localRace);
         lastShow = now; lastPriority = spec.Priority; lastGroup = key; shown[key] = now;
@@ -154,6 +163,7 @@ public sealed class RaceFeedbackModSystem : ModSystem
         "watch-discovered" => (PlayerRace.Elf, 1, 0),
         "woodland" => (PlayerRace.Elf, 1, 120),
         "depth-1" or "depth-2" or "depth-3" => (PlayerRace.Dwarf, 1, 120),
+        "stonebrace-on" or "stonebrace-off" => (PlayerRace.Dwarf, 3, 0),
         "smell-on" or "smell-off" => (PlayerRace.Orc, 3, 0),
         "smell-focused" => (PlayerRace.Orc, 1, 0),
         "blood" => (PlayerRace.Orc, 2, 15),

@@ -51,6 +51,19 @@ public class RFMechanicsConfig
     /// <summary>Default trait code for the dwarf race. Loaded from config so it is trivially changeable.</summary>
     public string DwarfTraitCode { get; set; } = "rf-dwarf-positive";
 
+    public bool EnableDwarfStonebrace { get; set; } = true;
+    public double DwarfStonebraceMovementFactor { get; set; } = 0.50;
+    public double DwarfStonebraceKnockbackReduction { get; set; } = 0.80;
+    public double DwarfStonebraceOpenDamageReduction { get; set; } = 0.30;
+    public double DwarfStonebraceEnclosedDamageReduction { get; set; } = 0.60;
+    public double DwarfStonebraceMaximumDamageReduction { get; set; } = 0.60;
+    public double DwarfStonebraceReleaseFadeSeconds { get; set; } = 2.0;
+    public int DwarfStonebraceEnvironmentIntervalMilliseconds { get; set; } = 250;
+    public int DwarfStonebraceDepthFloorY { get; set; } = 0;
+    public int DwarfStonebraceSunlightThreshold { get; set; } = 16;
+    public int DwarfStonebraceEnclosureScanDistance { get; set; } = 4;
+    public string[] DwarfStonebraceStoneCodePrefixes { get; set; } = new[] { "rock-", "crackedrock-", "meteorite-", "stalagsection-" };
+
     /// <summary>Weight for the depth component of the mining speed bonus.</summary>
     public double MiningDepthWeight { get; set; } = 1.0;
 
