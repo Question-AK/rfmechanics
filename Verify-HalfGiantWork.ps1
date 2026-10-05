@@ -1,3 +1,8 @@
+param(
+    [string]$AssemblyPath = (Join-Path $PSScriptRoot 'bin/Release/Mods/rfmechanics.dll'),
+    [switch]$ExpectCreativeRegression
+)
+
 $ErrorActionPreference = 'Stop'
 Add-Type -Path @(
     (Join-Path $PSScriptRoot 'src/HalfGiantReachRules.cs'),
@@ -22,42 +27,272 @@ Assert-True (-not [rfmechanics.HalfGiantQuarryRules]::MayQuarry($true, $true, $f
 Assert-True (-not [rfmechanics.HalfGiantQuarryRules]::MayQuarry($true, $true, $false, $true, 'examplemod', 'rock-granite')) 'Natural-domain gate'
 Assert-Near ([rfmechanics.HalfGiantQuarryRules]::ApplySatietyCost(50, 10)) 40 'One successful break costs ten satiety exactly once'
 Assert-Near ([rfmechanics.HalfGiantQuarryRules]::ApplySatietyCost(5, 10)) 0 'Satiety cost does not underflow'
-Assert-True ([rfmechanics.HalfGiantReachRules]::ShouldOverride($true, $true, $true)) 'Reach enable and survival gate'
-Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $true, $true, $true)) 9.45 'Half-Giant survival reach target'
-Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $false, $true, $true)) 4.5 'Disabled reach restores baseline'
-Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $true, $false, $true)) 4.5 'Race change restores baseline'
-Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $true, $true, $false)) 4.5 'Non-survival preserves baseline'
-$survivalOverrideActive = $false
-$survivalRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(4.5, 4.5, 9.45, $false, 9.45, $true, $true, $true, [ref]$survivalOverrideActive)
-Assert-Near $survivalRange 9.45 'Production reach state applies the Half-Giant override in Survival'
-Assert-True $survivalOverrideActive 'Production reach state records ownership after applying the override'
-$creativeOverrideActive = $true
-$creativeRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange($survivalRange, 4.5, 9.45, $true, 9.45, $true, $true, $false, [ref]$creativeOverrideActive)
-Assert-Near $creativeRange 4.5 'Survival-to-Creative restores the owned Half-Giant override baseline'
-Assert-True (-not $creativeOverrideActive) 'Survival-to-Creative clears Half-Giant override ownership'
-$customCreativeOverrideActive = $true
-$customCreativeRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(16, 4.5, 9.45, $true, 9.45, $true, $true, $false, [ref]$customCreativeOverrideActive)
-Assert-Near $customCreativeRange 16 'Creative custom picking range is preserved when it is not the owned override'
-Assert-True (-not $customCreativeOverrideActive) 'Creative custom range clears stale Half-Giant override ownership'
-$raceChangeOverrideActive = $true
-$raceChangeRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(9.45, 4.5, 9.45, $true, 9.45, $true, $false, $true, [ref]$raceChangeOverrideActive)
-Assert-Near $raceChangeRange 4.5 'Race change restores the owned Half-Giant override baseline'
-Assert-True (-not $raceChangeOverrideActive) 'Race change clears Half-Giant override ownership'
-$disabledOverrideActive = $true
-$disabledRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(9.45, 4.5, 9.45, $true, 9.45, $false, $true, $true, [ref]$disabledOverrideActive)
-Assert-Near $disabledRange 4.5 'Disabling reach restores the owned Half-Giant override baseline'
-Assert-True (-not $disabledOverrideActive) 'Disabling reach clears Half-Giant override ownership'
-$recreatedOverrideActive = $true
-$recreatedRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(4.5, 4.5, 9.45, $true, 9.45, $true, $true, $true, [ref]$recreatedOverrideActive)
-Assert-Near $recreatedRange 9.45 'Persisted Half-Giant baseline reapplies after a recreated Survival entity'
-Assert-True $recreatedOverrideActive 'Recreated Survival entity retains Half-Giant override ownership'
 $quarryPatch = Get-Content (Join-Path $PSScriptRoot 'src/HalfGiantQuarryPatch.cs') -Raw
 Assert-True ($quarryPatch.Contains('nameof(Block.OnGettingBroken)')) 'Quarry uses empty-hand Block.OnGettingBroken seam'
 Assert-True (-not $quarryPatch.Contains('GetMiningSpeed')) 'Quarry does not broaden held-item mining speed'
 $quarrySystem = Get-Content (Join-Path $PSScriptRoot 'src/HalfGiantQuarryModSystem.cs') -Raw
 Assert-True ($quarrySystem.Contains('DidBreakBlock += OnDidBreakBlock')) 'Satiety charge observes successful server breaks'
 Assert-True ($quarrySystem.Contains('GetBlock(oldBlockId)')) 'Satiety charge validates original broken block identity'
-$reachBehavior = Get-Content (Join-Path $PSScriptRoot 'src/HalfGiantReachBehavior.cs') -Raw
-Assert-True ($reachBehavior.Contains('BroadcastPlayerData')) 'Server reach changes broadcast player data'
-Assert-True ($reachBehavior.Contains('ResolveManagedPickingRange')) 'Reach behavior uses the production state-transition resolver'
-Write-Output "PASS: $script:checks Half-Giant reach/quarry assertions; gameplay timing, drops, range authority and mode transitions remain player checks."
+
+if (-not (Test-Path $AssemblyPath)) { throw "FAIL: production assembly not found: $AssemblyPath" }
+$apiAssembly = Join-Path $env:VINTAGE_STORY 'VintagestoryAPI.dll'
+try {
+    Add-Type -Path @($apiAssembly, $AssemblyPath)
+}
+catch {
+    $_.Exception.LoaderExceptions | ForEach-Object { Write-Error $_.Message }
+    throw
+}
+
+$fixtureSource = @'
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Datastructures;
+using Vintagestory.API.Server;
+using rfmechanics;
+
+public sealed class ReachRouteProxy : DispatchProxy
+{
+    public Func<MethodInfo, object[], object> Handler = null!;
+
+    protected override object Invoke(MethodInfo method, object[] args)
+    {
+        return Handler(method, args);
+    }
+}
+
+public sealed class ProductionReachFixture
+{
+    private sealed class State
+    {
+        public EnumGameMode Mode;
+        public float Range;
+        public float Previous;
+        public int Broadcasts;
+        public int ModRangeWrites;
+        public int EventSubscriptions;
+        public int EventUnsubscriptions;
+        public Delegate ModeHandler;
+        public readonly Dictionary<string, byte[]> Moddata = new Dictionary<string, byte[]>();
+    }
+
+    private static T Proxy<T>(Func<MethodInfo, object[], object> handler) where T : class
+    {
+        T proxy = DispatchProxy.Create<T, ReachRouteProxy>();
+        ((ReachRouteProxy)(object)proxy).Handler = handler;
+        return proxy;
+    }
+
+    private static object DefaultValue(MethodInfo method)
+    {
+        Type type = method.ReturnType;
+        return type == typeof(void) ? null! : type.IsValueType ? Activator.CreateInstance(type)! : null!;
+    }
+
+    private static void Require(bool condition, string name)
+    {
+        if (!condition) throw new InvalidOperationException(name);
+    }
+
+    private sealed class Fixture
+    {
+        private readonly State state = new State();
+        private readonly IServerPlayer serverPlayer;
+        private readonly IWorldAccessor world;
+        private readonly IServerEventAPI events;
+        private readonly ICoreServerAPI serverApi;
+
+        public Fixture(EnumGameMode mode, float range, float previous)
+        {
+            state.Mode = mode;
+            state.Range = range;
+            state.Previous = previous;
+            serverPlayer = Proxy<IServerPlayer>((method, args) =>
+            {
+                if (method.Name == "get_PlayerUID") return "fixture-player";
+                if (method.Name == "get_WorldData") return Proxy<IPlayerData>(WorldDataCall);
+                if (method.Name == "BroadcastPlayerData") { state.Broadcasts++; return null!; }
+                return DefaultValue(method);
+            });
+            world = Proxy<IWorldAccessor>((method, args) =>
+            {
+                if (method.Name == "PlayerByUid") return serverPlayer;
+                return DefaultValue(method);
+            });
+            events = Proxy<IServerEventAPI>((method, args) =>
+            {
+                if (method.Name == "add_PlayerSwitchGameMode")
+                {
+                    state.EventSubscriptions++;
+                    state.ModeHandler = Delegate.Combine(state.ModeHandler, (Delegate)args[0]);
+                    return null!;
+                }
+                if (method.Name == "remove_PlayerSwitchGameMode")
+                {
+                    state.EventUnsubscriptions++;
+                    state.ModeHandler = Delegate.Remove(state.ModeHandler, (Delegate)args[0]);
+                    return null!;
+                }
+                return DefaultValue(method);
+            });
+            serverApi = Proxy<ICoreServerAPI>((method, args) =>
+            {
+                if (method.Name == "get_World") return world;
+                if (method.Name == "get_Event") return events;
+                return DefaultValue(method);
+            });
+        }
+
+        private object WorldDataCall(MethodInfo method, object[] args)
+        {
+            if (method.Name == "get_CurrentGameMode") return state.Mode;
+            if (method.Name == "get_PickingRange") return state.Range;
+            if (method.Name == "set_PickingRange") { state.Range = (float)args[0]; state.ModRangeWrites++; return null!; }
+            if (method.Name == "get_PreviousPickingRange") return state.Previous;
+            if (method.Name == "set_PreviousPickingRange") { state.Previous = (float)args[0]; return null!; }
+            if (method.Name == "GetModdata")
+            {
+                byte[] value;
+                return state.Moddata.TryGetValue((string)args[0], out value) ? value : null!;
+            }
+            if (method.Name == "SetModdata") { state.Moddata[(string)args[0]] = (byte[])args[1]; return null!; }
+            if (method.Name == "RemoveModdata") { state.Moddata.Remove((string)args[0]); return null!; }
+            return DefaultValue(method);
+        }
+
+        public HalfGiantReachBehavior CreateBehavior()
+        {
+            var entity = new EntityPlayer();
+            entity.Api = serverApi;
+            entity.PlayerUID = "fixture-player";
+            var identity = new PlayerRaceBehavior(entity);
+            typeof(PlayerRaceBehavior).GetProperty("Race")!.SetValue(identity, PlayerRace.HalfGiant);
+            entity.AddBehavior(identity);
+            var behavior = new HalfGiantReachBehavior(entity);
+            behavior.Initialize(new EntityProperties(), null!);
+            return behavior;
+        }
+
+        public void Tick(HalfGiantReachBehavior behavior)
+        {
+            behavior.OnGameTick(0.05f);
+        }
+
+        public void NativeSetMode(EnumGameMode target)
+        {
+            if (target == EnumGameMode.Survival)
+            {
+                state.Previous = state.Range;
+                state.Range = HalfGiantReachRules.VanillaPickingRange;
+            }
+            else if (state.Mode == EnumGameMode.Survival)
+            {
+                state.Range = state.Previous;
+            }
+
+            state.Mode = target;
+            state.ModeHandler?.DynamicInvoke(serverPlayer);
+            state.Broadcasts++;
+        }
+
+        public float Range => state.Range;
+        public float Previous => state.Previous;
+        public int Broadcasts => state.Broadcasts;
+        public int ModRangeWrites => state.ModRangeWrites;
+        public int EventSubscriptions => state.EventSubscriptions;
+        public int EventUnsubscriptions => state.EventUnsubscriptions;
+        public bool HasModdata => state.Moddata.Count != 0;
+        public void SetRangeExternally(float range) => state.Range = range;
+    }
+
+    private static RFMechanicsConfig Config(float target, bool enabled = true)
+    {
+        var config = new RFMechanicsConfig();
+        config.EnableHalfGiantReach = enabled;
+        config.HalfGiantPickingRange = target;
+        typeof(RFMechanicsModSystem).GetField("config", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, config);
+        return config;
+    }
+
+    public static void Run(bool expectCreativeRegression)
+    {
+        foreach (float creativeRange in new[] { 4.5f, 9.45f, 16f })
+        {
+            Config(9.45f);
+            var fixture = new Fixture(EnumGameMode.Creative, creativeRange, 3f);
+            var behavior = fixture.CreateBehavior();
+            fixture.NativeSetMode(EnumGameMode.Survival);
+            fixture.Tick(behavior);
+            fixture.NativeSetMode(EnumGameMode.Creative);
+            fixture.Tick(behavior);
+            if (expectCreativeRegression && HalfGiantReachRules.IsSamePickingRange(creativeRange, 9.45f))
+            {
+                Require(HalfGiantReachRules.IsSamePickingRange(fixture.Range, 4.5f), "immutable candidate must show the Creative 9.45 regression");
+            }
+            else
+            {
+                Require(HalfGiantReachRules.IsSamePickingRange(fixture.Range, creativeRange), "Creative range survives native mode round-trip: " + creativeRange);
+                Require(HalfGiantReachRules.IsSamePickingRange(fixture.Previous, creativeRange), "PreviousPickingRange survives native mode round-trip: " + creativeRange);
+            }
+        }
+
+        if (expectCreativeRegression) return;
+
+        Config(9.45f);
+        var rapid = new Fixture(EnumGameMode.Creative, 16f, 3f);
+        rapid.CreateBehavior();
+        rapid.NativeSetMode(EnumGameMode.Survival);
+        Require(HalfGiantReachRules.IsSamePickingRange(rapid.Range, 9.45f), "authoritative C-to-S event applies reach without a tick");
+        rapid.NativeSetMode(EnumGameMode.Creative);
+        Require(HalfGiantReachRules.IsSamePickingRange(rapid.Range, 16f), "rapid no-tick S-to-C preserves Creative range");
+        Require(HalfGiantReachRules.IsSamePickingRange(rapid.Previous, 16f), "rapid no-tick S-to-C preserves PreviousPickingRange");
+
+        var cleanup = new Fixture(EnumGameMode.Survival, 4.5f, 4.5f);
+        var cleanupBehavior = cleanup.CreateBehavior();
+        cleanup.Tick(cleanupBehavior);
+        Require(HalfGiantReachRules.IsSamePickingRange(cleanup.Range, 9.45f), "initial eligible Survival acquires reach");
+        Config(9.45f, false);
+        cleanup.Tick(cleanupBehavior);
+        Require(HalfGiantReachRules.IsSamePickingRange(cleanup.Range, 4.5f), "Survival disable restores captured baseline");
+
+        Config(9.45f);
+        var custom = new Fixture(EnumGameMode.Survival, 16f, 4.5f);
+        var customBehavior = custom.CreateBehavior();
+        custom.Tick(customBehavior);
+        Require(HalfGiantReachRules.IsSamePickingRange(custom.Range, 16f), "initial custom Survival range is preserved");
+        custom.SetRangeExternally(16f);
+        custom.Tick(customBehavior);
+        Require(HalfGiantReachRules.IsSamePickingRange(custom.Range, 16f), "observable external custom range is preserved");
+
+        var target = new Fixture(EnumGameMode.Survival, 4.5f, 4.5f);
+        var targetBehavior = target.CreateBehavior();
+        target.Tick(targetBehavior);
+        Config(10f);
+        target.Tick(targetBehavior);
+        Require(HalfGiantReachRules.IsSamePickingRange(target.Range, 10f), "owned target setting change updates current override");
+        Config(10f, false);
+        target.Tick(targetBehavior);
+        Require(HalfGiantReachRules.IsSamePickingRange(target.Range, 4.5f), "target setting change keeps original baseline");
+
+        Config(9.45f);
+        var lifecycle = new Fixture(EnumGameMode.Survival, 4.5f, 4.5f);
+        var lifecycleBehavior = lifecycle.CreateBehavior();
+        lifecycleBehavior.Initialize(new EntityProperties(), null!);
+        Require(lifecycle.EventSubscriptions == 1, "behavior registers one mode handler");
+        lifecycle.Tick(lifecycleBehavior);
+        lifecycleBehavior.OnEntityDeath(null!);
+        Require(!lifecycle.HasModdata, "death clears reach ownership");
+        Require(lifecycle.EventUnsubscriptions == 1, "death unregisters mode handler");
+        lifecycleBehavior.OnEntityDespawn(null!);
+        Require(lifecycle.EventUnsubscriptions == 1, "despawn does not unregister the same handler twice");
+    }
+}
+'@
+
+Add-Type -TypeDefinition $fixtureSource -ReferencedAssemblies @($apiAssembly, $AssemblyPath)
+[ProductionReachFixture]::Run($ExpectCreativeRegression)
+$script:checks++
+Write-Output "PASS: $script:checks Half-Giant reach/quarry assertions using initialized production behavior and native mode ordering. Gameplay remains a player check."

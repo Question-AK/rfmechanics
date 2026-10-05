@@ -12,6 +12,10 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
     private const string OverrideActiveKey = "rfmechanics:halfgiant-picking-range-override-active";
     private const string OverrideRangeKey = "rfmechanics:halfgiant-picking-range-override-range";
 
+    private bool modeEventsSubscribed;
+    private bool pendingEligibilityEvaluation = true;
+    private bool wasEligible;
+
     public HalfGiantReachBehavior(Entity entity) : base(entity) { }
 
     public override string PropertyName() => "rfhalfgiantreach";
@@ -19,73 +23,127 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
         base.Initialize(properties, attributes);
+
+        if (modeEventsSubscribed || entity.Api is not ICoreServerAPI serverApi || entity is not EntityPlayer) return;
+
+        serverApi.Event.PlayerSwitchGameMode += OnPlayerSwitchGameMode;
+        modeEventsSubscribed = true;
     }
 
     public override void OnGameTick(float deltaTime)
     {
         if (entity is not EntityPlayer player) return;
+        if (entity.World.PlayerByUid(player.PlayerUID) is not IServerPlayer serverPlayer) return;
 
+        UpdateReach(serverPlayer, true);
+    }
+
+    public override void OnEntityDeath(DamageSource damageSourceForDeath)
+    {
+        if (entity is EntityPlayer player && entity.World.PlayerByUid(player.PlayerUID) is IServerPlayer serverPlayer)
+        {
+            ClearOverrideState(serverPlayer);
+        }
+
+        wasEligible = false;
+        pendingEligibilityEvaluation = false;
+        UnsubscribeModeEvents();
+    }
+
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        UnsubscribeModeEvents();
+    }
+
+    private void OnPlayerSwitchGameMode(IServerPlayer serverPlayer)
+    {
+        if (entity is not EntityPlayer player || serverPlayer.PlayerUID != player.PlayerUID) return;
+
+        ClearOverrideState(serverPlayer);
+        wasEligible = false;
+        pendingEligibilityEvaluation = true;
+        UpdateReach(serverPlayer, false);
+    }
+
+    private void UpdateReach(IServerPlayer serverPlayer, bool broadcast)
+    {
         var cfg = RFMechanicsModSystem.Config;
-        if (cfg == null) return;
-
-        IPlayer? owner = entity.World.PlayerByUid(player.PlayerUID);
-        if (owner is not IServerPlayer serverPlayer) return;
+        if (cfg == null || entity is not EntityPlayer player) return;
 
         bool isHalfGiant = entity.GetBehavior<PlayerRaceBehavior>()?.Race == PlayerRace.HalfGiant;
-        bool isSurvival = owner.WorldData.CurrentGameMode == EnumGameMode.Survival;
-        bool shouldOverride = HalfGiantReachRules.ShouldOverride(cfg.EnableHalfGiantReach, isHalfGiant, isSurvival);
-        float currentRange = owner.WorldData.PickingRange;
-        float halfGiantRange = (float)cfg.HalfGiantPickingRange;
+        bool isSurvival = serverPlayer.WorldData.CurrentGameMode == EnumGameMode.Survival;
+        bool eligible = HalfGiantReachRules.ShouldOverride(cfg.EnableHalfGiantReach, isHalfGiant, isSurvival);
 
-        if (shouldOverride)
+        if (!eligible)
         {
-            float baseline = GetServerBaseline(owner);
-            float ownedRange = GetOverrideRange(owner, halfGiantRange);
-            float target = HalfGiantReachRules.ResolveManagedPickingRange(
-                currentRange,
-                baseline,
-                ownedRange,
-                HasActiveOverride(owner),
-                halfGiantRange,
-                cfg.EnableHalfGiantReach,
-                isHalfGiant,
-                isSurvival,
-                out bool hasActiveOverrideAfter);
+            if (isSurvival) RestoreOwnedOverride(serverPlayer, broadcast);
+            else ClearOverrideState(serverPlayer);
 
-            SetOverrideState(owner, target, hasActiveOverrideAfter);
-            SetPickingRange(serverPlayer, target);
+            wasEligible = false;
+            pendingEligibilityEvaluation = false;
             return;
         }
 
-        if (!TryGetServerBaseline(owner, out float storedBaseline)) return;
+        float currentRange = serverPlayer.WorldData.PickingRange;
+        float targetRange = (float)cfg.HalfGiantPickingRange;
+        if (HasActiveOverride(serverPlayer))
+        {
+            float ownedRange = GetOverrideRange(serverPlayer, targetRange);
+            if (!HalfGiantReachRules.IsSamePickingRange(currentRange, ownedRange))
+            {
+                ClearOverrideState(serverPlayer);
+            }
+            else if (!HalfGiantReachRules.IsSamePickingRange(ownedRange, targetRange))
+            {
+                SetOverrideState(serverPlayer, targetRange);
+                SetPickingRange(serverPlayer, targetRange, broadcast);
+            }
 
-        bool hasActiveOverride = HasActiveOverride(owner);
-        float storedOverrideRange = GetOverrideRange(owner, halfGiantRange);
-        bool ownsLegacyOverride = !hasActiveOverride && HalfGiantReachRules.IsSamePickingRange(currentRange, storedOverrideRange);
-        float restoredRange = HalfGiantReachRules.ResolveManagedPickingRange(
-            currentRange,
-            storedBaseline,
-            storedOverrideRange,
-            hasActiveOverride || ownsLegacyOverride,
-            halfGiantRange,
-            cfg.EnableHalfGiantReach,
-            isHalfGiant,
-            isSurvival,
-            out _);
+            wasEligible = true;
+            pendingEligibilityEvaluation = false;
+            return;
+        }
 
-        ClearOverrideState(owner);
-        SetPickingRange(serverPlayer, restoredRange);
+        if ((pendingEligibilityEvaluation || !wasEligible) && HalfGiantReachRules.IsVanillaPickingRange(currentRange))
+        {
+            SetBaseline(serverPlayer, currentRange);
+            SetOverrideState(serverPlayer, targetRange);
+            SetPickingRange(serverPlayer, targetRange, broadcast);
+        }
+
+        wasEligible = true;
+        pendingEligibilityEvaluation = false;
     }
 
-    private static void SetPickingRange(IServerPlayer serverPlayer, float target)
+    private void RestoreOwnedOverride(IServerPlayer serverPlayer, bool broadcast)
+    {
+        if (HasActiveOverride(serverPlayer)
+            && TryGetBaseline(serverPlayer, out float baseline)
+            && HalfGiantReachRules.IsSamePickingRange(serverPlayer.WorldData.PickingRange, GetOverrideRange(serverPlayer, 0)))
+        {
+            SetPickingRange(serverPlayer, baseline, broadcast);
+        }
+
+        ClearOverrideState(serverPlayer);
+    }
+
+    private void UnsubscribeModeEvents()
+    {
+        if (!modeEventsSubscribed || entity.Api is not ICoreServerAPI serverApi) return;
+
+        serverApi.Event.PlayerSwitchGameMode -= OnPlayerSwitchGameMode;
+        modeEventsSubscribed = false;
+    }
+
+    private static void SetPickingRange(IServerPlayer serverPlayer, float target, bool broadcast)
     {
         if (HalfGiantReachRules.IsSamePickingRange(serverPlayer.WorldData.PickingRange, target)) return;
 
         serverPlayer.WorldData.PickingRange = target;
-        serverPlayer.BroadcastPlayerData();
+        if (broadcast) serverPlayer.BroadcastPlayerData();
     }
 
-    private static bool TryGetServerBaseline(IPlayer owner, out float baseline)
+    private static bool TryGetBaseline(IPlayer owner, out float baseline)
     {
         byte[]? stored = owner.WorldData.GetModdata(BaselineKey);
         if (stored?.Length == sizeof(float))
@@ -98,13 +156,9 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
         return false;
     }
 
-    private static float GetServerBaseline(IPlayer owner)
+    private static void SetBaseline(IPlayer owner, float baseline)
     {
-        if (TryGetServerBaseline(owner, out float baseline)) return baseline;
-
-        baseline = owner.WorldData.PickingRange;
         owner.WorldData.SetModdata(BaselineKey, BitConverter.GetBytes(baseline));
-        return baseline;
     }
 
     private static bool HasActiveOverride(IPlayer owner)
@@ -119,9 +173,9 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
         return stored?.Length == sizeof(float) ? BitConverter.ToSingle(stored, 0) : fallback;
     }
 
-    private static void SetOverrideState(IPlayer owner, float ownedRange, bool isActive)
+    private static void SetOverrideState(IPlayer owner, float ownedRange)
     {
-        owner.WorldData.SetModdata(OverrideActiveKey, new[] { isActive ? (byte)1 : (byte)0 });
+        owner.WorldData.SetModdata(OverrideActiveKey, new byte[] { 1 });
         owner.WorldData.SetModdata(OverrideRangeKey, BitConverter.GetBytes(ownedRange));
     }
 

@@ -2,6 +2,7 @@ namespace rfmechanics
 {
     public static class HalfGiantReachRules
     {
+        public const float VanillaPickingRange = 4.5f;
         private const float PickingRangeTolerance = 0.0001f;
 
         public static bool ShouldOverride(bool enabled, bool isHalfGiant, bool isSurvival)
@@ -9,30 +10,9 @@ namespace rfmechanics
             return enabled && isHalfGiant && isSurvival;
         }
 
-        public static float ResolvePickingRange(float baseline, float halfGiantRange, bool enabled, bool isHalfGiant, bool isSurvival)
+        public static bool IsVanillaPickingRange(float range)
         {
-            return ShouldOverride(enabled, isHalfGiant, isSurvival) ? halfGiantRange : baseline;
-        }
-
-        public static float ResolveManagedPickingRange(
-            float currentRange,
-            float baseline,
-            float ownedRange,
-            bool hasActiveOverride,
-            float halfGiantRange,
-            bool enabled,
-            bool isHalfGiant,
-            bool isSurvival,
-            out bool hasActiveOverrideAfter)
-        {
-            if (ShouldOverride(enabled, isHalfGiant, isSurvival))
-            {
-                hasActiveOverrideAfter = true;
-                return halfGiantRange;
-            }
-
-            hasActiveOverrideAfter = false;
-            return hasActiveOverride && IsSamePickingRange(currentRange, ownedRange) ? baseline : currentRange;
+            return IsSamePickingRange(range, VanillaPickingRange);
         }
 
         public static bool IsSamePickingRange(float left, float right)
