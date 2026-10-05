@@ -40,15 +40,18 @@ namespace rfmechanics
             try
             {
                 if (!TryGetGoblin(__instance, out Entity? entity)) return;
-                if (!corners.HoldsGrip(entity!, pos, BuildFilter(entity!), CornersEnabled())) return;
+                int freeHands = FreeHandCount((EntityPlayer)entity!);
+                if (freeHands == 0) corners.ForgetFreeHandGrip(entity!);
+                if (!corners.TryGetGrip(entity!, pos, BuildFilter(entity!, freeHands), CornersEnabled(), out ClimbGrip grip)) return;
 
+                float motionFactor = grip.MotionFactor;
                 if (controls.Jump)
                 {
-                    pos.Motion.Y = __instance.climbDownSpeed * dt * 60f; // vanilla naming is inverted: Jump = ascend
+                    pos.Motion.Y = __instance.climbDownSpeed * dt * 60f * motionFactor; // vanilla naming is inverted: Jump = ascend
                 }
                 else if (controls.Sneak)
                 {
-                    pos.Motion.Y = Math.Max(-__instance.climbUpSpeed, pos.Motion.Y - __instance.climbUpSpeed); // Sneak = descend
+                    pos.Motion.Y = Math.Max(-__instance.climbUpSpeed * motionFactor, pos.Motion.Y - __instance.climbUpSpeed * motionFactor); // Sneak = descend
                 }
                 else
                 {
@@ -69,12 +72,14 @@ namespace rfmechanics
             try
             {
                 if (!TryGetGoblin(__instance, out Entity? entity)) return;
+                int freeHands = FreeHandCount((EntityPlayer)entity!);
+                if (freeHands == 0) corners.ForgetFreeHandGrip(entity!);
 
                 // A ladder or trunk grip is not a wall grip, so it must not leave a corner window
                 // armed to suspend gravity after the goblin steps off it.
                 if (controls.IsClimbing) { corners.Forget(entity!); return; }
 
-                corners.Update(entity!, pos, controls, BuildFilter(entity!), CornersEnabled(),
+                corners.Update(entity!, pos, controls, BuildFilter(entity!, freeHands), CornersEnabled(),
                     RFMechanicsModSystem.Config?.GoblinCornerGraceTicks ?? 0);
             }
             catch (Exception ex)
@@ -110,47 +115,56 @@ namespace rfmechanics
 
         /// <summary>Null when nothing is currently grippable, which the scan takes as an immediate
         /// miss. Rebuilt per tick because the Clamber stance can drop rock and earth mid-climb.</summary>
-        private static GoblinClimbFilter? BuildFilter(Entity entity)
+        private static GoblinClimbFilter? BuildFilter(Entity entity, int freeHands)
         {
             var cfg = RFMechanicsModSystem.Config;
             if (cfg == null) return null;
 
             bool wallAllowed = GoblinClamberStance.AllowsWallClimb(entity, cfg);
             bool checkTrees = cfg.EnableGoblinTreeClimbing;
-            bool checkRock = cfg.EnableGoblinRockClimbing && wallAllowed;
-            bool checkEarth = cfg.EnableGoblinEarthClimbing && wallAllowed;
+            bool freeHandWalls = !cfg.EnableGoblinFreeHandClimbing || freeHands > 0;
+            bool checkRock = cfg.EnableGoblinRockClimbing && wallAllowed && freeHandWalls;
+            bool checkEarth = cfg.EnableGoblinEarthClimbing && wallAllowed && freeHandWalls;
             if (!checkTrees && !checkRock && !checkEarth) return null;
 
-            return new GoblinClimbFilter(checkTrees, checkRock, checkEarth,
+            float wallMotionFactor = !cfg.EnableGoblinFreeHandClimbing || freeHands >= 2
+                ? 1f
+                : (float)cfg.GoblinFreeHandOneHandWallSpeedFactor;
+            return new GoblinClimbFilter(checkTrees, checkRock, checkEarth, wallMotionFactor,
                 cfg.GoblinRockClimbCodePrefixes ?? Array.Empty<string>(),
                 cfg.GoblinEarthClimbCodes ?? Array.Empty<string>());
+        }
+
+        internal static bool IsFreeHandWallClimbing(EntityPlayer player)
+            => corners.HasFreeHandGrip(player);
+
+        internal static int FreeHandCount(EntityPlayer player)
+        {
+            int freeHands = player.RightHandItemSlot?.Empty != false ? 1 : 0;
+            return freeHands + (player.LeftHandItemSlot?.Empty != false ? 1 : 0);
         }
 
         private sealed class GoblinClimbFilter : IClimbBlockFilter
         {
             private readonly bool checkTrees, checkRock, checkEarth;
+            private readonly float wallMotionFactor;
             private readonly string[] rockPrefixes;
             private readonly string[] earthCodes;
 
-            internal GoblinClimbFilter(bool checkTrees, bool checkRock, bool checkEarth, string[] rockPrefixes, string[] earthCodes)
+            internal GoblinClimbFilter(bool checkTrees, bool checkRock, bool checkEarth, float wallMotionFactor, string[] rockPrefixes, string[] earthCodes)
             {
                 this.checkTrees = checkTrees;
                 this.checkRock = checkRock;
                 this.checkEarth = checkEarth;
+                this.wallMotionFactor = wallMotionFactor;
                 this.rockPrefixes = rockPrefixes;
                 this.earthCodes = earthCodes;
             }
 
-            /// <summary>Chiseling replaces a block's own Code.Path with the generic "chiseledblock", so
-            /// a carved log or rock face no longer matches its prefix directly -- same
-            /// BlockEntityMicroBlock.BlockIds fallback as TreeClimbingPatch.IsClimbableLog, generalized
-            /// to cover both the tree and rock match groups here.</summary>
-            public bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos)
+            public ClimbGrip GetGrip(IWorldAccessor world, Block block, BlockPos pos)
             {
-                // Tree classification is shared with Elf, but tree permission remains this
-                // Goblin filter's independent checkTrees decision.
-                if (checkTrees && TreeBlockClassifier.IsLivingTrunk(world, block, pos)) return true;
-                if (MatchesNonTreePath(block?.Code?.Path)) return true;
+                if (checkTrees && TreeBlockClassifier.IsLivingTrunk(world, block, pos)) return ClimbGrip.Full;
+                if (MatchesNonTreePath(block?.Code?.Path)) return new ClimbGrip(wallMotionFactor, true);
 
                 BlockEntity blockEntity = world.BlockAccessor.GetBlockEntity(pos);
                 if (blockEntity is BlockEntityMicroBlock micro && micro.BlockIds != null)
@@ -158,12 +172,12 @@ namespace rfmechanics
                     foreach (int id in micro.BlockIds)
                     {
                         string? path = world.GetBlock(id)?.Code?.Path;
-                        if ((checkTrees && TreeBlockClassifier.IsLivingTrunkPath(path))
-                            || MatchesNonTreePath(path)) return true;
+                        if (checkTrees && TreeBlockClassifier.IsLivingTrunkPath(path)) return ClimbGrip.Full;
+                        if (MatchesNonTreePath(path)) return new ClimbGrip(wallMotionFactor, true);
                     }
                 }
 
-                return false;
+                return ClimbGrip.None;
             }
 
             private bool MatchesNonTreePath(string? path)
