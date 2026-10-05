@@ -1,9 +1,33 @@
 # Offline Goblin scouting and free-hand climbing production-rule checks; no game/server or test application.
 $ErrorActionPreference = 'Stop'
-Add-Type -Path @(
-    (Join-Path $PSScriptRoot 'src/RFMechanicsConfig.cs'),
-    (Join-Path $PSScriptRoot 'src/GoblinScoutingRules.cs')
-)
+# PowerShell 5.1 cannot compile nullable annotations or MathF, so this runs the production rule with equivalent syntax.
+$testConfig = @'
+namespace rfmechanics {
+    public class RFMechanicsConfig {
+        public string[] GoblinScoutingDrifterFamilyCodes { get; set; }
+        public string[] GoblinScoutingAnimalFamilyCodes { get; set; }
+        public double GoblinScoutingCrouchedDarkGroundFactor { get; set; }
+        public double GoblinScoutingEmptyHandWallClimbFactor { get; set; }
+        public double GoblinScoutingOneHandWallClimbFactor { get; set; }
+        public double GoblinScoutingStandingFactor { get; set; }
+        public double GoblinScoutingSprintingFactor { get; set; }
+        public double GoblinScoutingAnimalFactor { get; set; }
+
+        public RFMechanicsConfig() {
+            GoblinScoutingDrifterFamilyCodes = new[] { "drifter", "shiver", "bowtorn" };
+            GoblinScoutingAnimalFamilyCodes = new[] { "bear", "hyena", "wolf" };
+            GoblinScoutingCrouchedDarkGroundFactor = 0.15;
+            GoblinScoutingEmptyHandWallClimbFactor = 0.25;
+            GoblinScoutingOneHandWallClimbFactor = 0.35;
+            GoblinScoutingStandingFactor = 0.35;
+            GoblinScoutingSprintingFactor = 0.50;
+            GoblinScoutingAnimalFactor = 0.70;
+        }
+    }
+}
+'@
+$rules = (Get-Content (Join-Path $PSScriptRoot 'src/GoblinScoutingRules.cs') -Raw) -replace 'string\[\]\?', 'string[]' -replace 'string\?', 'string' -replace 'System.MathF.Max', 'System.Math.Max'
+Add-Type -TypeDefinition "$testConfig`n$rules"
 $script:checks = 0
 function Assert-True([bool]$Condition, [string]$Name) {
     if (-not $Condition) { throw "FAIL: $Name" }
@@ -19,6 +43,19 @@ function Resolve([bool]$Drifter, [bool]$Animal, [bool]$Dark, [bool]$Light, [bool
 }
 
 $cfg = [rfmechanics.RFMechanicsConfig]::new()
+$configSource = Get-Content (Join-Path $PSScriptRoot 'src/RFMechanicsConfig.cs') -Raw
+foreach ($setting in @(
+    'GoblinScoutingDrifterFamilyCodes { get; set; } = new[] { "drifter", "shiver", "bowtorn" };',
+    'GoblinScoutingAnimalFamilyCodes { get; set; } = new[] { "bear", "hyena", "wolf" };',
+    'GoblinScoutingCrouchedDarkGroundFactor { get; set; } = 0.15;',
+    'GoblinScoutingEmptyHandWallClimbFactor { get; set; } = 0.25;',
+    'GoblinScoutingOneHandWallClimbFactor { get; set; } = 0.35;',
+    'GoblinScoutingStandingFactor { get; set; } = 0.35;',
+    'GoblinScoutingSprintingFactor { get; set; } = 0.50;',
+    'GoblinScoutingAnimalFactor { get; set; } = 0.70;'
+)) {
+    Assert-True ($configSource.Contains($setting)) "Production config default $setting"
+}
 foreach ($code in @('drifter-normal', 'drifter-deep', 'drifter-tainted', 'drifter-corrupt', 'drifter-nightmare', 'drifter-double-headed', 'shiver-surface', 'shiver-deep', 'shiver-tainted', 'shiver-corrupt', 'shiver-nightmare', 'shiver-stilt', 'shiver-bellhead', 'shiver-deepsplit', 'bowtorn-surface', 'bowtorn-deep', 'bowtorn-tainted', 'bowtorn-corrupt', 'bowtorn-nightmare', 'bowtorn-gearfoot')) {
     Assert-True ([rfmechanics.GoblinScoutingRules]::MatchesFamily($code, $cfg.GoblinScoutingDrifterFamilyCodes)) "Observed drifter-like variant $code is covered"
 }
