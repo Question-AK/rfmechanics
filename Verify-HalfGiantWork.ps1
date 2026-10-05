@@ -27,6 +27,30 @@ Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $
 Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $false, $true, $true)) 4.5 'Disabled reach restores baseline'
 Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $true, $false, $true)) 4.5 'Race change restores baseline'
 Assert-Near ([rfmechanics.HalfGiantReachRules]::ResolvePickingRange(4.5, 9.45, $true, $true, $false)) 4.5 'Non-survival preserves baseline'
+$survivalOverrideActive = $false
+$survivalRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(4.5, 4.5, 9.45, $false, 9.45, $true, $true, $true, [ref]$survivalOverrideActive)
+Assert-Near $survivalRange 9.45 'Production reach state applies the Half-Giant override in Survival'
+Assert-True $survivalOverrideActive 'Production reach state records ownership after applying the override'
+$creativeOverrideActive = $true
+$creativeRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange($survivalRange, 4.5, 9.45, $true, 9.45, $true, $true, $false, [ref]$creativeOverrideActive)
+Assert-Near $creativeRange 4.5 'Survival-to-Creative restores the owned Half-Giant override baseline'
+Assert-True (-not $creativeOverrideActive) 'Survival-to-Creative clears Half-Giant override ownership'
+$customCreativeOverrideActive = $true
+$customCreativeRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(16, 4.5, 9.45, $true, 9.45, $true, $true, $false, [ref]$customCreativeOverrideActive)
+Assert-Near $customCreativeRange 16 'Creative custom picking range is preserved when it is not the owned override'
+Assert-True (-not $customCreativeOverrideActive) 'Creative custom range clears stale Half-Giant override ownership'
+$raceChangeOverrideActive = $true
+$raceChangeRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(9.45, 4.5, 9.45, $true, 9.45, $true, $false, $true, [ref]$raceChangeOverrideActive)
+Assert-Near $raceChangeRange 4.5 'Race change restores the owned Half-Giant override baseline'
+Assert-True (-not $raceChangeOverrideActive) 'Race change clears Half-Giant override ownership'
+$disabledOverrideActive = $true
+$disabledRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(9.45, 4.5, 9.45, $true, 9.45, $false, $true, $true, [ref]$disabledOverrideActive)
+Assert-Near $disabledRange 4.5 'Disabling reach restores the owned Half-Giant override baseline'
+Assert-True (-not $disabledOverrideActive) 'Disabling reach clears Half-Giant override ownership'
+$recreatedOverrideActive = $true
+$recreatedRange = [rfmechanics.HalfGiantReachRules]::ResolveManagedPickingRange(4.5, 4.5, 9.45, $true, 9.45, $true, $true, $true, [ref]$recreatedOverrideActive)
+Assert-Near $recreatedRange 9.45 'Persisted Half-Giant baseline reapplies after a recreated Survival entity'
+Assert-True $recreatedOverrideActive 'Recreated Survival entity retains Half-Giant override ownership'
 $quarryPatch = Get-Content (Join-Path $PSScriptRoot 'src/HalfGiantQuarryPatch.cs') -Raw
 Assert-True ($quarryPatch.Contains('nameof(Block.OnGettingBroken)')) 'Quarry uses empty-hand Block.OnGettingBroken seam'
 Assert-True (-not $quarryPatch.Contains('GetMiningSpeed')) 'Quarry does not broaden held-item mining speed'
@@ -35,5 +59,5 @@ Assert-True ($quarrySystem.Contains('DidBreakBlock += OnDidBreakBlock')) 'Satiet
 Assert-True ($quarrySystem.Contains('GetBlock(oldBlockId)')) 'Satiety charge validates original broken block identity'
 $reachBehavior = Get-Content (Join-Path $PSScriptRoot 'src/HalfGiantReachBehavior.cs') -Raw
 Assert-True ($reachBehavior.Contains('BroadcastPlayerData')) 'Server reach changes broadcast player data'
-Assert-True ($reachBehavior.Contains('CurrentGameMode != EnumGameMode.Survival')) 'Creative and other non-survival ranges are preserved'
+Assert-True ($reachBehavior.Contains('ResolveManagedPickingRange')) 'Reach behavior uses the production state-transition resolver'
 Write-Output "PASS: $script:checks Half-Giant reach/quarry assertions; gameplay timing, drops, range authority and mode transitions remain player checks."
