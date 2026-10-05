@@ -93,6 +93,23 @@ $climbing = Get-Content (Join-Path $PSScriptRoot 'src/GoblinClimbingPatch.cs') -
 Assert-True ($climbing.Contains('climbDownSpeed * dt * 60f * motionFactor')) 'Hand factor applies to ascent'
 Assert-True ($climbing.Contains('climbUpSpeed * motionFactor')) 'Hand factor applies to descent'
 Assert-True ($climbing.Contains('ForgetFreeHandGrip')) 'Zero hands release an existing wall grip'
+
+# SQ-63: a wall-backed vanilla ladder must keep native motion, not the Clamber wall factor.
+# controls.IsClimbing is only recomputed in ApplyTests, which native OnPhysicsTick calls AFTER
+# MotionAndCollision, so a guard checking that flag at the write seam would still see last
+# tick's value. These checks confirm the fix queries the real block there instead -- source
+# presence only, since exercising live VS physics is out of this offline checker's reach.
+$motionMethod = [regex]::Match($climbing, 'public static void MotionAndCollisionPostfix[\s\S]*?(?=public static void ApplyTestsPostfix)').Value
+Assert-True ($motionMethod.Contains('OnNativeLadder(')) 'MotionAndCollision consults native ladder authority'
+$ladderCallIndex = $motionMethod.IndexOf('OnNativeLadder(')
+$gripCallIndex = $motionMethod.IndexOf('TryGetGrip(')
+Assert-True ($ladderCallIndex -ge 0 -and $gripCallIndex -gt $ladderCallIndex) 'Native ladder check runs before any wall grip or motion write, not as a guard after'
+Assert-True (-not $motionMethod.Contains('if (controls.IsClimbing)')) 'Native ladder check does not gate on the stale per-tick IsClimbing flag'
+$ladderMethod = [regex]::Match($climbing, 'private static bool OnNativeLadder[\s\S]*?\n        \}').Value
+Assert-True ($ladderMethod.Contains('.IsClimbable(')) 'Native ladder authority queries the real block, not cached climbing state'
+Assert-True ($ladderMethod.Contains('BlockLayersAccess.Solid')) 'Native ladder scan reads the same block layer vanilla ladder detection uses'
+Assert-True ($ladderMethod.Contains('CollisionBox.Y2')) 'Native ladder scan covers the full entity height like vanilla, not just one block'
+Assert-True ($climbing.Contains('if (controls.IsClimbing) { corners.Forget(entity!); return; }')) 'ApplyTests corner-hygiene cleanup is unchanged by the write-seam fix'
 $patch = Get-Content (Join-Path $PSScriptRoot 'src/GoblinScoutingPatch.cs') -Raw
 Assert-True ($patch.Contains('AiTaskBaseTargetable), "CanSensePlayer"')) 'Classic targetable AI consumer is patched'
 Assert-True ($patch.Contains('AiTaskBaseTargetableR), "GetDetectionRangeMultiplier"')) 'Revised targetable AI consumer is patched'

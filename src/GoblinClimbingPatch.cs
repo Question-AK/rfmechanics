@@ -40,6 +40,12 @@ namespace rfmechanics
             try
             {
                 if (!TryGetGoblin(__instance, out Entity? entity)) return;
+
+                // controls.IsClimbing is still last tick's value here -- native ApplyTests, which
+                // recomputes it, runs after MotionAndCollision. Check the block directly so a
+                // wall-backed vanilla ladder keeps native motion untouched this tick too.
+                if (OnNativeLadder(entity!, pos)) { corners.Forget(entity!); return; }
+
                 int freeHands = FreeHandCount((EntityPlayer)entity!);
                 if (freeHands == 0) corners.ForgetFreeHandGrip(entity!);
                 if (!corners.TryGetGrip(entity!, pos, BuildFilter(entity!, freeHands), CornersEnabled(), out ClimbGrip grip)) return;
@@ -112,6 +118,23 @@ namespace rfmechanics
         }
 
         private static bool CornersEnabled() => RFMechanicsModSystem.Config?.EnableGoblinCornerTraversal == true;
+
+        /// <summary>Same column/height/layer as vanilla's own primary ladder scan in ApplyTests,
+        /// minus the touch-distance math -- standing in the ladder's own block is enough to defer
+        /// to it, keeping this a guard rather than a second climb-detection algorithm.</summary>
+        private static bool OnNativeLadder(Entity entity, EntityPos pos)
+        {
+            IBlockAccessor blockAccessor = entity.World.BlockAccessor;
+            BlockPos scanPos = new(pos.Dimension);
+            int height = (int)Math.Ceiling(entity.CollisionBox.Y2);
+            int x = (int)pos.X, baseY = (int)pos.Y, z = (int)pos.Z;
+            for (int dy = 0; dy < height; dy++)
+            {
+                scanPos.Set(x, baseY + dy, z);
+                if (blockAccessor.GetBlock(scanPos, BlockLayersAccess.Solid).IsClimbable(scanPos)) return true;
+            }
+            return false;
+        }
 
         /// <summary>Null when nothing is currently grippable, which the scan takes as an immediate
         /// miss. Rebuilt per tick because the Clamber stance can drop rock and earth mid-climb.</summary>
