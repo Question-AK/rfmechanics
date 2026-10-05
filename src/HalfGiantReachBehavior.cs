@@ -24,10 +24,12 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
     {
         base.Initialize(properties, attributes);
 
-        if (modeEventsSubscribed || entity.Api is not ICoreServerAPI serverApi || entity is not EntityPlayer) return;
+        SubscribeModeEvents();
+    }
 
-        serverApi.Event.PlayerSwitchGameMode += OnPlayerSwitchGameMode;
-        modeEventsSubscribed = true;
+    public override void OnEntityRevive()
+    {
+        SubscribeModeEvents();
     }
 
     public override void OnGameTick(float deltaTime)
@@ -125,6 +127,14 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
         }
 
         ClearOverrideState(serverPlayer);
+    }
+
+    private void SubscribeModeEvents()
+    {
+        if (modeEventsSubscribed || entity.Api is not ICoreServerAPI serverApi || entity is not EntityPlayer) return;
+
+        serverApi.Event.PlayerSwitchGameMode += OnPlayerSwitchGameMode;
+        modeEventsSubscribed = true;
     }
 
     private void UnsubscribeModeEvents()
