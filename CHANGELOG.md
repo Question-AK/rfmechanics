@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1-rp.4 - 2026-10-06
+
+- Fixes Half-Giant empty-hand quarrying: the server no longer rejects the break for missing pickaxe tier, so natural rock and cracked rock break instead of resetting.
+- Fixes the race handbook page losing most of its text after "Controls" (an unescaped ">" in the controls note).
+- Local retest only.
+
 ## 1.2.1-rp.3 - 2026-10-06
 
 - Fixes releasing a carried animal: placement no longer fails before spawning; the animal faces away from the Half-Giant like a creative-mode placement.
