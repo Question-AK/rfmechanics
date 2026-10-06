@@ -106,7 +106,7 @@ $ladderMethod = [regex]::Match($climbing, 'private static bool OnNativeLadder[\s
 Assert-True ($ladderMethod.Contains('entity.Properties.CanClimb')) 'Native ladder authority keeps the CanClimb gate'
 Assert-True ($ladderMethod.Contains('entity.Properties.CanClimbAnywhere && entity.Alive')) 'Native ladder authority uses live CanClimbAnywhere eligibility'
 Assert-True ($ladderMethod.Contains('BlockLayersAccess.Default') -and $ladderMethod.Contains('BlockLayersAccess.Solid')) 'Native ladder authority selects default or solid layers'
-Assert-True ($ladderMethod.Contains('Math.Floor(pos.X)') -and $ladderMethod.Contains('Math.Floor(pos.Y)') -and $ladderMethod.Contains('Math.Floor(pos.Z)')) 'Native ladder authority scans floor coordinates'
+Assert-True ($ladderMethod.Contains('int x = (int)pos.X;') -and $ladderMethod.Contains('int baseY = (int)pos.Y;') -and $ladderMethod.Contains('int z = (int)pos.Z;')) 'Native ladder authority truncates coordinates toward zero'
 Assert-True ($ladderMethod.Contains('CollisionBox.Y2') -and $ladderMethod.Contains('Math.Ceiling')) 'Native ladder authority scans the native collision height'
 Assert-True ($ladderMethod.Contains('new Cuboidd().SetAndTranslate')) 'Native ladder authority uses the translated collision box'
 Assert-True ($ladderMethod.Contains('.IsClimbable(')) 'Native ladder authority queries the position-aware block predicate'

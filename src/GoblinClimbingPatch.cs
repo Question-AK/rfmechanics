@@ -125,9 +125,10 @@ namespace rfmechanics
             bool canClimbAnywhere = entity.Properties.CanClimbAnywhere && entity.Alive;
             int layer = canClimbAnywhere ? BlockLayersAccess.Default : BlockLayersAccess.Solid;
             int height = (int)Math.Ceiling(entity.CollisionBox.Y2);
-            int x = (int)Math.Floor(pos.X);
-            int baseY = (int)Math.Floor(pos.Y);
-            int z = (int)Math.Floor(pos.Z);
+            // Native acquisition truncates toward zero; flooring selects different blocks at negative coordinates.
+            int x = (int)pos.X;
+            int baseY = (int)pos.Y;
+            int z = (int)pos.Z;
             float touchDistance = entity.Properties.ClimbTouchDistance;
             var entityBox = new Cuboidd().SetAndTranslate(entity.CollisionBox, pos.X, pos.Y, pos.Z);
             IBlockAccessor blockAccessor = entity.World.BlockAccessor;
