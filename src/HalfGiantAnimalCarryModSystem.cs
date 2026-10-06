@@ -15,7 +15,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
 {
     private const string CarriedAnimalPath = "carriedanimal";
     private const string ClassNameKey = "classname";
-    private const string CreatureCodeKey = "creaturecode";
+    internal const string CreatureCodeKey = "creaturecode";
     private const string SerializedKey = "animalSerialized";
     private const string CaptureIdentityKey = "carryIdentity";
     private const string DisplayItemKey = "displayitem";

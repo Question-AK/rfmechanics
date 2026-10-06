@@ -76,6 +76,9 @@ Assert-True ($itemJson -match 'heldLeftTpIdleAnimation:\s*"holdinglanternlefthan
 
 $itemSource = Get-Content (Join-Path $PSScriptRoot 'src/ItemCarriedAnimal.cs') -Raw
 Assert-True ($itemSource -match 'override void OnHeldAttackStart\([^)]*\)\s*\{\s*handling = EnumHandHandling\.PreventDefault;\s*\}') 'Held carried animal cannot attack'
+Assert-True ($itemJson -match '(?s)tpHandTransformByCreature:\s*\{.*"drifter-\*":\s*\{\s*origin:\s*\{\s*x:\s*0,\s*y:\s*0,\s*z:\s*0\s*\},.*?rotation:\s*\{\s*x:\s*0,\s*y:\s*0,\s*z:\s*90\s*\}') 'Drifters hang head-down (z 90) from an ankle pinned by origin 0'
+Assert-True ($itemSource.Contains('GetString(HalfGiantAnimalCarryModSystem.CreatureCodeKey)') -and $itemSource.Contains('(CreatureHeldPose(creatureCode) ?? handPose).Clone()')) 'Held pose is chosen per creature before falling back to the hand pose'
+Assert-True ($itemSource.Contains('heldTransforms.TryGetValue((creatureCode, scale, offhand)') -and $itemSource.Contains('transform.Scale = scale;')) 'Held transforms are cached per creature, scale and hand, and keep the size-ratio scale'
 
 $chickenVolume = 0.5 * 0.5 * 0.6
 $boarVolume = 1.452
@@ -131,4 +134,4 @@ Assert-True ($itemSource.Contains('IsThrowReady(secondsUsed, ThrowWindupSeconds)
 Assert-True ($itemSource -notmatch 'TakeOut') 'The client-side item never removes the stack'
 
 if (-not (Test-Path -LiteralPath $AssemblyPath -PathType Leaf)) { throw "FAIL: production assembly not found: $AssemblyPath" }
-Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, drifter admission and reach, snapshot identity, preservation, replay, hand-swap, release-order, throw speed, held scale, once-per-target hit, claim landing and throw consume-order assertions passed. Native entity serialization, collision and flight remain player/review checks."
+Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, drifter admission and reach, snapshot identity, preservation, replay, hand-swap, release-order, throw speed, held scale and pose, once-per-target hit, claim landing and throw consume-order assertions passed. Native entity serialization, collision and flight remain player/review checks."

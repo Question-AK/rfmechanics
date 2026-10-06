@@ -24,6 +24,18 @@
     rotation: { x: 0, y: 0, z: 0 },
     scale: 0.6
   },
+  attributes: {
+    // Replaces the hand transform for matching creature codes in either hand; scale is still set from creature size.
+    tpHandTransformByCreature: {
+      // In the lantern pose the hand's up axis is -X (a lantern stands at z -90), so z 90 hangs the drifter head-down;
+      // origin 0 pins the right ankle (shape 0.46, 0.2, 0.64) to the lantern grip at every held scale.
+      "drifter-*": {
+        origin: { x: 0, y: 0, z: 0 },
+        translation: { x: -0.2, y: -0.38, z: 0.64 },
+        rotation: { x: 0, y: 0, z: 90 }
+      }
+    }
+  },
   groundTransform: {
     origin: { x: 0.5, y: 0.1, z: 0.5 },
     scale: 1.5
