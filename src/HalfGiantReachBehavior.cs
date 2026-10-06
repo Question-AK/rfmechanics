@@ -44,7 +44,8 @@ public sealed class HalfGiantReachBehavior : EntityBehavior
     {
         if (entity is EntityPlayer player && entity.World.PlayerByUid(player.PlayerUID) is IServerPlayer serverPlayer)
         {
-            ClearOverrideState(serverPlayer);
+            if (serverPlayer.WorldData.CurrentGameMode == EnumGameMode.Survival) RestoreOwnedOverride(serverPlayer, true);
+            else ClearOverrideState(serverPlayer);
         }
 
         wasEligible = false;
