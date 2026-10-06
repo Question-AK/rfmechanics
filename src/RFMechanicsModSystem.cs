@@ -53,6 +53,7 @@ namespace rfmechanics
             api.RegisterEntityBehaviorClass("rfgoblinscouting", typeof(RFGoblinScoutingBehavior));
             api.RegisterEntityBehaviorClass("rfgoblinrotaura", typeof(GoblinRotAuraBehavior));
             api.RegisterCropBehavior("RfGoblinCropStunt", typeof(GoblinCropStuntBehavior));
+            api.RegisterItemClass("ItemCarriedAnimal", typeof(ItemCarriedAnimal));
             // GoblinDigModifierBehavior re-homed to src/BugRace/ (future bug race), disabled -- see its class header.
             // api.RegisterBlockBehaviorClass("GoblinDigModifier", typeof(rfmechanics.BugRace.GoblinDigModifierBehavior));
 

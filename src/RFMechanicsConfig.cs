@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace rfmechanics;
 
 /// <summary>
@@ -728,6 +731,16 @@ public class RFMechanicsConfig
     public double HalfGiantQuarryMiningSpeed { get; set; } = 2.8;
     public float HalfGiantQuarrySatietyCost { get; set; } = 10f;
 
+    public bool EnableHalfGiantAnimalCarry { get; set; } = true;
+    public double HalfGiantAnimalCarryReach { get; set; } = 3.5;
+    public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:pig-eurasian-adult-elder-male";
+    public double HalfGiantAnimalCarryMaximumVolume { get; set; }
+    public double HalfGiantAnimalCarryMaximumDimension { get; set; }
+    public string[] HalfGiantAnimalCarryAllowCodes { get; set; } = Array.Empty<string>();
+    public string[] HalfGiantAnimalCarryDenyCodes { get; set; } = Array.Empty<string>();
+    public Dictionary<string, HalfGiantAnimalCarrySizeOverride> HalfGiantAnimalCarrySizeOverrides { get; set; } = new();
+    public Dictionary<string, string> HalfGiantAnimalCarryDisplayItems { get; set; } = new();
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
@@ -1438,6 +1451,12 @@ public class RFMechanicsConfig
     /// harmless (e.g. an aggressive omnivore boss mob that would otherwise classify
     /// identically to a farm animal).</summary>
     public string[] SmellForcePredatorCodes { get; set; } = new[] { "feverstonewilds:hellboar" };
+}
+
+public class HalfGiantAnimalCarrySizeOverride
+{
+    public double MaximumVolume { get; set; }
+    public double MaximumDimension { get; set; }
 }
 
 /// <summary>DORMANT: backed StomachStackingMode, itself dormant -- see its doc comment.</summary>

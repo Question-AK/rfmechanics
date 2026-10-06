@@ -35,6 +35,11 @@ namespace rfmechanics
         {
             [PlayerRace.Dwarf] = api => api.ModLoader.GetModSystem<DwarfOreSongModSystem>().TryTrigger(api),
             [PlayerRace.Goblin] = api => api.ModLoader.GetModSystem<RFMechanicsModSystem>().TryTriggerGoblinSpit(api),
+            [PlayerRace.HalfGiant] = api =>
+            {
+                api.SendChatMessage("/rfhalfgiantcarry use");
+                return true;
+            },
         };
 
         public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Client;

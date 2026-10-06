@@ -1,0 +1,29 @@
+{
+  code: "carriedanimal",
+  class: "ItemCarriedAnimal",
+  maxStackSize: 1,
+  heldLeftTpIdleAnimation: "holdinglanternlefthand",
+  guiTransform: {
+    origin: { x: 0.5, y: 0.5, z: 0.5 },
+    scale: 1.25
+  },
+  fpHandTransform: {
+    translation: { x: -0.2, y: -0.2, z: -0.35 },
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: 0.7
+  },
+  tpHandTransform: {
+    translation: { x: -0.4, y: -0.55, z: -0.7 },
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: 0.6
+  },
+  tpOffHandTransform: {
+    translation: { x: -0.35, y: -0.55, z: -0.7 },
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: 0.6
+  },
+  groundTransform: {
+    origin: { x: 0.5, y: 0.1, z: 0.5 },
+    scale: 1.5
+  }
+}
