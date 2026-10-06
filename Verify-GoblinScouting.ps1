@@ -94,21 +94,26 @@ Assert-True ($climbing.Contains('climbDownSpeed * dt * 60f * motionFactor')) 'Ha
 Assert-True ($climbing.Contains('climbUpSpeed * motionFactor')) 'Hand factor applies to descent'
 Assert-True ($climbing.Contains('ForgetFreeHandGrip')) 'Zero hands release an existing wall grip'
 
-# SQ-63: a wall-backed vanilla ladder must keep native motion, not the Clamber wall factor.
-# controls.IsClimbing is only recomputed in ApplyTests, which native OnPhysicsTick calls AFTER
-# MotionAndCollision, so a guard checking that flag at the write seam would still see last
-# tick's value. These checks confirm the fix queries the real block there instead -- source
-# presence only, since exercising live VS physics is out of this offline checker's reach.
+# SQ-71 guards the first custom Motion.Y write against the complete native eligibility map.
+# This checker cannot invoke native ApplyTests; SQ-87 provides its independent production oracle.
 $motionMethod = [regex]::Match($climbing, 'public static void MotionAndCollisionPostfix[\s\S]*?(?=public static void ApplyTestsPostfix)').Value
-Assert-True ($motionMethod.Contains('OnNativeLadder(')) 'MotionAndCollision consults native ladder authority'
+Assert-True ($motionMethod.Contains('OnNativeLadder(__instance, entity!, pos, controls)')) 'MotionAndCollision consults native ladder authority with current behavior and controls'
 $ladderCallIndex = $motionMethod.IndexOf('OnNativeLadder(')
 $gripCallIndex = $motionMethod.IndexOf('TryGetGrip(')
 Assert-True ($ladderCallIndex -ge 0 -and $gripCallIndex -gt $ladderCallIndex) 'Native ladder check runs before any wall grip or motion write, not as a guard after'
 Assert-True (-not $motionMethod.Contains('if (controls.IsClimbing)')) 'Native ladder check does not gate on the stale per-tick IsClimbing flag'
-$ladderMethod = [regex]::Match($climbing, 'private static bool OnNativeLadder[\s\S]*?\n        \}').Value
-Assert-True ($ladderMethod.Contains('.IsClimbable(')) 'Native ladder authority queries the real block, not cached climbing state'
-Assert-True ($ladderMethod.Contains('BlockLayersAccess.Solid')) 'Native ladder scan reads the same block layer vanilla ladder detection uses'
-Assert-True ($ladderMethod.Contains('CollisionBox.Y2')) 'Native ladder scan covers the full entity height like vanilla, not just one block'
+$ladderMethod = [regex]::Match($climbing, 'private static bool OnNativeLadder[\s\S]*?(?=\n        private static GoblinClimbFilter)').Value
+Assert-True ($ladderMethod.Contains('entity.Properties.CanClimb')) 'Native ladder authority keeps the CanClimb gate'
+Assert-True ($ladderMethod.Contains('entity.Properties.CanClimbAnywhere && entity.Alive')) 'Native ladder authority uses live CanClimbAnywhere eligibility'
+Assert-True ($ladderMethod.Contains('BlockLayersAccess.Default') -and $ladderMethod.Contains('BlockLayersAccess.Solid')) 'Native ladder authority selects default or solid layers'
+Assert-True ($ladderMethod.Contains('Math.Floor(pos.X)') -and $ladderMethod.Contains('Math.Floor(pos.Y)') -and $ladderMethod.Contains('Math.Floor(pos.Z)')) 'Native ladder authority scans floor coordinates'
+Assert-True ($ladderMethod.Contains('CollisionBox.Y2') -and $ladderMethod.Contains('Math.Ceiling')) 'Native ladder authority scans the native collision height'
+Assert-True ($ladderMethod.Contains('new Cuboidd().SetAndTranslate')) 'Native ladder authority uses the translated collision box'
+Assert-True ($ladderMethod.Contains('.IsClimbable(')) 'Native ladder authority queries the position-aware block predicate'
+Assert-True ($ladderMethod.Contains('.ShortestDistanceFrom(box, scanPos) < touchDistance')) 'Native ladder authority requires strict collision touch distance'
+Assert-True ($ladderMethod.Contains('.IterateHorizontalOffsets(offset)') -and $ladderMethod.Contains('controls.IsStepping')) 'Native ladder authority uses native neighbor order only when not stepping'
+Assert-True ($ladderMethod.Contains('box.Y2 <= stepThreshold + fractionalY')) 'Native ladder authority excludes grounded short neighbor boxes'
+Assert-True (-not $ladderMethod.Contains('IsClimbing =') -and -not $ladderMethod.Contains('ClimbingOnFace =') -and -not $ladderMethod.Contains('.Motion')) 'Native ladder authority remains a pure pre-write query'
 Assert-True ($climbing.Contains('if (controls.IsClimbing) { corners.Forget(entity!); return; }')) 'ApplyTests corner-hygiene cleanup is unchanged by the write-seam fix'
 $patch = Get-Content (Join-Path $PSScriptRoot 'src/GoblinScoutingPatch.cs') -Raw
 Assert-True ($patch.Contains('AiTaskBaseTargetable), "CanSensePlayer"')) 'Classic targetable AI consumer is patched'

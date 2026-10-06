@@ -41,10 +41,8 @@ namespace rfmechanics
             {
                 if (!TryGetGoblin(__instance, out Entity? entity)) return;
 
-                // controls.IsClimbing is still last tick's value here -- native ApplyTests, which
-                // recomputes it, runs after MotionAndCollision. Check the block directly so a
-                // wall-backed vanilla ladder keeps native motion untouched this tick too.
-                if (OnNativeLadder(entity!, pos)) { corners.Forget(entity!); return; }
+                // Native ApplyTests runs after this seam, so stale climb state cannot arbitrate wall motion.
+                if (OnNativeLadder(__instance, entity!, pos, controls)) { corners.Forget(entity!); return; }
 
                 int freeHands = FreeHandCount((EntityPlayer)entity!);
                 if (freeHands == 0) corners.ForgetFreeHandGrip(entity!);
@@ -119,20 +117,59 @@ namespace rfmechanics
 
         private static bool CornersEnabled() => RFMechanicsModSystem.Config?.EnableGoblinCornerTraversal == true;
 
-        /// <summary>Same column/height/layer as vanilla's own primary ladder scan in ApplyTests,
-        /// minus the touch-distance math -- standing in the ladder's own block is enough to defer
-        /// to it, keeping this a guard rather than a second climb-detection algorithm.</summary>
-        private static bool OnNativeLadder(Entity entity, EntityPos pos)
+        /// <summary>Purely mirrors native ApplyTests climb acquisition before the wall-motion seam.</summary>
+        private static bool OnNativeLadder(EntityBehaviorControlledPhysics behavior, Entity entity, EntityPos pos, EntityControls controls)
         {
+            if (!entity.Properties.CanClimb) return false;
+
+            bool canClimbAnywhere = entity.Properties.CanClimbAnywhere && entity.Alive;
+            int layer = canClimbAnywhere ? BlockLayersAccess.Default : BlockLayersAccess.Solid;
+            int height = (int)Math.Ceiling(entity.CollisionBox.Y2);
+            int x = (int)Math.Floor(pos.X);
+            int baseY = (int)Math.Floor(pos.Y);
+            int z = (int)Math.Floor(pos.Z);
+            float touchDistance = entity.Properties.ClimbTouchDistance;
+            var entityBox = new Cuboidd().SetAndTranslate(entity.CollisionBox, pos.X, pos.Y, pos.Z);
             IBlockAccessor blockAccessor = entity.World.BlockAccessor;
             BlockPos scanPos = new(pos.Dimension);
-            int height = (int)Math.Ceiling(entity.CollisionBox.Y2);
-            int x = (int)pos.X, baseY = (int)pos.Y, z = (int)pos.Z;
+
+            scanPos.Set(x, baseY, z);
+            if (HasNativeClimbContact(blockAccessor, scanPos, baseY, height, layer, canClimbAnywhere, entityBox, touchDistance, entity.OnGround,
+                behavior.climbAnywhereStepThreshold, (float)(pos.Y - baseY), false)) return true;
+
+            if (controls.IsStepping) return false;
+
+            for (int offset = 0; offset < 4; offset++)
+            {
+                scanPos.IterateHorizontalOffsets(offset);
+                if (HasNativeClimbContact(blockAccessor, scanPos, baseY, height, layer, canClimbAnywhere, entityBox, touchDistance, entity.OnGround,
+                    behavior.climbAnywhereStepThreshold, (float)(pos.Y - baseY), true)) return true;
+            }
+
+            return false;
+        }
+
+        private static bool HasNativeClimbContact(IBlockAccessor blockAccessor, BlockPos scanPos, int baseY, int height, int layer,
+            bool canClimbAnywhere, Cuboidd entityBox, float touchDistance, bool onGround, float stepThreshold,
+            float fractionalY, bool requireStepHeight)
+        {
             for (int dy = 0; dy < height; dy++)
             {
-                scanPos.Set(x, baseY + dy, z);
-                if (blockAccessor.GetBlock(scanPos, BlockLayersAccess.Solid).IsClimbable(scanPos)) return true;
+                scanPos.Y = baseY + dy;
+                Block block = blockAccessor.GetBlock(scanPos, layer);
+                if (!block.IsClimbable(scanPos) && !canClimbAnywhere) continue;
+
+                Cuboidf[] collisionBoxes = block.GetCollisionBoxes(blockAccessor, scanPos);
+                if (collisionBoxes == null) continue;
+
+                for (int boxIndex = 0; boxIndex < collisionBoxes.Length; boxIndex++)
+                {
+                    Cuboidf box = collisionBoxes[boxIndex];
+                    if (requireStepHeight && onGround && box.Y2 <= stepThreshold + fractionalY) continue;
+                    if (entityBox.ShortestDistanceFrom(box, scanPos) < touchDistance) return true;
+                }
             }
+
             return false;
         }
 
