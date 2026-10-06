@@ -722,6 +722,12 @@ public class RFMechanicsConfig
 
     public int HalfGiantCameraZoomOutSteps { get; set; } = 2;
 
+    public bool EnableHalfGiantReach { get; set; } = true;
+    public double HalfGiantPickingRange { get; set; } = 9.45;
+    public bool EnableHalfGiantQuarry { get; set; } = true;
+    public double HalfGiantQuarryMiningSpeed { get; set; } = 2.8;
+    public float HalfGiantQuarrySatietyCost { get; set; } = 10f;
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>

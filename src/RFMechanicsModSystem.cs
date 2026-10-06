@@ -42,6 +42,7 @@ namespace rfmechanics
 
             api.RegisterEntityBehaviorClass("rftreeproximity", typeof(RFTreeProximityBehavior));
             api.RegisterEntityBehaviorClass("rfelfidentity", typeof(PlayerRaceBehavior));
+            api.RegisterEntityBehaviorClass("rfhalfgiantreach", typeof(HalfGiantReachBehavior));
             api.RegisterEntityBehaviorClass("rfstepheight", typeof(StepHeightBehavior));
             api.RegisterEntityBehaviorClass("rfelfzoom", typeof(RFElfZoomBehavior));
             api.RegisterEntityBehaviorClass("rfthew", typeof(ThewBehavior));
