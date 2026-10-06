@@ -245,7 +245,9 @@ namespace rfmechanics
             if (config.MigrateGoblinClimb())
                 api.Logger.Notification("[rfmechanics] Repaired goblin rock-climb prefixes that matched no block: mossystonebricks, lichenstonebricks, peatbrick, refractorybricks.");
             if (config.MigrateHalfGiantAnimalCarry())
-                api.Logger.Notification("[rfmechanics] Half-Giant animal carry revision 1: reach {0}, size reference {1}.", config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryReferenceEntityCode);
+                api.Logger.Notification("[rfmechanics] Half-Giant animal carry revision 2: reach {0}, size reference {1}; tag-exempt prefixes [{2}] at reach {3}.",
+                    config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryReferenceEntityCode,
+                    string.Join(", ", config.HalfGiantAnimalCarryTagExemptCodePathPrefixes ?? Array.Empty<string>()), config.HalfGiantAnimalCarryTagExemptReach);
 
             if (!malformed)
             {

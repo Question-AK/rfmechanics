@@ -740,19 +740,27 @@ public class RFMechanicsConfig
     public string[] HalfGiantAnimalCarryDenyCodes { get; set; } = Array.Empty<string>();
     // Smaller bear variants fall under the bear-volume limit, but no bear is carryable.
     public string[] HalfGiantAnimalCarryDenyCodePathPrefixes { get; set; } = new[] { "bear-" };
+    // Drifters lack the vanilla animal tag; bowtorn and shiver stay excluded because their codes differ.
+    public string[] HalfGiantAnimalCarryTagExemptCodePathPrefixes { get; set; } = new[] { "drifter-" };
+    // Provisional until Miles's test: shorter than animal reach so a pickup cannot pull a hostile out of a fight at range.
+    public double HalfGiantAnimalCarryTagExemptReach { get; set; } = 3.0;
     public Dictionary<string, HalfGiantAnimalCarrySizeOverride> HalfGiantAnimalCarrySizeOverrides { get; set; } = new();
     public Dictionary<string, string> HalfGiantAnimalCarryDisplayItems { get; set; } = new();
     public int HalfGiantAnimalCarryRevision { get; set; }
 
-    /// <summary>Moves only the shipped local-trial boar reference and 3.5-block reach to the bear limit
-    /// and 7-block reach; custom values stay.</summary>
+    /// <summary>Revision 1 moves only the shipped local-trial boar reference and 3.5-block reach to the bear
+    /// limit and 7-block reach. Revision 2 changes no values: older files lack the tag-exempt keys, so they
+    /// load with the drifter defaults. Custom values stay.</summary>
     internal bool MigrateHalfGiantAnimalCarry()
     {
-        if (HalfGiantAnimalCarryRevision >= 1) return false;
-        HalfGiantAnimalCarryRevision = 1;
-        if (HalfGiantAnimalCarryReach == 3.5) HalfGiantAnimalCarryReach = 7.0;
-        if (HalfGiantAnimalCarryReferenceEntityCode is "game:pig-eurasian-adult-elder-male" or "game:pig-eurasian-elder-male")
-            HalfGiantAnimalCarryReferenceEntityCode = "game:bear-brown-adult-male";
+        if (HalfGiantAnimalCarryRevision >= 2) return false;
+        if (HalfGiantAnimalCarryRevision < 1)
+        {
+            if (HalfGiantAnimalCarryReach == 3.5) HalfGiantAnimalCarryReach = 7.0;
+            if (HalfGiantAnimalCarryReferenceEntityCode is "game:pig-eurasian-adult-elder-male" or "game:pig-eurasian-elder-male")
+                HalfGiantAnimalCarryReferenceEntityCode = "game:bear-brown-adult-male";
+        }
+        HalfGiantAnimalCarryRevision = 2;
         return true;
     }
 

@@ -20,6 +20,24 @@ Assert-True (-not [rfmechanics.HalfGiantAnimalCarryRules]::IsEligible($true, $tr
 Assert-True (-not [rfmechanics.HalfGiantAnimalCarryRules]::IsEligible($true, $true, $true, $true, $false, $true, $true, $true, 0.1, 0.1, 1.452, 1.2, 'game:pig', $allow, $deny)) 'Visibility and reach are required'
 Assert-True (-not [rfmechanics.HalfGiantAnimalCarryRules]::IsEligible($true, $true, $true, $true, $true, $true, $true, $false, 0.1, 0.1, 1.452, 1.2, 'game:pig', $allow, $deny)) 'Mounted tethered or inventory-bearing animals are rejected'
 
+$rules = [rfmechanics.HalfGiantAnimalCarryRules]
+$admission = [rfmechanics.HalfGiantCarryAdmission]
+$tagExempt = [string[]]@('drifter-')
+foreach ($drifter in 'normal', 'deep', 'tainted', 'corrupt', 'nightmare', 'double-headed') {
+    Assert-True ($rules::Admit($false, "drifter-$drifter", $tagExempt) -eq $admission::TagExempt) "Untagged drifter-$drifter is admitted by prefix"
+}
+Assert-True ($rules::Admit($false, 'bowtorn-surface', $tagExempt) -eq $admission::Refused) 'Bowtorn is refused'
+Assert-True ($rules::Admit($false, 'shiver-surface', $tagExempt) -eq $admission::Refused) 'Shiver is refused'
+Assert-True ($rules::Admit($false, 'wolf-eurasian-adult-male', $tagExempt) -eq $admission::Refused) 'Untagged non-drifter is refused'
+Assert-True ($rules::Admit($false, 'drifter-normal', $null) -eq $admission::Refused) 'A cleared prefix list admits no drifter'
+Assert-True ($rules::Admit($true, 'pig-eurasian-adult-female', $tagExempt) -eq $admission::Animal) 'Tagged animals keep animal admission'
+Assert-True ($rules::CaptureReach($admission::TagExempt, 7.0, 3.0) -eq 3.0) 'Drifters use the shorter tag-exempt reach'
+Assert-True ($rules::CaptureReach($admission::Animal, 7.0, 3.0) -eq 7.0) 'Animals keep the animal reach'
+
+$configSource = Get-Content (Join-Path $PSScriptRoot 'src/RFMechanicsConfig.cs') -Raw
+Assert-True ($configSource -match 'HalfGiantAnimalCarryTagExemptCodePathPrefixes \{ get; set; \} = new\[\] \{ "drifter-" \};') 'Tag-exempt prefixes default to drifters only'
+Assert-True ($configSource -match 'HalfGiantAnimalCarryTagExemptReach \{ get; set; \} = 3\.0;' -and $configSource -match 'HalfGiantAnimalCarryReach \{ get; set; \} = 7\.0;') 'Default reaches are 3 blocks for drifters and 7 for animals'
+
 $id = [guid]::NewGuid().ToString('N')
 Assert-True ([rfmechanics.HalfGiantAnimalCarryRules]::IsSnapshotValid('EntityAgent', 'game:pig-eurasian-adult-elder-male', [byte[]](1,2,3), $id)) 'Serialized snapshot requires class code bytes and opaque identity'
 Assert-True (-not [rfmechanics.HalfGiantAnimalCarryRules]::IsSnapshotValid('EntityAgent', 'game:pig', [byte[]](1), 'not-an-identity')) 'Malformed capture identity is rejected'
@@ -40,6 +58,15 @@ Assert-True ($offhandRelease -ge 0 -and $mainHandRelease -gt $offhandRelease) 'R
 Assert-True ($useSource.Contains('player.InventoryManager.ActiveHotbarSlot')) 'Main-hand release uses the active hotbar slot'
 Assert-True ($useSource.Contains('Capture(player, offhand, config)') -and -not $useSource.Contains('Capture(player, mainHand')) 'Capture stays offhand-only'
 
+$captureSource = $carrySource.Substring($carrySource.IndexOf('private TextCommandResult Capture('), $carrySource.IndexOf('private TextCommandResult Release(') - $carrySource.IndexOf('private TextCommandResult Capture('))
+$admitAt = $captureSource.IndexOf('HalfGiantAnimalCarryRules.Admit(')
+$reachAt = $captureSource.IndexOf('CanSeeAndReach(player.Entity, target, reach)')
+Assert-True ($admitAt -ge 0 -and $reachAt -gt $admitAt -and $captureSource.Contains('HalfGiantAnimalCarryRules.CaptureReach(admission,')) 'Capture reach follows the admission kind'
+foreach ($guard in 'Claims.TryAccess(player, target.Pos.AsBlockPos', 'HasOwnerAccess(player, agent)', 'IsOrdinary(agent)', 'HalfGiantAnimalCarryDenyCodePathPrefixes', 'HalfGiantAnimalCarryRules.IsEligible(', 'TrySerialize(agent,') {
+    $guardAt = $captureSource.IndexOf($guard)
+    Assert-True ($guardAt -gt $admitAt) "Admitted drifters still pass $guard"
+}
+
 $itemJson = Get-Content (Join-Path $PSScriptRoot 'assets/rfmechanics/itemtypes/carriedanimal.json') -Raw
 $storageMatch = [regex]::Match($itemJson, '(?m)^\s*storageFlags:\s*(\d+)\s*,')
 Assert-True ($storageMatch.Success) 'Carried animal declares storage flags'
@@ -51,4 +78,4 @@ $itemSource = Get-Content (Join-Path $PSScriptRoot 'src/ItemCarriedAnimal.cs') -
 Assert-True ($itemSource -match 'override void OnHeldAttackStart\([^)]*\)\s*\{\s*handling = EnumHandHandling\.PreventDefault;\s*\}') 'Held carried animal cannot attack'
 
 if (-not (Test-Path -LiteralPath $AssemblyPath -PathType Leaf)) { throw "FAIL: production assembly not found: $AssemblyPath" }
-Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, snapshot identity, preservation, replay, hand-swap and release-order assertions passed. Native entity serialization and collision remain player/review checks."
+Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, drifter admission and reach, snapshot identity, preservation, replay, hand-swap and release-order assertions passed. Native entity serialization and collision remain player/review checks."

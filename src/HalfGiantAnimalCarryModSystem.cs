@@ -70,7 +70,12 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             return TextCommandResult.Success("Look at a living animal to carry it.");
         if (!target.Alive || target.Pos.Dimension != player.Entity.Pos.Dimension)
             return TextCommandResult.Success("That animal cannot be carried.");
-        if (!CanSeeAndReach(player.Entity, target, config.HalfGiantAnimalCarryReach))
+        bool hasAnimalTag = animalTagAvailable && animalTag.IsFullyContainedIn(target.Tags);
+        HalfGiantCarryAdmission admission = HalfGiantAnimalCarryRules.Admit(hasAnimalTag, target.Code.Path, config.HalfGiantAnimalCarryTagExemptCodePathPrefixes);
+        if (admission == HalfGiantCarryAdmission.Refused)
+            return TextCommandResult.Success("That creature cannot be carried.");
+        double reach = HalfGiantAnimalCarryRules.CaptureReach(admission, config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryTagExemptReach);
+        if (!CanSeeAndReach(player.Entity, target, reach))
             return TextCommandResult.Success("That animal is out of reach.");
         if (!sapi!.World.Claims.TryAccess(player, target.Pos.AsBlockPos, EnumBlockAccessFlags.BuildOrBreak))
             return TextCommandResult.Success("You do not have permission to carry that animal here.");
@@ -78,8 +83,6 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             return TextCommandResult.Success("That animal belongs to someone else.");
         if (!IsOrdinary(agent))
             return TextCommandResult.Success("Mounted, tethered, or laden animals cannot be carried.");
-        if (!animalTagAvailable || !animalTag.IsFullyContainedIn(target.Tags))
-            return TextCommandResult.Success("Only tagged animals can be carried.");
 
         string creatureCode = target.Code.ToShortString();
         if (!TryGetSizeLimit(config, target.Properties, creatureCode, out double maximumVolume, out double maximumDimension))

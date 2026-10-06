@@ -3,8 +3,26 @@ using System.Collections.Generic;
 
 namespace rfmechanics;
 
+public enum HalfGiantCarryAdmission
+{
+    Refused,
+    Animal,
+    TagExempt
+}
+
 public static class HalfGiantAnimalCarryRules
 {
+    public static HalfGiantCarryAdmission Admit(bool hasAnimalTag, string? codePath, IEnumerable<string>? tagExemptPrefixes)
+    {
+        if (hasAnimalTag) return HalfGiantCarryAdmission.Animal;
+        return MatchesPrefix(tagExemptPrefixes, codePath) ? HalfGiantCarryAdmission.TagExempt : HalfGiantCarryAdmission.Refused;
+    }
+
+    public static double CaptureReach(HalfGiantCarryAdmission admission, double animalReach, double tagExemptReach)
+    {
+        return admission == HalfGiantCarryAdmission.TagExempt ? tagExemptReach : animalReach;
+    }
+
     public static bool IsEligible(
         bool enabled,
         bool isHalfGiant,
