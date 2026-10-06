@@ -733,7 +733,7 @@ public class RFMechanicsConfig
 
     public bool EnableHalfGiantAnimalCarry { get; set; } = true;
     public double HalfGiantAnimalCarryReach { get; set; } = 3.5;
-    public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:pig-eurasian-adult-elder-male";
+    public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:pig-eurasian-elder-male";
     public double HalfGiantAnimalCarryMaximumVolume { get; set; }
     public double HalfGiantAnimalCarryMaximumDimension { get; set; }
     public string[] HalfGiantAnimalCarryAllowCodes { get; set; } = Array.Empty<string>();

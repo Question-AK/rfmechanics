@@ -186,7 +186,12 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
 
         if (maximumVolume > 0 && maximumDimension > 0) return true;
 
-        EntityProperties? reference = sapi!.World.GetEntityType(AssetLocation.Create(config.HalfGiantAnimalCarryReferenceEntityCode));
+        string referenceCode = config.HalfGiantAnimalCarryReferenceEntityCode;
+        // Accept the rp.1 default typo without requiring edits to saved configurations.
+        if (string.Equals(referenceCode, "game:pig-eurasian-adult-elder-male", StringComparison.OrdinalIgnoreCase))
+            referenceCode = "game:pig-eurasian-elder-male";
+
+        EntityProperties? reference = sapi!.World.GetEntityType(AssetLocation.Create(referenceCode));
         if (reference == null) return false;
         Vec2f referenceSize = reference.CollisionBoxSize;
         if (maximumVolume <= 0) maximumVolume = referenceSize.X * referenceSize.X * referenceSize.Y;

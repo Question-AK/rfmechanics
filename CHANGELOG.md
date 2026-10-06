@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1-rp.2 - 2026-10-06
+
+- Corrects the Half-Giant animal-carry boar size reference, including the invalid default already saved by rp.1; no manual config changes are needed.
+- Retains automatic collision-size eligibility without a species list, all rp.1 features and unchanged dependencies. Larger animals remain refused.
+- Local retest only: pickup/release and oversized refusal remain player checks.
+
 ## 1.2.1-rp.1 - 2026-10-06
 
 - Adds Half-Giant Survival interaction reach and empty-hand quarrying of natural rock and cracked rock; preserves ordinary drops, with a food cost per eligible block.
