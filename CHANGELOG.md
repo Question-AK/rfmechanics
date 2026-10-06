@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1-rp.1 - 2026-10-06
+
+- Adds Half-Giant Survival interaction reach and empty-hand quarrying of natural rock and cracked rock; preserves ordinary drops, with a food cost per eligible block.
+- Adds Goblin dark scouting against drifter, shiver and bowtorn families; empty-handed wall climbing is less concealed than crouched ground movement in darkness.
+- Goblin wall climbing uses full speed with two free hands, half speed with one, and releases with neither; native ladder motion, tree climbing and Clamber controls are retained.
+- Adds Dwarf Stonebrace on Ctrl+H: slower movement and reduced physical-attack damage and knockback, with stronger protection deeper underground and in stone enclosure. Environmental damage is unchanged; no added hunger cost or shield requirement.
+- Adds a race handbook with controls, limits and conditional Diet Setup guidance; does not activate example diets or change saved bindings.
+- Retains the reviewed crop-behavior merge compatibility fix and all 1.2.0 Orc, Elf, Watchfulness, movement, water and retired-Dwarf migration features. Dependencies are unchanged.
+- Unpublished local test candidate. Real climbing physics, UI, combat ordering, death/reconnect and multiplayer behavior remain player checks; no animal-carrying or worldgen changes are included.
+
 ## 1.2.0 - 2026-10-04
 
 - Adds Half-Giant support (requires Race Framework 1.1.0, which adds the race): step height 2.1 blocks.
