@@ -8,7 +8,8 @@
 - Adds Dwarf Stonebrace on Ctrl+H: slower movement and reduced physical-attack damage and knockback, with stronger protection deeper underground and in stone enclosure. Environmental damage is unchanged; no added hunger cost or shield requirement.
 - Adds a race handbook with controls, limits and conditional Diet Setup guidance; does not activate example diets or change saved bindings.
 - Retains the reviewed crop-behavior merge compatibility fix and all 1.2.0 Orc, Elf, Watchfulness, movement, water and retired-Dwarf migration features. Dependencies are unchanged.
-- Unpublished local test candidate. Real climbing physics, UI, combat ordering, death/reconnect and multiplayer behavior remain player checks; no animal-carrying or worldgen changes are included.
+- Adds Half-Giant offhand animal capture/release on Race Ability while leaving the main hand available. Uses native animal-state serialization and a boar-sized default limit; live save/reopen and pose testing remain pending. Replay protection is process-local, not restart-persistent.
+- Unpublished local test candidate. Real climbing physics, UI, combat ordering, death/reconnect and multiplayer behavior remain player checks; no worldgen changes are included. Test animal carrying with expendable animals in a disposable world.
 
 ## 1.2.0 - 2026-10-04
 
