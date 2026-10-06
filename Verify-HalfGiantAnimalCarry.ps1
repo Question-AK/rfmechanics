@@ -60,7 +60,7 @@ Assert-True ($useSource.Contains('Capture(player, offhand, config)') -and -not $
 
 $captureSource = $carrySource.Substring($carrySource.IndexOf('private TextCommandResult Capture('), $carrySource.IndexOf('private TextCommandResult Release(') - $carrySource.IndexOf('private TextCommandResult Capture('))
 $admitAt = $captureSource.IndexOf('HalfGiantAnimalCarryRules.Admit(')
-$reachAt = $captureSource.IndexOf('CanSeeAndReach(player.Entity, target, reach)')
+$reachAt = $captureSource.IndexOf('IsWithinReach(player.Entity, target, reach)')
 Assert-True ($admitAt -ge 0 -and $reachAt -gt $admitAt -and $captureSource.Contains('HalfGiantAnimalCarryRules.CaptureReach(admission,')) 'Capture reach follows the admission kind'
 foreach ($guard in 'Claims.TryAccess(player, target.Pos.AsBlockPos', 'HasOwnerAccess(player, agent)', 'IsOrdinary(agent)', 'HalfGiantAnimalCarryDenyCodePathPrefixes', 'HalfGiantAnimalCarryRules.IsEligible(', 'TrySerialize(agent,') {
     $guardAt = $captureSource.IndexOf($guard)

@@ -100,7 +100,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         if (admission == HalfGiantCarryAdmission.Refused)
             return TextCommandResult.Success("That creature cannot be carried.");
         double reach = HalfGiantAnimalCarryRules.CaptureReach(admission, config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryTagExemptReach);
-        if (!CanSeeAndReach(player.Entity, target, reach))
+        if (!IsWithinReach(player.Entity, target, reach))
             return TextCommandResult.Success("That creature is out of reach.");
         if (!sapi!.World.Claims.TryAccess(player, target.Pos.AsBlockPos, EnumBlockAccessFlags.BuildOrBreak))
             return TextCommandResult.Success("You do not have permission to carry that creature here.");
@@ -513,30 +513,20 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         return !hasInventory;
     }
 
-    private bool CanSeeAndReach(EntityPlayer player, Entity target, double maximumReach)
+    // Line of sight comes from the server's own per-tick look trace (CurrentEntity/BlockSelection), which excludes the player.
+    // A second unfiltered eye-to-centre trace hit the Half-Giant's own box and dropped close targets, so only distance is checked here.
+    private static bool IsWithinReach(EntityPlayer player, Entity target, double maximumReach)
     {
         if (!double.IsFinite(maximumReach) || maximumReach <= 0 || player.Pos.Dimension != target.Pos.Dimension) return false;
-        var from = new Vec3d(player.Pos.X, player.Pos.InternalY + player.LocalEyePos.Y, player.Pos.Z);
-        var to = new Vec3d(target.Pos.X, target.Pos.InternalY + target.Properties.CollisionBoxSize.Y * 0.5, target.Pos.Z);
-        if (from.SquareDistanceTo(to) > maximumReach * maximumReach) return false;
-
-        BlockSelection? blockSelection = null;
-        EntitySelection? entitySelection = null;
-        sapi!.World.RayTraceForSelection(from, to, ref blockSelection, ref entitySelection);
-        return entitySelection?.Entity?.EntityId == target.EntityId;
+        var box = new Cuboidd().SetAndTranslate(target.SelectionBox, target.Pos.X, target.Pos.InternalY, target.Pos.Z);
+        return box.ShortestDistanceFrom(player.Pos.X, player.Pos.InternalY + player.LocalEyePos.Y, player.Pos.Z) <= maximumReach;
     }
 
-    private bool CanReachBlock(EntityPlayer player, BlockSelection selection, double maximumReach)
+    private static bool CanReachBlock(EntityPlayer player, BlockSelection selection, double maximumReach)
     {
         if (!double.IsFinite(maximumReach) || maximumReach <= 0) return false;
         var from = new Vec3d(player.Pos.X, player.Pos.InternalY + player.LocalEyePos.Y, player.Pos.Z);
-        var to = selection.FullPosition;
-        if (from.SquareDistanceTo(to) > maximumReach * maximumReach) return false;
-
-        BlockSelection? tracedBlock = null;
-        EntitySelection? tracedEntity = null;
-        sapi!.World.RayTraceForSelection(from, to, ref tracedBlock, ref tracedEntity);
-        return tracedBlock?.Position.Equals(selection.Position) == true;
+        return from.SquareDistanceTo(selection.FullPosition) <= maximumReach * maximumReach;
     }
 
     private static Vec3d ReleasePosition(BlockSelection selection)
