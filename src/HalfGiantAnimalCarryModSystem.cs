@@ -30,7 +30,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         sapi = api;
         animalTagAvailable = api.EntityTagRegistry.TryCreateTagSet(out animalTag, "animal") == TagRegistryError.None;
         api.ChatCommands.Create("rfhalfgiantcarry")
-            .WithDescription("Capture an eligible animal into a Half-Giant's offhand, or release one carried in either hand.")
+            .WithDescription("Capture an eligible animal or drifter into a Half-Giant's offhand, or release one carried in either hand.")
             .RequiresPrivilege(Privilege.chat)
             .BeginSubCommand("use")
             .HandleWith(args => Use(args.Caller.Player))
@@ -67,22 +67,22 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
 
         Entity? target = player.CurrentEntitySelection?.Entity;
         if (target is not EntityAgent agent || target is EntityPlayer)
-            return TextCommandResult.Success("Look at a living animal to carry it.");
+            return TextCommandResult.Success("Look at a living animal or drifter to carry it.");
         if (!target.Alive || target.Pos.Dimension != player.Entity.Pos.Dimension)
-            return TextCommandResult.Success("That animal cannot be carried.");
+            return TextCommandResult.Success("That creature cannot be carried.");
         bool hasAnimalTag = animalTagAvailable && animalTag.IsFullyContainedIn(target.Tags);
         HalfGiantCarryAdmission admission = HalfGiantAnimalCarryRules.Admit(hasAnimalTag, target.Code.Path, config.HalfGiantAnimalCarryTagExemptCodePathPrefixes);
         if (admission == HalfGiantCarryAdmission.Refused)
             return TextCommandResult.Success("That creature cannot be carried.");
         double reach = HalfGiantAnimalCarryRules.CaptureReach(admission, config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryTagExemptReach);
         if (!CanSeeAndReach(player.Entity, target, reach))
-            return TextCommandResult.Success("That animal is out of reach.");
+            return TextCommandResult.Success("That creature is out of reach.");
         if (!sapi!.World.Claims.TryAccess(player, target.Pos.AsBlockPos, EnumBlockAccessFlags.BuildOrBreak))
-            return TextCommandResult.Success("You do not have permission to carry that animal here.");
+            return TextCommandResult.Success("You do not have permission to carry that creature here.");
         if (!HasOwnerAccess(player, agent))
-            return TextCommandResult.Success("That animal belongs to someone else.");
+            return TextCommandResult.Success("That creature belongs to someone else.");
         if (!IsOrdinary(agent))
-            return TextCommandResult.Success("Mounted, tethered, or laden animals cannot be carried.");
+            return TextCommandResult.Success("Mounted, tethered, or laden creatures cannot be carried.");
 
         string creatureCode = target.Code.ToShortString();
         if (!TryGetSizeLimit(config, target.Properties, creatureCode, out double maximumVolume, out double maximumDimension))
@@ -97,11 +97,11 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
                 maximumVolume, maximumDimension, creatureCode,
                 config.HalfGiantAnimalCarryAllowCodes, config.HalfGiantAnimalCarryDenyCodes))
         {
-            return TextCommandResult.Success("That animal is too large or not allowed for carrying.");
+            return TextCommandResult.Success("That creature is too large or not allowed for carrying.");
         }
 
         if (!TrySerialize(agent, out string className, out byte[] bytes) || !TryDeserialize(className, creatureCode, bytes, out _))
-            return TextCommandResult.Success("That animal's state could not be safely preserved.");
+            return TextCommandResult.Success("That creature's state could not be safely preserved.");
         if (!TryResolveDisplayItem(config, creatureCode, out string displayItem))
             return TextCommandResult.Success("No compatible carried-animal appearance is available.");
 
@@ -129,11 +129,11 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             offhand.Itemstack = null;
             offhand.MarkDirty();
             sapi.Logger.Error("[rfmechanics] Animal carry capture rollback for {0}: {1}", creatureCode, error);
-            return TextCommandResult.Success("The animal could not be carried; it was left in place.");
+            return TextCommandResult.Success("The creature could not be carried; it was left in place.");
         }
 
         offhand.MarkDirty();
-        return TextCommandResult.Success("Animal carried in offhand.");
+        return TextCommandResult.Success("Creature carried in offhand.");
     }
 
     private TextCommandResult Release(IPlayer player, ItemSlot carrySlot, RFMechanicsConfig config)
