@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1-rp.7 - 2026-10-06
+
+- A Half-Giant can throw a carried animal or drifter. With it in the main hand, hold right-click for at least 0.35 s and let go. Aim works like a thrown stone. Smaller creatures fly further: a chicken goes much further than a boar or sheep. The creature lands alive, with vanilla fall damage only.
+- A thrown creature hits each other creature it touches once, with blunt damage that grows with its size (1 to 6). PvP and creature-attack permissions apply as for thrown stones.
+- Provisional: a thrown drifter that lands in a claim where you cannot build is removed without drops, and you are told. Animals are unaffected.
+- Held creatures now show at their real size next to the same creature standing in the world (third person). Creatures already carried before this update show at an average size until released and picked up again. First person is unchanged.
+- New config keys `EnableHalfGiantAnimalThrow`, `HalfGiantAnimalThrowSpeed` (0.45), `HalfGiantAnimalThrowMinimumSpeed` (0.15), `HalfGiantAnimalThrowFullSpeedVolume` (0.15), `HalfGiantAnimalThrowDamagePerVolume` (3), `HalfGiantAnimalThrowMinimumDamage` (1), `HalfGiantAnimalThrowMaximumDamage` (6), `HalfGiantAnimalThrowFlightTimeoutSeconds` (5) and `HalfGiantAnimalThrowRemovesHostilesInForeignClaims` (true). Existing configs keep their values.
+- Local retest only.
+
 ## 1.2.1-rp.6 - 2026-10-06
 
 - A Half-Giant can now pick up drifters (all six types) with Race Ability, from up to 3 blocks away; animals keep their 7-block reach. Bowtorn and shivers cannot be picked up.
