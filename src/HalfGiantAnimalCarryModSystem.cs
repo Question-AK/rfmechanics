@@ -30,7 +30,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         sapi = api;
         animalTagAvailable = api.EntityTagRegistry.TryCreateTagSet(out animalTag, "animal") == TagRegistryError.None;
         api.ChatCommands.Create("rfhalfgiantcarry")
-            .WithDescription("Capture or release an eligible animal in a Half-Giant's offhand.")
+            .WithDescription("Capture an eligible animal into a Half-Giant's offhand, or release one carried in either hand.")
             .RequiresPrivilege(Privilege.chat)
             .BeginSubCommand("use")
             .HandleWith(args => Use(args.Caller.Player))
@@ -48,11 +48,15 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             return TextCommandResult.Success("Only Half-Giants can carry animals.");
 
         ItemSlot? offhand = player.Entity.LeftHandItemSlot;
-        if (offhand == null)
-            return TextCommandResult.Success("Your offhand is unavailable.");
+        if (offhand != null && IsCarriedAnimal(offhand.Itemstack))
+            return Release(player, offhand, config);
 
-        return IsCarriedAnimal(offhand.Itemstack)
-            ? Release(player, offhand, config)
+        ItemSlot? mainHand = player.InventoryManager.ActiveHotbarSlot;
+        if (mainHand != null && IsCarriedAnimal(mainHand.Itemstack))
+            return Release(player, mainHand, config);
+
+        return offhand == null
+            ? TextCommandResult.Success("Your offhand is unavailable.")
             : Capture(player, offhand, config);
     }
 
@@ -129,9 +133,9 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         return TextCommandResult.Success("Animal carried in offhand.");
     }
 
-    private TextCommandResult Release(IPlayer player, ItemSlot offhand, RFMechanicsConfig config)
+    private TextCommandResult Release(IPlayer player, ItemSlot carrySlot, RFMechanicsConfig config)
     {
-        ItemStack stack = offhand.Itemstack!;
+        ItemStack stack = carrySlot.Itemstack!;
         if (!TryReadSnapshot(stack, out string className, out string creatureCode, out byte[] bytes, out string captureIdentity))
             return TextCommandResult.Success("This carried animal is damaged and was not consumed.");
         if (releasedCaptureIdentities.Contains(captureIdentity))
@@ -160,7 +164,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         Cuboidf collisionBox = entityType.SpawnCollisionBox.OmniNotDownGrowBy(0.1f);
         bool collisionFree = !sapi.World.CollisionTester.IsColliding(sapi.World.BlockAccessor, collisionBox, position, false);
         if (!HalfGiantAnimalCarryRules.CanRelease(true, collisionFree, true, true, false))
-            return TextCommandResult.Success("There is not enough clear space; the carried animal remains safe in your offhand.");
+            return TextCommandResult.Success("There is not enough clear space; the carried animal remains safe in your hand.");
 
         try
         {
@@ -169,14 +173,14 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         catch (Exception error)
         {
             sapi.Logger.Error("[rfmechanics] Animal carry release preserved {0}: {1}", creatureCode, error);
-            return TextCommandResult.Success("The animal could not be released and remains in your offhand.");
+            return TextCommandResult.Success("The animal could not be released and remains in your hand.");
         }
 
         releasedCaptureIdentities.Add(captureIdentity);
         if (HalfGiantAnimalCarryRules.ShouldConsumeCapture(true))
         {
-            offhand.TakeOut(1);
-            offhand.MarkDirty();
+            carrySlot.TakeOut(1);
+            carrySlot.MarkDirty();
         }
         return TextCommandResult.Success("Animal released.");
     }

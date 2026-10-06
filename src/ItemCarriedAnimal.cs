@@ -31,6 +31,12 @@ public sealed class ItemCarriedAnimal : Item
         };
     }
 
+    // PreventDefault also cancels block breaking: a hand holding an animal neither strikes nor mines.
+    public override void OnHeldAttackStart(ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, ref EnumHandHandling handling)
+    {
+        handling = EnumHandHandling.PreventDefault;
+    }
+
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);

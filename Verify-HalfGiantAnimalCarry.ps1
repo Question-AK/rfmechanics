@@ -31,7 +31,24 @@ Assert-True ([rfmechanics.HalfGiantAnimalCarryRules]::ShouldConsumeCapture($true
 $carrySource = Get-Content (Join-Path $PSScriptRoot 'src/HalfGiantAnimalCarryModSystem.cs') -Raw
 Assert-True ($carrySource.IndexOf('TryDeserialize(className, creatureCode, bytes, out Entity? entity)') -lt $carrySource.IndexOf('sapi.World.SpawnEntity(entity)')) 'Release deserializes before spawning'
 Assert-True ($carrySource.IndexOf('releasedCaptureIdentities.Add(captureIdentity)') -gt $carrySource.IndexOf('sapi.World.SpawnEntity(entity)')) 'Replay identity is consumed only after spawn'
-Assert-True ($carrySource.Contains('offhand.MarkDirty();')) 'Inventory mutations are marked dirty'
+Assert-True ($carrySource.Contains('offhand.MarkDirty();') -and $carrySource.Contains('carrySlot.MarkDirty();')) 'Inventory mutations are marked dirty'
+
+$useSource = $carrySource.Substring($carrySource.IndexOf('private TextCommandResult Use('), $carrySource.IndexOf('private TextCommandResult Capture(') - $carrySource.IndexOf('private TextCommandResult Use('))
+$offhandRelease = $useSource.IndexOf('return Release(player, offhand, config);')
+$mainHandRelease = $useSource.IndexOf('return Release(player, mainHand, config);')
+Assert-True ($offhandRelease -ge 0 -and $mainHandRelease -gt $offhandRelease) 'Release checks the offhand before the main hand'
+Assert-True ($useSource.Contains('player.InventoryManager.ActiveHotbarSlot')) 'Main-hand release uses the active hotbar slot'
+Assert-True ($useSource.Contains('Capture(player, offhand, config)') -and -not $useSource.Contains('Capture(player, mainHand')) 'Capture stays offhand-only'
+
+$itemJson = Get-Content (Join-Path $PSScriptRoot 'assets/rfmechanics/itemtypes/carriedanimal.json') -Raw
+$storageMatch = [regex]::Match($itemJson, '(?m)^\s*storageFlags:\s*(\d+)\s*,')
+Assert-True ($storageMatch.Success) 'Carried animal declares storage flags'
+$storageFlags = [int]$storageMatch.Groups[1].Value
+Assert-True (($storageFlags -band 1) -ne 0 -and ($storageFlags -band 256) -ne 0) 'Carried animal fits General and Offhand slots so X can flip it back'
+Assert-True ($itemJson -match 'heldLeftTpIdleAnimation:\s*"holdinglanternlefthand"' -and $itemJson -match 'heldRightTpIdleAnimation:\s*"holdinglanternrighthand"') 'Carried animal has a hold pose in each hand'
+
+$itemSource = Get-Content (Join-Path $PSScriptRoot 'src/ItemCarriedAnimal.cs') -Raw
+Assert-True ($itemSource -match 'override void OnHeldAttackStart\([^)]*\)\s*\{\s*handling = EnumHandHandling\.PreventDefault;\s*\}') 'Held carried animal cannot attack'
 
 if (-not (Test-Path -LiteralPath $AssemblyPath -PathType Leaf)) { throw "FAIL: production assembly not found: $AssemblyPath" }
-Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, snapshot identity, preservation, and replay assertions passed. Native entity serialization and collision remain player/review checks."
+Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, snapshot identity, preservation, replay, hand-swap and release-order assertions passed. Native entity serialization and collision remain player/review checks."

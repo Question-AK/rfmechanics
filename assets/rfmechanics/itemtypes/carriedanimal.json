@@ -2,7 +2,9 @@
   code: "carriedanimal",
   class: "ItemCarriedAnimal",
   maxStackSize: 1,
+  storageFlags: 257,
   heldLeftTpIdleAnimation: "holdinglanternlefthand",
+  heldRightTpIdleAnimation: "holdinglanternrighthand",
   guiTransform: {
     origin: { x: 0.5, y: 0.5, z: 0.5 },
     scale: 1.25
