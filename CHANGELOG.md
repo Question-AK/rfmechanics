@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1-rp.11 - 2026-10-07
+
+- While a Half-Giant holds right-click to throw a pulled rock, the rock now sits on the raised fist instead of hanging beside the forearm (third person). Other players see the same. The carry pose and first person are unchanged.
+- Local retest only.
 ## 1.2.1-rp.10 - 2026-10-07
 
 - A drifter carried by a Half-Giant now hangs head-down from one ankle in third person, as if held by the leg. Carried animals keep their pose, and first person is unchanged.
