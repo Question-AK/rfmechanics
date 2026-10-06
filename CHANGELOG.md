@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1-rp.5 - 2026-10-06
+
+- A carried animal now moves freely between hands: X swaps it into the main hand and back, and it can be dragged into the offhand slot. It shows a right-hand hold pose.
+- Race Ability releases a carried animal from either hand, offhand first. Picking up still needs an empty offhand.
+- Left-click does nothing while the animal is in the main hand (no attack or mining with it).
+- Local retest only.
+
 ## 1.2.1-rp.4 - 2026-10-06
 
 - Fixes Half-Giant empty-hand quarrying: the server no longer rejects the break for missing pickaxe tier, so natural rock and cracked rock break instead of resetting.
