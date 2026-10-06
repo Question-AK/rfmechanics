@@ -761,6 +761,16 @@ public class RFMechanicsConfig
     // Provisional until Miles's test: keeps a thrown drifter from being used to dump hostiles into someone else's claim.
     public bool HalfGiantAnimalThrowRemovesHostilesInForeignClaims { get; set; } = true;
 
+    public bool EnableHalfGiantRockPull { get; set; } = true;
+    // Counted among the four sides and the top: 2 admits edges and corners, but not flat ground or wall faces.
+    public int HalfGiantRockPullMinOpenFaces { get; set; } = 2;
+    public double HalfGiantRockThrowDamage { get; set; } = 6.0;
+    // Knockback strength is Weight × speed × 10, so 0.5 at launch speed is about twice a melee hit's 1.0.
+    public double HalfGiantRockThrowWeight { get; set; } = 0.5;
+    // Blocks per 1/60 s; a vanilla thrown stone leaves the hand at 0.5, and a whole rock is heavier.
+    public double HalfGiantRockThrowSpeed { get; set; } = 0.4;
+    public double HalfGiantRockThrowFlightTimeoutSeconds { get; set; } = 10.0;
+
     /// <summary>Revision 1 moves only the shipped local-trial boar reference and 3.5-block reach to the bear
     /// limit and 7-block reach. Revision 2 changes no values: older files lack the tag-exempt keys, so they
     /// load with the drifter defaults. Custom values stay.</summary>

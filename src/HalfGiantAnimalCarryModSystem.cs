@@ -46,7 +46,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         animalTagAvailable = api.EntityTagRegistry.TryCreateTagSet(out animalTag, "animal") == TagRegistryError.None;
         api.Event.RegisterGameTickListener(TickThrownCreatures, 50);
         api.ChatCommands.Create("rfhalfgiantcarry")
-            .WithDescription("Capture an eligible animal or drifter into a Half-Giant's offhand, or release one carried in either hand.")
+            .WithDescription("Capture an eligible animal or drifter into a Half-Giant's offhand, release one carried in either hand, or pull a corner rock loose.")
             .RequiresPrivilege(Privilege.chat)
             .BeginSubCommand("use")
             .HandleWith(args => Use(args.Caller.Player))
@@ -58,22 +58,31 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         RFMechanicsConfig? config = RFMechanicsModSystem.Config;
         if (sapi == null || player?.Entity == null || config == null)
             return TextCommandResult.Success("Animal carrying is unavailable.");
-        if (!config.EnableHalfGiantAnimalCarry)
+        bool pullsRock = config.EnableHalfGiantRockPull && player.CurrentEntitySelection?.Entity == null && player.CurrentBlockSelection != null;
+        if (!config.EnableHalfGiantAnimalCarry && !pullsRock)
             return TextCommandResult.Success("Animal carrying is disabled.");
         if (!RaceTraits.HasTrait(player, config.HalfGiantTraitCode))
             return TextCommandResult.Success("Only Half-Giants can carry animals.");
 
-        ItemSlot? offhand = player.Entity.LeftHandItemSlot;
-        if (offhand != null && IsCarriedAnimal(offhand.Itemstack))
-            return Release(player, offhand, config);
+        if (config.EnableHalfGiantAnimalCarry)
+        {
+            ItemSlot? offhand = player.Entity.LeftHandItemSlot;
+            if (offhand != null && IsCarriedAnimal(offhand.Itemstack))
+                return Release(player, offhand, config);
 
-        ItemSlot? mainHand = player.InventoryManager.ActiveHotbarSlot;
-        if (mainHand != null && IsCarriedAnimal(mainHand.Itemstack))
-            return Release(player, mainHand, config);
+            ItemSlot? mainHand = player.InventoryManager.ActiveHotbarSlot;
+            if (mainHand != null && IsCarriedAnimal(mainHand.Itemstack))
+                return Release(player, mainHand, config);
 
-        return offhand == null
-            ? TextCommandResult.Success("Your offhand is unavailable.")
-            : Capture(player, offhand, config);
+            if (!pullsRock)
+            {
+                return offhand == null
+                    ? TextCommandResult.Success("Your offhand is unavailable.")
+                    : Capture(player, offhand, config);
+            }
+        }
+
+        return HalfGiantRockPull.Pull(sapi, player, config);
     }
 
     private TextCommandResult Capture(IPlayer player, ItemSlot offhand, RFMechanicsConfig config)

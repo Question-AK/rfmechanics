@@ -1,0 +1,27 @@
+{
+  code: "thrownrock",
+  class: "EntityThrownRock",
+  tags: ["inanimate", "projectile"],
+  attributes: {
+    isProjectile: true,
+    physics: {
+      groundDragFactor: 1,
+      airDragFactor: 0.25
+    }
+  },
+  hitboxSize: { x: 0.9, y: 0.9 },
+  client: {
+    renderer: "Shape",
+    shape: { base: "game:block/basic/cube" },
+    textures: {
+      all: { base: "game:block/stone/rock/granite1" }
+    },
+    size: 1,
+    behaviors: [{ code: "passivephysics" }, { code: "interpolateposition" }]
+  },
+  server: {
+    behaviors: [{ code: "passivephysics" }, { code: "despawn", minSeconds: 300 }, { code: "entitystatetags" }]
+  },
+  sounds: {
+  }
+}
