@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1-rp.6 - 2026-10-06
+
+- A Half-Giant can now pick up drifters (all six types) with Race Ability, from up to 3 blocks away; animals keep their 7-block reach. Bowtorn and shivers cannot be picked up.
+- A released drifter keeps its saved state and stays hostile. It may come back in its standing or crawling form, because the game picks that form when it spawns.
+- New config keys `HalfGiantAnimalCarryTagExemptCodePathPrefixes` (default `["drifter-"]`) and `HalfGiantAnimalCarryTagExemptReach` (default 3.0). Both defaults are provisional. Existing configs keep their values.
+- Local retest only.
+
 ## 1.2.1-rp.5 - 2026-10-06
 
 - A carried animal now moves freely between hands: X swaps it into the main hand and back, and it can be dragged into the offhand slot. It shows a right-hand hold pose.
