@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1-rp.8 - 2026-10-07
+
+- A Half-Giant can pull a single rock loose. With an empty main hand and nothing carried, press Race Ability while looking at a natural rock or cracked rock block within reach that has at least 2 open faces among its four sides and top, such as an outcrop corner or edge. Flat ground and wall faces are refused, and so are rocks in claims where you cannot build, reinforced rocks and rocks with nothing holding them. Pulling costs the same satiety as quarrying a block, once per pull.
+- The pulled rock shows at its real one-block size in hand (third person) and on the ground. It cannot be placed.
+- Throw it like a carried creature: hold right-click for at least 0.35 s and let go. It flies at full one-block size and hits each creature once for 6 blunt damage, with knockback. PvP and creature-attack permissions apply as for thrown stones. It breaks into its normal loose stones where it lands, and it never gives back a rock block.
+- New config keys `EnableHalfGiantRockPull` (true), `HalfGiantRockPullMinOpenFaces` (2), `HalfGiantRockThrowDamage` (6), `HalfGiantRockThrowWeight` (0.5), `HalfGiantRockThrowSpeed` (0.4) and `HalfGiantRockThrowFlightTimeoutSeconds` (10). Existing configs keep their values.
+- Local retest only.
 ## 1.2.1-rp.7 - 2026-10-06
 
 - A Half-Giant can throw a carried animal or drifter. With it in the main hand, hold right-click for at least 0.35 s and let go. Aim works like a thrown stone. Smaller creatures fly further: a chicken goes much further than a boar or sheep. The creature lands alive, with vanilla fall damage only.
