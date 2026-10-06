@@ -767,6 +767,10 @@ public class RFMechanicsConfig
 
     // â”€â”€ Goblin climbing (Phase G2) â”€â”€
 
+    public bool EnableGoblinFreeHandClimbing { get; set; } = true;
+
+    public double GoblinFreeHandOneHandWallSpeedFactor { get; set; } = 0.5;
+
     /// <summary>Master toggle for Goblin raw-rock climbing (GoblinClimbingPatch). Independent
     /// of EnableGoblinTreeClimbing -- either match group can be disabled without the other.</summary>
     public bool EnableGoblinRockClimbing { get; set; } = true;
@@ -868,7 +872,33 @@ public class RFMechanicsConfig
     /// per-tick sync writes.</summary>
     public double GoblinTunnelStatWriteThreshold { get; set; } = 0.02;
 
-    // â”€â”€ Goblin spit-packed earth (Phase G2) â”€â”€
+    // â”€â”€ Goblin scouting (local trial) â”€â”€
+
+    public bool EnableGoblinScouting { get; set; } = true;
+
+    public string[] GoblinScoutingDrifterFamilyCodes { get; set; } = new[] { "drifter", "shiver", "bowtorn" };
+
+    public string[] GoblinScoutingAnimalFamilyCodes { get; set; } = new[] { "bear", "hyena", "wolf" };
+
+    public int GoblinScoutingMaxAmbientLight { get; set; } = 4;
+
+    public double GoblinScoutingCrouchedDarkGroundFactor { get; set; } = 0.15;
+    public double GoblinScoutingEmptyHandWallClimbFactor { get; set; } = 0.25;
+    public double GoblinScoutingOneHandWallClimbFactor { get; set; } = 0.35;
+    public double GoblinScoutingStandingFactor { get; set; } = 0.35;
+    public double GoblinScoutingSprintingFactor { get; set; } = 0.50;
+    public double GoblinScoutingAnimalFactor { get; set; } = 0.70;
+
+    public double GoblinScoutingSneakSpeedBonus { get; set; } = 0.40;
+
+    public double GoblinScoutingDarknessWalkSpeedBonus { get; set; } = 0.30;
+
+    public double GoblinScoutingMovementTickInterval { get; set; } = 0.25;
+    public double GoblinScoutingStatWriteThreshold { get; set; } = 0.02;
+
+    // Contact detection remains neutral to avoid hostility resets during close combat.
+    public double GoblinScoutingContactRevealRange { get; set; } = 2.0;
+
 
     /// <summary>DORMANT: GoblinSpitPackingPatch is re-homed to src/BugRace/ and its Harmony
     /// attributes are commented out, so this flag currently has no effect. Left in place so

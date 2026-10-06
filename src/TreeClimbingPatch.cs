@@ -108,7 +108,8 @@ namespace rfmechanics
         {
             internal static readonly LogClimbFilter Instance = new();
 
-            public bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos) => IsClimbableLog(world, block, pos);
+            public ClimbGrip GetGrip(IWorldAccessor world, Block block, BlockPos pos)
+                => IsClimbableLog(world, block, pos) ? ClimbGrip.Full : ClimbGrip.None;
         }
 
         private static bool IsClimbableLog(IWorldAccessor world, Block block, BlockPos pos)

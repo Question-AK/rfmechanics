@@ -6,11 +6,15 @@ using Vintagestory.API.MathTools;
 
 namespace rfmechanics
 {
-    /// <summary>Which blocks a race may grip this tick. Rebuilt per scan because the goblin's
-    /// answer depends on config toggles and the Clamber stance, which can change mid-climb.</summary>
+    internal readonly record struct ClimbGrip(float MotionFactor, bool RequiresFreeHands)
+    {
+        internal static readonly ClimbGrip None = new(0, false);
+        internal static readonly ClimbGrip Full = new(1, false);
+    }
+
     internal interface IClimbBlockFilter
     {
-        bool IsClimbable(IWorldAccessor world, Block block, BlockPos pos);
+        ClimbGrip GetGrip(IWorldAccessor world, Block block, BlockPos pos);
     }
 
     /// <summary>
@@ -29,6 +33,7 @@ namespace rfmechanics
         {
             public BlockFacing? HeldFace;
             public int GraceTicksLeft;
+            public ClimbGrip Grip = ClimbGrip.None;
         }
 
         /// <summary>ConditionalWeakTable, not a dictionary keyed by entity id: in singleplayer the
@@ -38,18 +43,37 @@ namespace rfmechanics
 
         internal void Forget(Entity entity) => states.Remove(entity);
 
+        internal void ForgetFreeHandGrip(Entity entity)
+        {
+            if (states.TryGetValue(entity, out CornerState? state) && state.Grip.RequiresFreeHands)
+            {
+                states.Remove(entity);
+            }
+        }
+
+        internal bool HasFreeHandGrip(Entity entity)
+            => states.TryGetValue(entity, out CornerState? state) && state.Grip.RequiresFreeHands;
+
         private BlockFacing? HeldFace(Entity entity)
             => states.TryGetValue(entity, out CornerState? state) ? state.HeldFace : null;
-
-        private bool IsGraceActive(Entity entity)
-            => states.TryGetValue(entity, out CornerState? state) && state.GraceTicksLeft > 0;
 
         /// <summary>Pure read for the MotionAndCollision half, which runs first in the same tick
         /// (EntityBehaviorControlledPhysics.cs:567-568) and so sees the previous tick's window.
         /// All bookkeeping stays in Update; moving any of it here would skip remote entities.</summary>
+        internal bool TryGetGrip(Entity entity, EntityPos pos, IClimbBlockFilter? filter, bool cornersEnabled, out ClimbGrip grip)
+        {
+            if (TryFindClimb(entity, pos, filter, cornersEnabled, HeldFace(entity), out BlockFacing? _, out Cuboidf? _, out grip)) return true;
+            if (states.TryGetValue(entity, out CornerState? state) && state.GraceTicksLeft > 0)
+            {
+                grip = state.Grip;
+                return true;
+            }
+            grip = ClimbGrip.None;
+            return false;
+        }
+
         internal bool HoldsGrip(Entity entity, EntityPos pos, IClimbBlockFilter? filter, bool cornersEnabled)
-            => TryFindClimb(entity, pos, filter, cornersEnabled, HeldFace(entity), out BlockFacing? _, out Cuboidf? _)
-               || IsGraceActive(entity);
+            => TryGetGrip(entity, pos, filter, cornersEnabled, out ClimbGrip _);
 
         internal void Update(Entity entity, EntityPos pos, EntityControls controls, IClimbBlockFilter? filter, bool cornersEnabled, int graceTicks)
         {
@@ -57,32 +81,33 @@ namespace rfmechanics
 
             // Standing on solid ground is never mid-wrap; without this the window would keep
             // suspending gravity for ~0.2s after merely stepping away from a climbable wall.
-            if (entity.OnGround) { state.GraceTicksLeft = 0; state.HeldFace = null; }
+            if (entity.OnGround) { state.GraceTicksLeft = 0; state.HeldFace = null; state.Grip = ClimbGrip.None; }
 
-            if (TryFindClimb(entity, pos, filter, cornersEnabled, state.HeldFace, out BlockFacing? face, out Cuboidf? collBox))
+            if (TryFindClimb(entity, pos, filter, cornersEnabled, state.HeldFace, out BlockFacing? face, out Cuboidf? collBox, out ClimbGrip grip))
             {
-                Grip(entity, controls, state, face!, collBox!, graceTicks);
+                Grip(entity, controls, state, face!, collBox!, grip, graceTicks);
                 return;
             }
 
-            if (state.GraceTicksLeft <= 0) { state.HeldFace = null; return; }
+            if (state.GraceTicksLeft <= 0) { state.HeldFace = null; state.Grip = ClimbGrip.None; return; }
             state.GraceTicksLeft--;
 
             // Only ever grips a face backed by a real collision box -- EntityAgent.cs:665
             // dereferences ClimbingOnCollBox unguarded whenever ClimbingOnFace is set, so
             // holding the vanished face through the window would throw there.
-            if (TryFindCornerClimb(entity, pos, state.HeldFace, filter, cornersEnabled, out face, out collBox))
+            if (TryFindCornerClimb(entity, pos, state.HeldFace, filter, cornersEnabled, out face, out collBox, out grip))
             {
-                Grip(entity, controls, state, face!, collBox!, graceTicks);
+                Grip(entity, controls, state, face!, collBox!, grip, graceTicks);
             }
         }
 
-        private static void Grip(Entity entity, EntityControls controls, CornerState state, BlockFacing face, Cuboidf collBox, int graceTicks)
+        private static void Grip(Entity entity, EntityControls controls, CornerState state, BlockFacing face, Cuboidf collBox, ClimbGrip grip, int graceTicks)
         {
             controls.IsClimbing = true;
             entity.ClimbingOnFace = face;
             entity.ClimbingOnCollBox = collBox;
             state.HeldFace = face;
+            state.Grip = grip;
             state.GraceTicksLeft = Math.Max(0, graceTicks);
         }
 
@@ -120,16 +145,18 @@ namespace rfmechanics
         /// <summary>Absolute Set() per column rather than vanilla's cumulative IterateHorizontalOffsets
         /// walk, which leaves the cursor on the last offset and so cannot be continued into a diagonal
         /// pass. Offsets are identical to vanilla's for the four horizontals.</summary>
-        private static bool ScanColumn(ScanContext c, int dx, int dz, out Cuboidf? collBox)
+        private static bool ScanColumn(ScanContext c, int dx, int dz, out Cuboidf? collBox, out ClimbGrip grip)
         {
             collBox = null;
+            grip = ClimbGrip.None;
             c.TmpPos.Set(c.OriginX + dx, c.BaseY, c.OriginZ + dz);
 
             for (int dy = 0; dy < c.Height; dy++)
             {
                 c.TmpPos.Y = c.BaseY + dy;
                 Block inBlock = c.Accessor.GetBlock(c.TmpPos, BlockLayersAccess.Solid);
-                if (!c.Filter.IsClimbable(c.World, inBlock, c.TmpPos)) continue;
+                ClimbGrip candidateGrip = c.Filter.GetGrip(c.World, inBlock, c.TmpPos);
+                if (candidateGrip.MotionFactor <= 0) continue;
 
                 Cuboidf[] collisionBoxes = inBlock.GetCollisionBoxes(c.Accessor, c.TmpPos);
                 if (collisionBoxes == null) continue;
@@ -139,6 +166,7 @@ namespace rfmechanics
                     if (c.EntityBox.ShortestDistanceFrom(collisionBoxes[j], c.TmpPos) < c.TouchDistance)
                     {
                         collBox = collisionBoxes[j];
+                        grip = candidateGrip;
                         return true;
                     }
                 }
@@ -167,10 +195,11 @@ namespace rfmechanics
         /// <summary>Same four-orthogonal-neighbor scan shape as vanilla's, but picking the
         /// best-scoring face rather than the first hit, so an inside corner where two faces both
         /// qualify follows the player instead of always snapping north.</summary>
-        private static bool TryFindClimb(Entity entity, EntityPos pos, IClimbBlockFilter? filter, bool scoreFaces, BlockFacing? preferred, out BlockFacing? face, out Cuboidf? collBox)
+        private static bool TryFindClimb(Entity entity, EntityPos pos, IClimbBlockFilter? filter, bool scoreFaces, BlockFacing? preferred, out BlockFacing? face, out Cuboidf? collBox, out ClimbGrip grip)
         {
             face = null;
             collBox = null;
+            grip = ClimbGrip.None;
 
             ScanContext? c = BuildContext(entity, pos, filter);
             if (c == null) return false;
@@ -182,12 +211,13 @@ namespace rfmechanics
             for (int i = 0; i < 4; i++)
             {
                 BlockFacing candidate = BlockFacing.HORIZONTALS[i];
-                if (!ScanColumn(c, candidate.Normali.X, candidate.Normali.Z, out Cuboidf? box)) continue;
+                if (!ScanColumn(c, candidate.Normali.X, candidate.Normali.Z, out Cuboidf? box, out ClimbGrip candidateGrip)) continue;
 
                 if (!scoreFaces)
                 {
                     face = candidate;
                     collBox = box;
+                    grip = candidateGrip;
                     return true;
                 }
 
@@ -201,6 +231,7 @@ namespace rfmechanics
                 bestScore = score;
                 face = candidate;
                 collBox = box;
+                grip = candidateGrip;
             }
 
             return face != null;
@@ -210,12 +241,14 @@ namespace rfmechanics
         /// ordinary acquisition keeps vanilla's orthogonal-only shape. This is what carries a climber
         /// around an outside (convex) corner -- a building corner, or the edge of a trunk -- where the
         /// continuing surface is diagonal from its own column and the orthogonal scan finds nothing.</summary>
-        private static bool TryFindCornerClimb(Entity entity, EntityPos pos, BlockFacing? held, IClimbBlockFilter? filter, bool cornersEnabled, out BlockFacing? face, out Cuboidf? collBox)
+        private static bool TryFindCornerClimb(Entity entity, EntityPos pos, BlockFacing? held, IClimbBlockFilter? filter, bool cornersEnabled, out BlockFacing? face, out Cuboidf? collBox, out ClimbGrip grip)
         {
             face = null;
             collBox = null;
+            grip = ClimbGrip.None;
 
             if (!cornersEnabled) return false;
+            if (held == null) return false;
 
             ScanContext? c = BuildContext(entity, pos, filter);
             if (c == null) return false;
@@ -232,14 +265,12 @@ namespace rfmechanics
 
                 // Only diagonals sharing an edge with the lost face can be a wrap of that same wall;
                 // the opposite two would be a jump across open air.
-                if (held != null && a != held && b != held) continue;
-                if (!ScanColumn(c, dx, dz, out Cuboidf? box)) continue;
+                if (a != held && b != held) continue;
+                if (!ScanColumn(c, dx, dz, out Cuboidf? box, out ClimbGrip candidateGrip)) continue;
 
                 // Grip the component the climber is turning ONTO, not the plane it just lost: held
                 // NORTH wrapping onto the NW column is the building's east side, so face WEST.
-                BlockFacing candidate = held == null ? (moving && Math.Abs(hx) > Math.Abs(hz) ? a : b)
-                    : a == held ? b
-                    : a;
+                BlockFacing candidate = a == held ? b : a;
 
                 double score = moving ? hx * dx + hz * dz : 0.0;
                 if (score <= bestScore) continue;
@@ -247,6 +278,7 @@ namespace rfmechanics
                 bestScore = score;
                 face = candidate;
                 collBox = box;
+                grip = candidateGrip;
             }
 
             return face != null;
