@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1-rp.10 - 2026-10-07
+
+- A drifter carried by a Half-Giant now hangs head-down from one ankle in third person, as if held by the leg. Carried animals keep their pose, and first person is unchanged.
+- Local retest only.
 ## 1.2.1-rp.9 - 2026-10-07
 
 - Fixed Half-Giant carrying refusing a nearby animal or drifter as "out of reach". The reach is now measured from the eyes to the nearest part of the creature you are looking at: 7 blocks for animals and 3 for drifters, as before. Releasing uses the same distance check.
