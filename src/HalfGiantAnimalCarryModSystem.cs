@@ -84,7 +84,8 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         Vec2f collisionSize = target.Properties.CollisionBoxSize;
         double volume = collisionSize.X * collisionSize.X * collisionSize.Y;
         double longestDimension = Math.Max(collisionSize.X, collisionSize.Y);
-        if (!HalfGiantAnimalCarryRules.IsEligible(
+        if (HalfGiantAnimalCarryRules.MatchesPrefix(config.HalfGiantAnimalCarryDenyCodePathPrefixes, target.Code.Path)
+            || !HalfGiantAnimalCarryRules.IsEligible(
                 true, true, true, true, true, true, true, true, volume, longestDimension,
                 maximumVolume, maximumDimension, creatureCode,
                 config.HalfGiantAnimalCarryAllowCodes, config.HalfGiantAnimalCarryDenyCodes))
@@ -143,14 +144,20 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             return TextCommandResult.Success("You do not have permission to release an animal there.");
         if (!TryDeserialize(className, creatureCode, bytes, out Entity? entity) || entity is not EntityAgent)
             return TextCommandResult.Success("This carried animal cannot be restored and was not consumed.");
+        // entity.Properties stays null until SpawnEntity initializes it, as on a chunk load.
+        EntityProperties? entityType = sapi!.World.GetEntityType(entity.Code);
+        if (entityType == null)
+            return TextCommandResult.Success("This carried animal cannot be restored and was not consumed.");
 
         Vec3d position = ReleasePosition(selection);
         entity.Pos.SetPosWithDimension(position);
+        entity.Pos.Yaw = player.Entity.Pos.Yaw + GameMath.PI;
         entity.Pos.Motion.Set(0, 0, 0);
         entity.PositionBeforeFalling.Set(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
         entity.Attributes.SetString("origin", "playerplaced");
+        entity.WatchedAttributes.SetBool("noSpawnAnim", true);
 
-        Cuboidf collisionBox = entity.Properties.SpawnCollisionBox.OmniNotDownGrowBy(0.1f);
+        Cuboidf collisionBox = entityType.SpawnCollisionBox.OmniNotDownGrowBy(0.1f);
         bool collisionFree = !sapi.World.CollisionTester.IsColliding(sapi.World.BlockAccessor, collisionBox, position, false);
         if (!HalfGiantAnimalCarryRules.CanRelease(true, collisionFree, true, true, false))
             return TextCommandResult.Success("There is not enough clear space; the carried animal remains safe in your offhand.");
@@ -184,19 +191,15 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             if (overrideSize.MaximumDimension > 0) maximumDimension = overrideSize.MaximumDimension;
         }
 
-        if (maximumVolume > 0 && maximumDimension > 0) return true;
+        // The reference limits volume only; a bear's height would otherwise refuse tall, lighter sheep.
+        if (maximumDimension <= 0) maximumDimension = double.PositiveInfinity;
+        if (maximumVolume > 0) return true;
 
-        string referenceCode = config.HalfGiantAnimalCarryReferenceEntityCode;
-        // Accept the rp.1 default typo without requiring edits to saved configurations.
-        if (string.Equals(referenceCode, "game:pig-eurasian-adult-elder-male", StringComparison.OrdinalIgnoreCase))
-            referenceCode = "game:pig-eurasian-elder-male";
-
-        EntityProperties? reference = sapi!.World.GetEntityType(AssetLocation.Create(referenceCode));
+        EntityProperties? reference = sapi!.World.GetEntityType(AssetLocation.Create(config.HalfGiantAnimalCarryReferenceEntityCode));
         if (reference == null) return false;
         Vec2f referenceSize = reference.CollisionBoxSize;
-        if (maximumVolume <= 0) maximumVolume = referenceSize.X * referenceSize.X * referenceSize.Y;
-        if (maximumDimension <= 0) maximumDimension = Math.Max(referenceSize.X, referenceSize.Y);
-        return maximumVolume > 0 && maximumDimension > 0;
+        maximumVolume = referenceSize.X * referenceSize.X * referenceSize.Y;
+        return maximumVolume > 0;
     }
 
     private bool TryResolveDisplayItem(RFMechanicsConfig config, string creatureCode, out string displayItem)

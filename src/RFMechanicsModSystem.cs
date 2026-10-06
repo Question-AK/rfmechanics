@@ -244,6 +244,8 @@ namespace rfmechanics
                 api.Logger.Notification("[rfmechanics] Step height revision 2: baseline StepHeightValue={0} for every race, ElfStepHeightOverride={1} for elves. The per-player elf toggle and /rfelfstepheight stay retired.", config.StepHeightValue, config.ElfStepHeightOverride);
             if (config.MigrateGoblinClimb())
                 api.Logger.Notification("[rfmechanics] Repaired goblin rock-climb prefixes that matched no block: mossystonebricks, lichenstonebricks, peatbrick, refractorybricks.");
+            if (config.MigrateHalfGiantAnimalCarry())
+                api.Logger.Notification("[rfmechanics] Half-Giant animal carry revision 1: reach {0}, size reference {1}.", config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryReferenceEntityCode);
 
             if (!malformed)
             {

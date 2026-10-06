@@ -732,14 +732,29 @@ public class RFMechanicsConfig
     public float HalfGiantQuarrySatietyCost { get; set; } = 10f;
 
     public bool EnableHalfGiantAnimalCarry { get; set; } = true;
-    public double HalfGiantAnimalCarryReach { get; set; } = 3.5;
-    public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:pig-eurasian-elder-male";
+    public double HalfGiantAnimalCarryReach { get; set; } = 7.0;
+    public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:bear-brown-adult-male";
     public double HalfGiantAnimalCarryMaximumVolume { get; set; }
     public double HalfGiantAnimalCarryMaximumDimension { get; set; }
     public string[] HalfGiantAnimalCarryAllowCodes { get; set; } = Array.Empty<string>();
     public string[] HalfGiantAnimalCarryDenyCodes { get; set; } = Array.Empty<string>();
+    // Smaller bear variants fall under the bear-volume limit, but no bear is carryable.
+    public string[] HalfGiantAnimalCarryDenyCodePathPrefixes { get; set; } = new[] { "bear-" };
     public Dictionary<string, HalfGiantAnimalCarrySizeOverride> HalfGiantAnimalCarrySizeOverrides { get; set; } = new();
     public Dictionary<string, string> HalfGiantAnimalCarryDisplayItems { get; set; } = new();
+    public int HalfGiantAnimalCarryRevision { get; set; }
+
+    /// <summary>Moves only the shipped local-trial boar reference and 3.5-block reach to the bear limit
+    /// and 7-block reach; custom values stay.</summary>
+    internal bool MigrateHalfGiantAnimalCarry()
+    {
+        if (HalfGiantAnimalCarryRevision >= 1) return false;
+        HalfGiantAnimalCarryRevision = 1;
+        if (HalfGiantAnimalCarryReach == 3.5) HalfGiantAnimalCarryReach = 7.0;
+        if (HalfGiantAnimalCarryReferenceEntityCode is "game:pig-eurasian-adult-elder-male" or "game:pig-eurasian-elder-male")
+            HalfGiantAnimalCarryReferenceEntityCode = "game:bear-brown-adult-male";
+        return true;
+    }
 
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision

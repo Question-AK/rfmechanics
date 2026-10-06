@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1-rp.3 - 2026-10-06
+
+- Fixes releasing a carried animal: placement no longer fails before spawning; the animal faces away from the Half-Giant like a creative-mode placement.
+- Raises animal pickup/release reach from 3.5 to 7 blocks.
+- Half-Giants can carry any tagged animal smaller than an adult brown bear (volume), including sheep and wolves; no bear can be carried. Saved rp.1/rp.2 defaults update automatically; custom values are kept.
+- Local retest only: release, reach and size limits remain player checks.
+
 ## 1.2.1-rp.2 - 2026-10-06
 
 - Corrects the Half-Giant animal-carry boar size reference, including the invalid default already saved by rp.1; no manual config changes are needed.

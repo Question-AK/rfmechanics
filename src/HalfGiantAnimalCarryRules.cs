@@ -50,6 +50,16 @@ public static class HalfGiantAnimalCarryRules
         return spawned;
     }
 
+    public static bool MatchesPrefix(IEnumerable<string>? prefixes, string? codePath)
+    {
+        if (prefixes == null || string.IsNullOrWhiteSpace(codePath)) return false;
+        foreach (string prefix in prefixes)
+        {
+            if (!string.IsNullOrEmpty(prefix) && codePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
     private static bool Matches(IEnumerable<string>? codes, string code)
     {
         if (codes == null || string.IsNullOrWhiteSpace(code)) return false;
