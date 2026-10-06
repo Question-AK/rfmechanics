@@ -15,6 +15,8 @@ public sealed class ItemCarriedRock : Item
 {
     internal const string RockCodeKey = "rockcode";
     internal const string HolderSizeKey = "holderSize";
+    // On the stack, as vanilla ItemBow syncs renderVariant, so other players also see the wind-up hold.
+    private const string WindupKey = "windup";
     // Vanilla CollectibleBehaviorThrowable windup and stone-throw launch geometry, as for carried creatures.
     private const float ThrowWindupSeconds = 0.35f;
     private const double ThrowDispersion = 0.75;
@@ -25,8 +27,17 @@ public sealed class ItemCarriedRock : Item
     private static readonly AssetLocation ThrownRockCode = new("rfmechanics", "thrownrock");
     private static readonly AssetLocation ThrowSound = new("game", "sounds/player/throw");
 
+    private enum HeldPose { Main, Offhand, Windup }
+
     // Keyed by resolved scale, so every stack shares one transform instead of allocating per frame.
-    private readonly Dictionary<(float Scale, bool Offhand), ModelTransform> heldTransforms = new();
+    private readonly Dictionary<(float Scale, HeldPose Pose), ModelTransform> heldTransforms = new();
+    private ModelTransform? tpHandWindupTransform;
+
+    public override void OnLoaded(ICoreAPI api)
+    {
+        base.OnLoaded(api);
+        tpHandWindupTransform = Attributes?["tpHandWindupTransform"].AsObject<ModelTransform>()?.EnsureDefaultValues();
+    }
 
     public override void OnBeforeRender(ICoreClientAPI capi, ItemStack itemstack, EnumItemRenderTarget target, ref ItemRenderInfo renderinfo)
     {
@@ -42,8 +53,10 @@ public sealed class ItemCarriedRock : Item
         renderinfo.Transform = target switch
         {
             EnumItemRenderTarget.Gui => GuiTransform,
-            EnumItemRenderTarget.HandTp => HeldTransform(itemstack, TpHandTransform, false),
-            EnumItemRenderTarget.HandTpOff => HeldTransform(itemstack, TpOffHandTransform, true),
+            EnumItemRenderTarget.HandTp when tpHandWindupTransform != null && itemstack.Attributes.GetBool(WindupKey)
+                => HeldTransform(itemstack, tpHandWindupTransform, HeldPose.Windup),
+            EnumItemRenderTarget.HandTp => HeldTransform(itemstack, TpHandTransform, HeldPose.Main),
+            EnumItemRenderTarget.HandTpOff => HeldTransform(itemstack, TpOffHandTransform, HeldPose.Offhand),
             EnumItemRenderTarget.Ground => GroundTransform,
             _ => FpHandTransform
         };
@@ -75,6 +88,7 @@ public sealed class ItemCarriedRock : Item
         byEntity.Attributes.SetInt("aiming", 1);
         byEntity.Attributes.SetInt("aimingCancel", 0);
         byEntity.StartAnimation("aim");
+        SetWindup(slot, byEntity, true);
         handling = EnumHandHandling.PreventDefault;
     }
 
@@ -87,6 +101,7 @@ public sealed class ItemCarriedRock : Item
     {
         byEntity.Attributes.SetInt("aiming", 0);
         byEntity.StopAnimation("aim");
+        SetWindup(slot, byEntity, false);
         if (cancelReason != EnumItemUseCancelReason.ReleasedMouse)
             byEntity.Attributes.SetInt("aimingCancel", 1);
         return true;
@@ -97,6 +112,7 @@ public sealed class ItemCarriedRock : Item
         if (byEntity.Attributes.GetInt("aimingCancel") == 1) return;
         byEntity.Attributes.SetInt("aiming", 0);
         byEntity.StopAnimation("aim");
+        SetWindup(slot, byEntity, false);
         if (slot != byEntity.RightHandItemSlot || !HalfGiantAnimalCarryRules.IsThrowReady(secondsUsed, ThrowWindupSeconds)) return;
 
         if (api.Side == EnumAppSide.Client)
@@ -106,6 +122,13 @@ public sealed class ItemCarriedRock : Item
         }
         if (byEntity is EntityPlayer { Player: IServerPlayer player })
             Throw(player, slot);
+    }
+
+    // Idle means no hand use on either side, so this only clears a flag a disconnect left mid-wind-up.
+    public override void OnHeldIdle(ItemSlot slot, EntityAgent byEntity)
+    {
+        base.OnHeldIdle(slot, byEntity);
+        SetWindup(slot, byEntity, false);
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot)
@@ -186,15 +209,26 @@ public sealed class ItemCarriedRock : Item
         api.World.PlaySoundAt(ThrowSound, thrower, null, false, 8f);
     }
 
-    private ModelTransform HeldTransform(ItemStack itemstack, ModelTransform pose, bool offhand)
+    private ModelTransform HeldTransform(ItemStack itemstack, ModelTransform source, HeldPose pose)
     {
         float scale = HalfGiantRockRules.HeldScale(itemstack.Attributes.GetFloat(HolderSizeKey), HalfGiantRockRules.DefaultHolderSize);
-        if (heldTransforms.TryGetValue((scale, offhand), out ModelTransform? transform)) return transform;
+        if (heldTransforms.TryGetValue((scale, pose), out ModelTransform? transform)) return transform;
 
-        transform = pose.Clone();
+        transform = source.Clone();
         transform.Scale = scale;
-        heldTransforms[(scale, offhand)] = transform;
+        heldTransforms[(scale, pose)] = transform;
         return transform;
+    }
+
+    private static void SetWindup(ItemSlot slot, EntityAgent byEntity, bool windup)
+    {
+        ItemStack? stack = slot.Itemstack;
+        if (stack == null || stack.Attributes.GetBool(WindupKey) == windup) return;
+
+        if (windup) stack.Attributes.SetBool(WindupKey, true);
+        else stack.Attributes.RemoveAttribute(WindupKey);
+        // A no-op on the client; the server sends the hand slot to everyone but its holder.
+        (byEntity as EntityPlayer)?.Player?.InventoryManager.BroadcastHotbarSlot();
     }
 
     internal static Block? GetRock(IWorldAccessor world, ItemStack itemstack)
