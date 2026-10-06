@@ -77,5 +77,58 @@ Assert-True ($itemJson -match 'heldLeftTpIdleAnimation:\s*"holdinglanternlefthan
 $itemSource = Get-Content (Join-Path $PSScriptRoot 'src/ItemCarriedAnimal.cs') -Raw
 Assert-True ($itemSource -match 'override void OnHeldAttackStart\([^)]*\)\s*\{\s*handling = EnumHandHandling\.PreventDefault;\s*\}') 'Held carried animal cannot attack'
 
+$chickenVolume = 0.5 * 0.5 * 0.6
+$boarVolume = 1.452
+$chickenSpeed = $rules::ThrowSpeed($chickenVolume, 0.15, 0.45, 0.15)
+$drifterSpeed = $rules::ThrowSpeed(0.6 * 0.6 * 1.3, 0.15, 0.45, 0.15)
+$boarSpeed = $rules::ThrowSpeed($boarVolume, 0.15, 0.45, 0.15)
+Assert-True ([math]::Abs($chickenSpeed - 0.45) -lt 1e-9) 'A chicken leaves the hand at full throw speed'
+Assert-True ($chickenSpeed -gt $drifterSpeed -and $drifterSpeed -gt $boarSpeed) 'Throw speed falls as creature volume grows'
+Assert-True ([math]::Abs($boarSpeed - 0.15) -lt 1e-9) 'A boar is held at the speed floor'
+Assert-True ($rules::ThrowSpeed(0.01, 0.15, 0.45, 0.15) -le 0.45) 'Tiny creatures never exceed the base speed'
+Assert-True ($rules::ThrowSpeed([double]::NaN, 0.15, 0.45, 0.15) -eq 0.15 -and $rules::ThrowSpeed(1, 0.15, 0, 0.15) -eq 0) 'Invalid volume uses the floor; a zero base speed throws nothing'
+Assert-True ($rules::IsThrowReady(0.34, 0.35) -eq $false -and $rules::IsThrowReady(0.35, 0.35)) 'Throw requires the full windup'
+
+Assert-True ([math]::Abs($rules::HeldScale(1.0, 2.1, 2.1) - (1.0 / 2.1)) -lt 1e-6) 'Held scale divides creature size by holder size'
+Assert-True ([math]::Abs($rules::HeldScale(1.1, 2.1, 2.1) - (1.1 / 2.1)) -lt 1e-6) 'A larger-bodied boar keeps its own size factor'
+Assert-True ([math]::Abs($rules::HeldScale(0, 0, 2.1) - (1.0 / 2.1)) -lt 1e-6) 'Stacks without stored sizes fall back to a size-1 creature in a halfgiant hand'
+Assert-True ([math]::Abs($rules::HeldScale(1.0, [float]::NaN, 2.1) - (1.0 / 2.1)) -lt 1e-6) 'A NaN holder size falls back to the halfgiant default'
+
+$hit = New-Object 'System.Collections.Generic.HashSet[long]'
+Assert-True ($rules::ShouldHit($hit, 10, 1, 2, $true)) 'First contact with a creature hits'
+Assert-True (-not $rules::ShouldHit($hit, 10, 1, 2, $true)) 'The same creature is not hit twice in one flight'
+Assert-True ($rules::ShouldHit($hit, 11, 1, 2, $true)) 'A second creature is hit once'
+Assert-True (-not $rules::ShouldHit($hit, 1, 1, 2, $true) -and -not $rules::ShouldHit($hit, 2, 1, 2, $true)) 'Neither the thrower nor the thrown creature is hit'
+Assert-True (-not $rules::ShouldHit($hit, 12, 1, 2, $false) -and $rules::ShouldHit($hit, 12, 1, 2, $true)) 'A refused hit does not use up the target'
+Assert-True (-not $rules::CanDamage($true, $true, $false, $true, $true) -and -not $rules::CanDamage($true, $true, $true, $false, $true)) 'Players need PvP and attackplayers'
+Assert-True (-not $rules::CanDamage($false, $true, $true, $true, $false) -and $rules::CanDamage($false, $true, $false, $false, $true)) 'Creatures need attackcreatures only'
+Assert-True ($rules::HitDamage($boarVolume, 3, 1, 6) -gt $rules::HitDamage($chickenVolume, 3, 1, 6)) 'Hit damage grows with thrown creature size'
+Assert-True ($rules::HitDamage($chickenVolume, 3, 1, 6) -eq 1 -and $rules::HitDamage(100, 3, 1, 6) -eq 6) 'Hit damage stays within its minimum and maximum'
+Assert-True (-not $rules::HasLanded($true, 100, 150) -and $rules::HasLanded($true, 150, 150) -and -not $rules::HasLanded($false, 4000, 150)) 'Landing needs ground or liquid after the first physics ticks'
+
+$landing = [rfmechanics.HalfGiantThrowLanding]
+Assert-True ($rules::Landing($true, $true, $false) -eq $landing::RemoveWithoutDrops) 'A hostile landing in a claim the thrower cannot build in is removed'
+Assert-True ($rules::Landing($false, $true, $false) -eq $landing::Keep) 'Animals landing in a foreign claim are unaffected'
+Assert-True ($rules::Landing($true, $true, $true) -eq $landing::Keep -and $rules::Landing($true, $false, $false) -eq $landing::Keep) 'Own-claim landings and the disabled rule keep hostiles'
+
+$throwSource = $carrySource.Substring($carrySource.IndexOf('internal void Throw('), $carrySource.IndexOf('private void TickThrownCreatures(') - $carrySource.IndexOf('internal void Throw('))
+$throwSpawnAt = $throwSource.IndexOf('sapi.World.SpawnEntity(entity)')
+Assert-True ($throwSource.IndexOf('TryDeserialize(className, creatureCode, bytes, out Entity? entity)') -lt $throwSpawnAt) 'Throw deserializes before spawning'
+Assert-True ($throwSource.IndexOf('releasedCaptureIdentities.Contains(captureIdentity)') -lt $throwSpawnAt -and $throwSource.IndexOf('releasedCaptureIdentities.Add(captureIdentity)') -gt $throwSpawnAt) 'Throw checks the replay guard and consumes the identity only after spawn'
+Assert-True ($throwSource.IndexOf('carrySlot.TakeOut(1)') -gt $throwSpawnAt -and $throwSource.Substring(0, $throwSpawnAt).IndexOf('TakeOut') -lt 0) 'Throw takes the stack only after a successful spawn'
+$catchAt = $throwSource.IndexOf('catch (Exception error)')
+$catchReturnAt = $throwSource.IndexOf('return;', [math]::Max($catchAt, 0))
+Assert-True ($catchAt -gt $throwSpawnAt -and $catchReturnAt -gt $catchAt -and $throwSource.IndexOf('carrySlot.TakeOut(1)') -gt $catchReturnAt) 'A failed spawn returns before consuming the stack'
+Assert-True ($throwSource.Contains('carrySlot != player.InventoryManager.ActiveHotbarSlot')) 'The server throws only from the main hand'
+Assert-True ($throwSource.Contains('EntityProjectileBase.GetProjectileDirection(')) 'Aim uses the vanilla projectile direction'
+Assert-True ($carrySource -match 'creature\.Die\(EnumDespawnReason\.Removed\)' -and $carrySource -notmatch 'Die\(EnumDespawnReason\.Death') 'Claim removal despawns without death drops'
+Assert-True ($carrySource.Contains('ItemCarriedAnimal.CreatureSizeKey') -and $carrySource.Contains('ItemCarriedAnimal.HolderSizeKey')) 'Capture stores creature and holder sizes'
+$releaseSource = $carrySource.Substring($carrySource.IndexOf('private TextCommandResult Release('), $carrySource.IndexOf('internal void Throw(') - $carrySource.IndexOf('private TextCommandResult Release('))
+Assert-True ($releaseSource.Contains('entity.Pos.Motion.Set(0, 0, 0);') -and -not $releaseSource.Contains('thrownCreatures')) 'Release still places the creature at rest, untracked'
+
+Assert-True ($itemSource.Contains('slot != byEntity.RightHandItemSlot') -and $itemSource.Contains('api.Side == EnumAppSide.Client')) 'The item aims from the main hand; the client only animates'
+Assert-True ($itemSource.Contains('IsThrowReady(secondsUsed, ThrowWindupSeconds)') -and $itemSource -match 'ThrowWindupSeconds = 0\.35f') 'The item enforces the 0.35 s windup'
+Assert-True ($itemSource -notmatch 'TakeOut') 'The client-side item never removes the stack'
+
 if (-not (Test-Path -LiteralPath $AssemblyPath -PathType Leaf)) { throw "FAIL: production assembly not found: $AssemblyPath" }
-Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, drifter admission and reach, snapshot identity, preservation, replay, hand-swap and release-order assertions passed. Native entity serialization and collision remain player/review checks."
+Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, drifter admission and reach, snapshot identity, preservation, replay, hand-swap, release-order, throw speed, held scale, once-per-target hit, claim landing and throw consume-order assertions passed. Native entity serialization, collision and flight remain player/review checks."

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -20,7 +21,21 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
     private const string DisplayItemKey = "displayitem";
     private const string SourceEntityIdKey = "sourceEntityId";
 
+    // Vanilla stone-throw launch geometry, so the aim line and accuracy match CollectibleBehaviorThrowable.
+    private const double ThrowDispersion = 0.75;
+    private const double ThrowVerticalOffset = 0.1;
+    private const double ThrowHorizontalOffset = 0.4;
+    private const double ThrowForwardOffset = -0.21;
+    private const double ThrowParallaxDistance = 20;
+    // OnGround can still hold the captured creature's last state until its first physics tick after spawning.
+    private const long MinimumFlightMilliseconds = 150;
+    private static readonly AssetLocation ThrowSound = new("game", "sounds/player/throw");
+    private static readonly AssetLocation HitNotifySound = new("game", "sounds/player/projectilehit");
+
     private readonly HashSet<string> releasedCaptureIdentities = new(StringComparer.Ordinal);
+    private readonly List<ThrownCreature> thrownCreatures = new();
+    private readonly Cuboidd thrownBox = new();
+    private readonly Cuboidd targetBox = new();
     private ICoreServerAPI? sapi;
     private TagSetFast animalTag;
     private bool animalTagAvailable;
@@ -29,6 +44,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
     {
         sapi = api;
         animalTagAvailable = api.EntityTagRegistry.TryCreateTagSet(out animalTag, "animal") == TagRegistryError.None;
+        api.Event.RegisterGameTickListener(TickThrownCreatures, 50);
         api.ChatCommands.Create("rfhalfgiantcarry")
             .WithDescription("Capture an eligible animal or drifter into a Half-Giant's offhand, or release one carried in either hand.")
             .RequiresPrivilege(Privilege.chat)
@@ -118,6 +134,8 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         carried.Attributes.SetString(DisplayItemKey, displayItem);
         carried.Attributes.SetLong(SourceEntityIdKey, agent.EntityId);
         carried.Attributes.SetString("capturedBy", player.PlayerUID);
+        carried.Attributes.SetFloat(ItemCarriedAnimal.CreatureSizeKey, target.Properties.Client?.Size ?? 0f);
+        carried.Attributes.SetFloat(ItemCarriedAnimal.HolderSizeKey, player.Entity.Properties.Client?.Size ?? 0f);
 
         offhand.Itemstack = carried;
         try
@@ -186,6 +204,183 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             carrySlot.MarkDirty();
         }
         return TextCommandResult.Success("Animal released.");
+    }
+
+    internal void Throw(IServerPlayer player, ItemSlot carrySlot)
+    {
+        RFMechanicsConfig? config = RFMechanicsModSystem.Config;
+        EntityPlayer? thrower = player.Entity;
+        if (sapi == null || thrower == null || config == null || !config.EnableHalfGiantAnimalCarry || !config.EnableHalfGiantAnimalThrow)
+            return;
+        if (carrySlot != player.InventoryManager.ActiveHotbarSlot || !IsCarriedAnimal(carrySlot.Itemstack))
+            return;
+        if (!RaceTraits.HasTrait(player, config.HalfGiantTraitCode))
+        {
+            Tell(player, "Only Half-Giants can throw a carried creature.");
+            return;
+        }
+
+        if (!TryReadSnapshot(carrySlot.Itemstack!, out string className, out string creatureCode, out byte[] bytes, out string captureIdentity))
+        {
+            Tell(player, "This carried animal is damaged and was not consumed.");
+            return;
+        }
+        if (releasedCaptureIdentities.Contains(captureIdentity))
+        {
+            Tell(player, "This carried animal has already been released.");
+            return;
+        }
+        if (!TryDeserialize(className, creatureCode, bytes, out Entity? entity) || entity is not EntityAgent)
+        {
+            Tell(player, "This carried animal cannot be restored and was not consumed.");
+            return;
+        }
+        EntityProperties? entityType = sapi.World.GetEntityType(entity.Code);
+        if (entityType == null)
+        {
+            Tell(player, "This carried animal cannot be restored and was not consumed.");
+            return;
+        }
+
+        (FastVec3d launch, FastVec3d aim) = EntityProjectileBase.GetProjectileDirection(
+            thrower, ThrowDispersion, ThrowVerticalOffset, ThrowHorizontalOffset, ThrowForwardOffset, ThrowParallaxDistance);
+        Vec2f collisionSize = entityType.CollisionBoxSize;
+        var position = new Vec3d(launch.X, launch.Y - collisionSize.Y * 0.5, launch.Z);
+        Cuboidf collisionBox = entityType.SpawnCollisionBox.OmniNotDownGrowBy(0.1f);
+        if (sapi.World.CollisionTester.IsColliding(sapi.World.BlockAccessor, collisionBox, position, false))
+        {
+            Tell(player, "There is no room to throw it here; the carried animal remains safe in your hand.");
+            return;
+        }
+
+        double volume = collisionSize.X * collisionSize.X * collisionSize.Y;
+        double speed = HalfGiantAnimalCarryRules.ThrowSpeed(
+            volume, config.HalfGiantAnimalThrowFullSpeedVolume, config.HalfGiantAnimalThrowSpeed, config.HalfGiantAnimalThrowMinimumSpeed);
+        entity.Pos.SetPosWithDimension(position);
+        entity.Pos.Yaw = thrower.Pos.Yaw;
+        entity.Pos.Motion.Set(aim.X * speed, aim.Y * speed, aim.Z * speed);
+        entity.PositionBeforeFalling.Set(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
+        entity.Attributes.SetString("origin", "playerplaced");
+        entity.WatchedAttributes.SetBool("noSpawnAnim", true);
+
+        try
+        {
+            sapi.World.SpawnEntity(entity);
+        }
+        catch (Exception error)
+        {
+            sapi.Logger.Error("[rfmechanics] Animal throw preserved {0}: {1}", creatureCode, error);
+            Tell(player, "The animal could not be thrown and remains in your hand.");
+            return;
+        }
+
+        releasedCaptureIdentities.Add(captureIdentity);
+        if (HalfGiantAnimalCarryRules.ShouldConsumeCapture(true))
+        {
+            carrySlot.TakeOut(1);
+            carrySlot.MarkDirty();
+        }
+
+        sapi.World.PlaySoundAt(ThrowSound, thrower, null, false, 8f);
+        bool isHostile = !(animalTagAvailable && animalTag.IsFullyContainedIn(entity.Tags));
+        thrownCreatures.Add(new ThrownCreature(entity, player, thrower.EntityId, isHostile, volume, sapi.World.ElapsedMilliseconds));
+    }
+
+    private void TickThrownCreatures(float dt)
+    {
+        RFMechanicsConfig? config = RFMechanicsModSystem.Config;
+        if (thrownCreatures.Count == 0 || sapi == null) return;
+
+        long now = sapi.World.ElapsedMilliseconds;
+        for (int i = thrownCreatures.Count - 1; i >= 0; i--)
+        {
+            ThrownCreature flight = thrownCreatures[i];
+            Entity creature = flight.Creature;
+            long flightMilliseconds = now - flight.LaunchedAtMilliseconds;
+            if (config == null || !creature.Alive || creature.State != EnumEntityState.Active
+                || flightMilliseconds > config.HalfGiantAnimalThrowFlightTimeoutSeconds * 1000)
+            {
+                thrownCreatures.RemoveAt(i);
+                continue;
+            }
+
+            HitCreaturesInPath(flight, config);
+            if (HalfGiantAnimalCarryRules.HasLanded(creature.OnGround || creature.Swimming || creature.FeetInLiquid, flightMilliseconds, MinimumFlightMilliseconds))
+            {
+                thrownCreatures.RemoveAt(i);
+                Land(flight, config);
+            }
+        }
+    }
+
+    private void HitCreaturesInPath(ThrownCreature flight, RFMechanicsConfig config)
+    {
+        Entity creature = flight.Creature;
+        thrownBox.SetAndTranslate(creature.CollisionBox, creature.Pos.X, creature.Pos.Y, creature.Pos.Z);
+        float range = Math.Max(creature.CollisionBox.Width, creature.CollisionBox.Height) + 2f;
+        Entity[] nearby = sapi!.World.GetEntitiesAround(creature.Pos.XYZ, range, range, candidate => candidate.Alive && candidate is EntityAgent);
+        foreach (Entity target in nearby)
+        {
+            targetBox.SetAndTranslate(target.CollisionBox, target.Pos.X, target.Pos.Y, target.Pos.Z);
+            if (!targetBox.IntersectsOrTouches(thrownBox)) continue;
+
+            bool canDamage = HalfGiantAnimalCarryRules.CanDamage(
+                target is EntityPlayer, target is EntityAgent, sapi.Server.Config.AllowPvP,
+                flight.Thrower.HasPrivilege("attackplayers"), flight.Thrower.HasPrivilege("attackcreatures"));
+            if (!HalfGiantAnimalCarryRules.ShouldHit(flight.HitEntityIds, target.EntityId, flight.ThrowerEntityId, creature.EntityId, canDamage))
+                continue;
+
+            float damage = HalfGiantAnimalCarryRules.HitDamage(
+                flight.Volume, config.HalfGiantAnimalThrowDamagePerVolume, config.HalfGiantAnimalThrowMinimumDamage, config.HalfGiantAnimalThrowMaximumDamage);
+            bool damaged = target.ReceiveDamage(new DamageSource
+            {
+                Source = EnumDamageSource.Player,
+                SourceEntity = creature,
+                CauseEntity = flight.Thrower.Entity,
+                Type = EnumDamageType.BluntAttack
+            }, damage);
+            if (damaged && flight.Thrower.ConnectionState == EnumClientState.Playing)
+                sapi.World.PlaySoundFor(HitNotifySound, flight.Thrower, false, 24f);
+        }
+    }
+
+    private void Land(ThrownCreature flight, RFMechanicsConfig config)
+    {
+        Entity creature = flight.Creature;
+        bool throwerCanBuild = sapi!.World.Claims.TestAccess(flight.Thrower, creature.Pos.AsBlockPos, EnumBlockAccessFlags.BuildOrBreak) == EnumWorldAccessResponse.Granted;
+        if (HalfGiantAnimalCarryRules.Landing(flight.IsHostile, config.HalfGiantAnimalThrowRemovesHostilesInForeignClaims, throwerCanBuild) != HalfGiantThrowLanding.RemoveWithoutDrops)
+            return;
+
+        // Removed, not Death: no corpse, harvest or death drops.
+        creature.Die(EnumDespawnReason.Removed);
+        Tell(flight.Thrower, "The thrown creature landed in a claim where you cannot build, and it was removed.");
+    }
+
+    private static void Tell(IServerPlayer player, string message)
+    {
+        if (player.ConnectionState == EnumClientState.Playing)
+            player.SendMessage(GlobalConstants.GeneralChatGroup, message, EnumChatType.Notification);
+    }
+
+    private sealed class ThrownCreature
+    {
+        public ThrownCreature(Entity creature, IServerPlayer thrower, long throwerEntityId, bool isHostile, double volume, long launchedAtMilliseconds)
+        {
+            Creature = creature;
+            Thrower = thrower;
+            ThrowerEntityId = throwerEntityId;
+            IsHostile = isHostile;
+            Volume = volume;
+            LaunchedAtMilliseconds = launchedAtMilliseconds;
+        }
+
+        public Entity Creature { get; }
+        public IServerPlayer Thrower { get; }
+        public long ThrowerEntityId { get; }
+        public bool IsHostile { get; }
+        public double Volume { get; }
+        public long LaunchedAtMilliseconds { get; }
+        public HashSet<long> HitEntityIds { get; } = new();
     }
 
     private bool TryGetSizeLimit(RFMechanicsConfig config, EntityProperties properties, string creatureCode, out double maximumVolume, out double maximumDimension)

@@ -748,6 +748,19 @@ public class RFMechanicsConfig
     public Dictionary<string, string> HalfGiantAnimalCarryDisplayItems { get; set; } = new();
     public int HalfGiantAnimalCarryRevision { get; set; }
 
+    public bool EnableHalfGiantAnimalThrow { get; set; } = true;
+    // Motion units are blocks per 1/60 s, as for projectiles; 0.45 carries a chicken roughly as far as a thrown stone.
+    public double HalfGiantAnimalThrowSpeed { get; set; } = 0.45;
+    public double HalfGiantAnimalThrowMinimumSpeed { get; set; } = 0.15;
+    // A chicken's hitbox (0.5 × 0.5 × 0.6); larger creatures slow with the square root of their volume.
+    public double HalfGiantAnimalThrowFullSpeedVolume { get; set; } = 0.15;
+    public double HalfGiantAnimalThrowDamagePerVolume { get; set; } = 3.0;
+    public double HalfGiantAnimalThrowMinimumDamage { get; set; } = 1.0;
+    public double HalfGiantAnimalThrowMaximumDamage { get; set; } = 6.0;
+    public double HalfGiantAnimalThrowFlightTimeoutSeconds { get; set; } = 5.0;
+    // Provisional until Miles's test: keeps a thrown drifter from being used to dump hostiles into someone else's claim.
+    public bool HalfGiantAnimalThrowRemovesHostilesInForeignClaims { get; set; } = true;
+
     /// <summary>Revision 1 moves only the shipped local-trial boar reference and 3.5-block reach to the bear
     /// limit and 7-block reach. Revision 2 changes no values: older files lack the tag-exempt keys, so they
     /// load with the drifter defaults. Custom values stay.</summary>
