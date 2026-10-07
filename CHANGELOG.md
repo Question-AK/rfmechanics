@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1-rp.13 - 2026-10-07
+
+- Half-Giant throwing: the arm now pulls back gradually while right-click is held. At a quick throw it is only partly back, and it reaches the full pull-back exactly when the charged throw is ready (1 second), then holds. Other players see the same. Held rocks stay on the fist and carried drifters stay head-down at every depth.
+
 ## 1.2.1-rp.12 - 2026-10-07
 
 - Half-Giant animal carry: Race Ability now picks up the creature nearest the crosshair within a small cone (8 degrees) when the crosshair is not exactly on one, so moving animals are easier to catch. A direct hit still wins; reach and eligibility are unchanged.
