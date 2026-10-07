@@ -28,6 +28,8 @@ namespace rfmechanics
         private long fastListenerId = -1;
         private bool burning;
         private float debtIncurredThisBurn;
+        private float healedForNotice;
+        private bool noticeSent;
 
         public BurnBehavior(Entity entity) : base(entity) { }
 
@@ -101,6 +103,7 @@ namespace rfmechanics
 
             burning = true;
             debtIncurredThisBurn = 0f;
+            healedForNotice = 0; noticeSent = false;
             fastListenerId = entity.World.RegisterGameTickListener(FastTick, cfg.BurnFastTickMs, 0);
         }
 
@@ -150,7 +153,11 @@ namespace rfmechanics
 
             thewBhv.BurnDebt += debtIncurred;
             debtIncurredThisBurn += debtIncurred;
+            float beforeHeal = healthBhv.Health;
             healthBhv.Health = Math.Min(healthBhv.Health + hpToApply, healthBhv.MaxHealth);
+            healedForNotice += Math.Max(0, healthBhv.Health - beforeHeal);
+            if (!noticeSent && healedForNotice >= 0.1f)
+            { noticeSent = true; RaceFeedbackModSystem.Send(entity, "burn"); }
 
             float newFrac = healthBhv.Health / healthBhv.MaxHealth;
             if ((1f - newFrac) <= (float)cfg.BurnActivationHealthFracGap)

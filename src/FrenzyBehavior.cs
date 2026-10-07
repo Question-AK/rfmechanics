@@ -7,23 +7,60 @@ using Vintagestory.GameContent;
 
 namespace rfmechanics
 {
-    /// <summary>
-    /// Frenzy: passive, no activation event. Every fast tick, recomputes a ramp from the orc's
-    /// current satFrac (curveMult = (1 - satFrac/FrenzySatietyGate)^FrenzyCurveExponent, zero at
-    /// the gate, full at satFrac 0) and applies walkspeed/jumpHeightMul deltas scaled by it. The
-    /// bonus is free above FrenzyDebtSatietyThreshold; below it, it also incurs FrenzyDebt (see
-    /// ThewBehavior.FrenzyDebt) rather than spending Thew directly. Stops entirely only when Thew
-    /// is 0 and some debt (Burn or Frenzy) is still outstanding -- resumes on its own once
-    /// ThewBehavior's tick-drain or eating brings Thew back above 0.
-    /// Deliberately does not special-case Band demotion -- a Bulky orc who frenzies and shrinks
-    /// mid-fight is the intended self-sequencing behavior, so no guard against it is added.
-    /// </summary>
+    /// <summary>Automatic hunger-driven movement. Extra debt below the existing food
+    /// threshold follows deliberate, measured ground travel; idle hunger still has its
+    /// ordinary Thew cost. No new health trigger or combat bonus.</summary>
     public class FrenzyBehavior : EntityBehavior
     {
         private const string StatSource = "rf-orc-frenzy";
 
         private long fastListenerId = -1;
         private double lastElapsedHours = double.NaN;
+        private Vec3d? previousPosition;
+        private int previousDimension, previousPositionVersion;
+        private long previousMs, hurtUntil;
+        private bool previousEligible, previousSprint;
+        private double previousWalkX, previousWalkZ;
+        private float previousCurve;
+        private readonly EntityControls sampledControls = new();
+        internal double LastExertion { get; private set; }
+        internal double LastDebtPerHour { get; private set; }
+
+        internal void ExternalMotion() => hurtUntil = entity.World.ElapsedMilliseconds + 1500;
+        public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
+        {
+            if (damage > 0) ExternalMotion();
+        }
+        public override void OnEntityDeath(DamageSource source)
+        {
+            previousPosition = null; previousEligible = false; previousCurve = 0;
+            lastElapsedHours = double.NaN; LastExertion = LastDebtPerHour = 0;
+            if (entity.World.Side == EnumAppSide.Server) ClearStats();
+        }
+        private double SampleExertion(RFMechanicsConfig cfg)
+        {
+            var p = entity.Pos;
+            var controls = (entity as EntityPlayer)?.ServerControls;
+            long now = entity.World.ElapsedMilliseconds;
+            double seconds = (now - previousMs) / 1000.0;
+            bool eligible = entity.Alive && !entity.Teleporting && !entity.IsTeleport && controls != null && controls.TriesToMove && entity.OnGround
+                && !entity.CollidedHorizontally && (entity as EntityAgent)?.MountedOn == null && !entity.Swimming
+                && !controls.IsFlying && !controls.IsClimbing && !controls.FloorSitting
+                && entity.Attributes.GetInt("dmgkb") == 0 && now >= hurtUntil;
+            int positionVersion = entity.WatchedAttributes.GetInt("positionVersionNumber");
+            double result = previousPosition != null && p.Dimension == previousDimension
+                && positionVersion == previousPositionVersion
+                ? OrcMetabolismFeedbackRules.Exertion(p.X - previousPosition.X, p.Z - previousPosition.Z,
+                    seconds, previousWalkX, previousWalkZ, eligible && previousEligible,
+                    controls?.Sprint == true && previousSprint, cfg.FrenzyWalkingDebtMultiplier) : 0;
+            previousPosition = p.XYZ; previousDimension = p.Dimension; previousMs = now; previousPositionVersion = positionVersion;
+            previousEligible = eligible; previousSprint = controls?.Sprint == true;
+            // Compute the intent vector without assuming server physics updated WalkVector.
+            sampledControls.FromInt(controls?.ToInt() ?? 0);
+            sampledControls.CalcMovementVectors(p, 1);
+            previousWalkX = sampledControls.WalkVector.X; previousWalkZ = sampledControls.WalkVector.Z;
+            return result;
+        }
 
         // Write-cache of the last values actually pushed via Stats.Set, so ties aren't rewritten.
         private float lastWalkSpeedDelta;
@@ -33,12 +70,15 @@ namespace rfmechanics
 
         public override string PropertyName() => "rffrenzy";
 
+        internal static float CurrentSpeedBonus(Entity entity) =>
+            entity.GetBehavior<FrenzyBehavior>()?.lastWalkSpeedDelta ?? 0;
+
         public override void Initialize(EntityProperties properties, JsonObject attributes)
         {
             base.Initialize(properties, attributes);
 
             var cfg = RFMechanicsModSystem.Config;
-            int ms = cfg?.FrenzyFastTickMs ?? 500;
+            int ms = Math.Clamp(cfg?.FrenzyFastTickMs ?? 500, 100, 1000);
             fastListenerId = entity.World.RegisterGameTickListener(FastTick, ms, 0);
         }
 
@@ -64,13 +104,15 @@ namespace rfmechanics
                 if (double.IsFinite(lastElapsedHours))
                 {
                     double elapsed = nowElapsedHours - lastElapsedHours;
-                    if (double.IsFinite(elapsed) && elapsed > 0.0) elapsedGameHours = elapsed;
+                    if (double.IsFinite(elapsed) && elapsed > 0.0 && elapsed <= 0.05) elapsedGameHours = elapsed;
                 }
                 lastElapsedHours = nowElapsedHours;
             }
             else lastElapsedHours = double.NaN;
 
             var cfg = RFMechanicsModSystem.Config;
+            LastExertion = LastDebtPerHour = 0;
+            double exertion = cfg == null ? 0 : SampleExertion(cfg);
             if (cfg == null || !cfg.EnableFrenzy || !cfg.EnableThew || !entity.Alive || !IsOrc())
             {
                 ClearStats();
@@ -92,29 +134,34 @@ namespace rfmechanics
             }
 
             float satFrac = hunger.Saturation / hunger.MaxSaturation;
-            float gate = (float)cfg.FrenzySatietyGate;
+            float gate = (float)OrcMetabolismFeedbackRules.Finite(cfg.FrenzySatietyGate, 0.5, 0.01, 1);
             if (satFrac >= gate)
             {
                 ClearStats();
                 return;
             }
 
-            float t = GameMath.Clamp(1f - satFrac / gate, 0f, 1f);
-            float curveMult = (float)Math.Pow(t, cfg.FrenzyCurveExponent);
-
-            if (satFrac < (float)cfg.FrenzyDebtSatietyThreshold)
+            float curveMult = ComputeCurveMult(satFrac, cfg);
+            // Bill only benefit that was already installed during this movement interval.
+            // Food recovery cannot create a retrospective bill; the lower endpoint wins.
+            double usedCurve = Math.Min(previousCurve, curveMult);
+            if (satFrac < (float)cfg.FrenzyDebtSatietyThreshold && elapsedGameHours > 0)
             {
-                float debtIncurred = (float)(cfg.FrenzyDebtPerGameHour * curveMult * elapsedGameHours);
-                if (debtIncurred > 0f) thewBhv.FrenzyDebt += debtIncurred;
+                LastExertion = exertion;
+                LastDebtPerHour = OrcMetabolismFeedbackRules.Debt(cfg.FrenzyDebtPerGameHour, usedCurve, 1, exertion);
+                float debtIncurred = (float)(LastDebtPerHour * elapsedGameHours);
+                if (debtIncurred > 0) thewBhv.FrenzyDebt += debtIncurred;
             }
 
             ApplyStats(cfg, curveMult);
+            previousCurve = cfg.FrenzyMaxSpeedBonus > 0
+                ? Math.Clamp(lastWalkSpeedDelta / (float)cfg.FrenzyMaxSpeedBonus, 0, 1) : 0;
         }
 
         /// <summary>Write-threshold-gated: curveMult recomputes every fast tick, so an unconditional Stats.Set every tick would spam WatchedAttributes dirty/sync.</summary>
         private void ApplyStats(RFMechanicsConfig cfg, float curveMult)
         {
-            float threshold = (float)cfg.FrenzyStatWriteThreshold;
+            float threshold = (float)OrcMetabolismFeedbackRules.Finite(cfg.FrenzyResponseWriteThreshold, 0.0025, 0.0001, 0.02);
             float walkSpeedDelta = (float)cfg.FrenzyMaxSpeedBonus * curveMult;
             float jumpBonusDelta = (float)cfg.FrenzyMaxJumpBonus * curveMult;
 
@@ -122,6 +169,7 @@ namespace rfmechanics
             {
                 entity.Stats.Set("walkspeed", StatSource, walkSpeedDelta);
                 lastWalkSpeedDelta = walkSpeedDelta;
+                OrcHuntModSystem.ClampPursuitSpeed(entity, cfg, walkSpeedDelta);
             }
 
             if (Math.Abs(jumpBonusDelta - lastJumpBonusDelta) > threshold)
@@ -133,6 +181,7 @@ namespace rfmechanics
 
         private void ClearStats()
         {
+            previousCurve = 0; previousEligible = false;
             if (lastWalkSpeedDelta != 0f)
             {
                 entity.Stats.Remove("walkspeed", StatSource);
@@ -148,10 +197,7 @@ namespace rfmechanics
         /// <summary>Public static so /rfthew dump reports the exact ramp value FastTick is using.</summary>
         public static float ComputeCurveMult(float satFrac, RFMechanicsConfig cfg)
         {
-            float gate = (float)cfg.FrenzySatietyGate;
-            if (satFrac >= gate) return 0f;
-            float t = GameMath.Clamp(1f - satFrac / gate, 0f, 1f);
-            return (float)Math.Pow(t, cfg.FrenzyCurveExponent);
+            return (float)OrcMetabolismFeedbackRules.Curve(satFrac, cfg.FrenzySatietyGate, cfg.FrenzyResponseExponent);
         }
 
         private bool IsOrc()

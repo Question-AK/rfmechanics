@@ -97,7 +97,7 @@ public class GoblinClamberStanceModSystem : ModSystem
     }
 
     private void OnReply(ClamberStanceReply reply)
-        => capi?.ShowChatMessage(Lang.Get(reply.Active ? "rfmechanics:clamber-on" : "rfmechanics:clamber-off"));
+        => capi?.ModLoader.GetModSystem<RaceFeedbackModSystem>().Clamber(reply.Active);
 
     /// <summary>The client's own race gate only keeps a non-goblin's Ctrl+H free for other mods;
     /// this trait check is the authoritative one.</summary>

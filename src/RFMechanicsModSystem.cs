@@ -42,6 +42,7 @@ namespace rfmechanics
 
             api.RegisterEntityBehaviorClass("rftreeproximity", typeof(RFTreeProximityBehavior));
             api.RegisterEntityBehaviorClass("rfelfidentity", typeof(PlayerRaceBehavior));
+            api.RegisterEntityBehaviorClass("rfhalfgiantreach", typeof(HalfGiantReachBehavior));
             api.RegisterEntityBehaviorClass("rfstepheight", typeof(StepHeightBehavior));
             api.RegisterEntityBehaviorClass("rfelfzoom", typeof(RFElfZoomBehavior));
             api.RegisterEntityBehaviorClass("rfthew", typeof(ThewBehavior));
@@ -49,8 +50,12 @@ namespace rfmechanics
             api.RegisterEntityBehaviorClass("rfburn", typeof(BurnBehavior));
             api.RegisterEntityBehaviorClass("rffrenzy", typeof(FrenzyBehavior));
             api.RegisterEntityBehaviorClass("rfgoblintunnel", typeof(RFGoblinTunnelBehavior));
+            api.RegisterEntityBehaviorClass("rfgoblinscouting", typeof(RFGoblinScoutingBehavior));
             api.RegisterEntityBehaviorClass("rfgoblinrotaura", typeof(GoblinRotAuraBehavior));
             api.RegisterCropBehavior("RfGoblinCropStunt", typeof(GoblinCropStuntBehavior));
+            api.RegisterItemClass("ItemCarriedAnimal", typeof(ItemCarriedAnimal));
+            api.RegisterItemClass("ItemCarriedRock", typeof(ItemCarriedRock));
+            api.RegisterEntity("EntityThrownRock", typeof(EntityThrownRock));
             // GoblinDigModifierBehavior re-homed to src/BugRace/ (future bug race), disabled -- see its class header.
             // api.RegisterBlockBehaviorClass("GoblinDigModifier", typeof(rfmechanics.BugRace.GoblinDigModifierBehavior));
 
@@ -241,6 +246,10 @@ namespace rfmechanics
                 api.Logger.Notification("[rfmechanics] Step height revision 2: baseline StepHeightValue={0} for every race, ElfStepHeightOverride={1} for elves. The per-player elf toggle and /rfelfstepheight stay retired.", config.StepHeightValue, config.ElfStepHeightOverride);
             if (config.MigrateGoblinClimb())
                 api.Logger.Notification("[rfmechanics] Repaired goblin rock-climb prefixes that matched no block: mossystonebricks, lichenstonebricks, peatbrick, refractorybricks.");
+            if (config.MigrateHalfGiantAnimalCarry())
+                api.Logger.Notification("[rfmechanics] Half-Giant animal carry revision 2: reach {0}, size reference {1}; tag-exempt prefixes [{2}] at reach {3}.",
+                    config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryReferenceEntityCode,
+                    string.Join(", ", config.HalfGiantAnimalCarryTagExemptCodePathPrefixes ?? Array.Empty<string>()), config.HalfGiantAnimalCarryTagExemptReach);
 
             if (!malformed)
             {
@@ -360,15 +369,15 @@ namespace rfmechanics
                         const string SpitChargesKey = "rfmechanics:spitCharges";
                         int charges = entityPlayer.WatchedAttributes.GetInt(SpitChargesKey, 0);
                         if (charges <= 0)
-                            return TextCommandResult.Success("No spit left -- eat rot to refill.");
+                            { RaceFeedbackModSystem.Send(entityPlayer, "spit-empty"); return TextCommandResult.Success(); }
 
                         Block block = world.BlockAccessor.GetBlock(blockSel.Position);
                         var bec = block?.GetBEBehavior<BEBehaviorShapeFromAttributes>(blockSel.Position);
                         if (bec == null)
-                            return TextCommandResult.Success("Nothing to repair here.");
+                            { RaceFeedbackModSystem.Send(entityPlayer, "spit-invalid"); return TextCommandResult.Success(); }
 
                         if (bec.repairState >= 1f || bec.reparability <= 1)
-                            return TextCommandResult.Success("Nothing more to repair here.");
+                            { RaceFeedbackModSystem.Send(entityPlayer, "spit-full"); return TextCommandResult.Success(); }
 
                         double repairQuantity = cfg.SpitRepairGain;
                         if (repairQuantity < 0.001)
@@ -391,7 +400,8 @@ namespace rfmechanics
                         // no client-side branch needed here, unlike the old dual-invocation block behavior.
                         world.PlaySoundAt(AssetLocation.Create("sounds/player/gluerepair"), blockSel.Position, 0, player, true, 8);
 
-                        return TextCommandResult.Success(string.Format("Spit thins -- {0} left.", remaining));
+                        RaceFeedbackModSystem.Send(entityPlayer, remaining == 0 ? "spit-last" : "spit-repaired");
+                        return TextCommandResult.Success();
                     })
                 .EndSubCommand();
         }
@@ -843,6 +853,7 @@ namespace rfmechanics
                             frenzyStr = string.Format(
                                 "frenzyCurveMult={0:F3} stalled={1} walkspeedBonus={2:F3} jumpBonus={3:F3} debtGate={4:F2} debtPerGameHour={5:F3}",
                                 frenzyCurveMult, frenzyStalled, (float)cfg.FrenzyMaxSpeedBonus * frenzyCurveMult, (float)cfg.FrenzyMaxJumpBonus * frenzyCurveMult, cfg.FrenzyDebtSatietyThreshold, cfg.FrenzyDebtPerGameHour);
+                            frenzyStr += $" exertion={frenzyBhv.LastExertion:F2} actualDebtPerHour={frenzyBhv.LastDebtPerHour:F4} netThewLossPerHour={entity.WatchedAttributes.GetFloat(ThewBehavior.LossRateKey):F4}";
                         }
 
                         string debtStr = thewBhv != null
@@ -850,36 +861,9 @@ namespace rfmechanics
                                 thewBhv.BurnDebt, thewBhv.FrenzyDebt, thewBhv.BurnDebt + thewBhv.FrenzyDebt, cfg.DebtDrainPerHour)
                             : "(no thew behavior)";
 
-                        string resistStr = "(not orc)";
-                        if (isOrc)
-                        {
-                            var healthBhv = entity.GetBehavior<EntityBehaviorHealth>();
-                            if (healthBhv == null)
-                            {
-                                resistStr = "resist=? (no health behavior)";
-                            }
-                            else if (!cfg.EnableOrcWildAnimalResist)
-                            {
-                                resistStr = "resist=0.00 (disabled in config)";
-                            }
-                            else
-                            {
-                                float resist = OrcWildAnimalResistPatch.ComputeResist(healthBhv, cfg);
-                                if (resist <= 0f)
-                                {
-                                    resistStr = string.Format("resist=0.00 (below activation gap {0:F2})", cfg.OrcWildResistActivationHealthFracGap);
-                                }
-                                else if (cfg.OrcWildResistRequiresNoArmor && entity is EntityPlayer entityPlayer && OrcWildAnimalResistPatch.IsWearingArmor(entityPlayer))
-                                {
-                                    resistStr = string.Format("resist=0.00 (wearing armor, would be {0:F3})", resist);
-                                }
-                                else
-                                {
-                                    resistStr = string.Format("resist={0:F3}", resist);
-                                }
-                            }
-                        }
-
+                        string resistStr = isOrc && entity is EntityPlayer skinPlayer
+                            ? entity.Api.ModLoader.GetModSystem<OrcSkinModSystem>().Describe(skinPlayer)
+                            : "(not orc)";
                         string msg = string.Format(
                             "thew={0:F4} orc={1} charClass={2} extraTraits=[{3}] satFrac={4:F3} zone={5} (gainGate {6:F2} lowSatietyThreshold {7:F2}) protein={8:F1} dairy={9:F1} proteinGated={10} (threshold {11:F1}, Protein OR Dairy) lastFoodCategory={12} foodTypeBlocksGain={13} gaining={14} {15} {16} {17} {18} {19}",
                             thew, isOrc, charClass ?? "(null)", extraTraitsStr, satFrac, zone, cfg.ThewGainSatietyGate, cfg.ThewDecayLowSatietyThreshold, hunger.ProteinLevel, hunger.DairyLevel, proteinGated, cfg.ProteinGateLevel, lastFoodCat, foodTypeBlocksGain, gaining, debtStr, bandStr, burnStr, frenzyStr, resistStr);

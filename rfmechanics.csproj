@@ -18,13 +18,15 @@
     <!-- Historical record only, superseded by PlayerRaceBehavior. The implicit SDK glob would
          otherwise compile everything under archive/ too. -->
     <Compile Remove="archive/**/*.cs" />
-    <!-- Preserved development proposal, not approved for this local movement/hotkey package. -->
-    <Compile Remove="src/RetiredDwarfClassMigration.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="VintagestoryAPI">
       <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="OpenTK.Graphics">
+      <HintPath>$(VINTAGE_STORY)/Lib/OpenTK.Graphics.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- Client-only internals (Vintagestory.Client.NoObf.ClientMain) for the elf-zoom FOV transpiler. -->

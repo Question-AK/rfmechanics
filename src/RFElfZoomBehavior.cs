@@ -33,6 +33,9 @@ namespace rfmechanics
 
         /// <summary>Read by RFElfZoomFovPatch.AdjustFov from static/Harmony-patch context.</summary>
         public static float CurrentFovMult => currentFovMult;
+        // Read-only observation gate uses this local behavior's evaluated intent and current
+        // camera transition. Does not alter the shared key or the independent zoom lifecycle.
+        internal bool IsObserving => targetFovMult < 0.999f && currentFovMult < 0.999f;
 
         private float targetFovMult = 1f;
         private float zoomKeyHeldMs;

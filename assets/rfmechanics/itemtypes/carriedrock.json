@@ -1,0 +1,42 @@
+{
+  code: "carriedrock",
+  class: "ItemCarriedRock",
+  maxStackSize: 1,
+  storageFlags: 257,
+  heldLeftTpIdleAnimation: "holdinglanternlefthand",
+  heldRightTpIdleAnimation: "holdinglanternrighthand",
+  attributes: {
+    handbook: { exclude: true },
+    // Centred on the forearm axis just past the fist, so the rock stays in the hand when the aim pose raises the arm.
+    tpHandWindupTransform: {
+      translation: { x: -1.08, y: -1.38, z: -1.05 },
+      rotation: { x: 0, y: 0, z: 0 },
+      scale: 0.48
+    }
+  },
+  guiTransform: {
+    origin: { x: 0.5, y: 0.5, z: 0.5 },
+    rotation: { x: -22.6, y: -45.3, z: 0 },
+    scale: 1
+  },
+  fpHandTransform: {
+    translation: { x: -0.2, y: -0.2, z: -0.35 },
+    rotation: { x: 0, y: -20, z: 0 },
+    scale: 0.7
+  },
+  tpHandTransform: {
+    translation: { x: -0.4, y: -0.55, z: -0.7 },
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: 0.48
+  },
+  tpOffHandTransform: {
+    translation: { x: -0.35, y: -0.55, z: -0.7 },
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: 0.48
+  },
+  groundTransform: {
+    origin: { x: 0.5, y: 0, z: 0.5 },
+    rotation: { x: 0, y: -45, z: 0 },
+    scale: 5
+  }
+}

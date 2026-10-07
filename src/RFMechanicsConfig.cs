@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace rfmechanics;
 
 /// <summary>
@@ -6,8 +9,63 @@ namespace rfmechanics;
 /// </summary>
 public class RFMechanicsConfig
 {
+    // Racial feedback prototype: new settings leave legacy saved tuning intact.
+    public bool EnableRacialFeedback { get; set; } = true;
+    public double FrenzyResponseExponent { get; set; } = 1.5;
+    public double FrenzyResponseWriteThreshold { get; set; } = 0.0025;
+    public double FrenzyWalkingDebtMultiplier { get; set; } = 0.35;
+    public double ThewLossSmokeFullRate { get; set; } = 0.12;
+    public double ThewLossSmokeThinInterval { get; set; } = 6;
+    public double ThewLossSmokeFullInterval { get; set; } = 1.2;
+
+    // Local hunting trial; separate names leave older saved smell tuning untouched.
+    public bool EnableOrcHunting { get; set; } = true;
+    public double OrcFocusRecoverySeconds { get; set; } = 2;
+    public double OrcFocusFadeSeconds { get; set; } = 6;
+    public double OrcFocusVisionRecoverySeconds { get; set; } = 1;
+    public double OrcFocusMaximumDarkness { get; set; } = 0.90;
+    public double OrcSlowFocusLevel { get; set; } = 0.35;
+    public double OrcSlowFocusMaxSpeed { get; set; } = 1.5;
+    public int OrcSmellSourceLimit { get; set; } = 12;
+    // Legacy held-sniff setting; stance has an immediate first whiff.
+    public double OrcQuickSniffMs { get; set; } = 100;
+    public double OrcDeepFocusSeconds { get; set; } = 4;
+    public double OrcQuickRange { get; set; } = 24;
+    public double OrcDeepRange { get; set; } = 64;
+    public double OrcPassiveRange { get; set; } = 20;
+    public double OrcWhiffIntervalSeconds { get; set; } = 4;
+    public double OrcWhiffDurationSeconds { get; set; } = 0.65;
+    public double OrcBloodRange { get; set; } = 40;
+    public bool OrcTargetSwimmingBreaksBlood { get; set; } = true;
+    public double OrcPursuitRampSeconds { get; set; } = 6;
+    public double OrcPursuitMaxSpeedBonus { get; set; } = 0.20;
+    public double OrcPursuitGraceSeconds { get; set; } = 2;
+    public double OrcPursuitDecaySeconds { get; set; } = 3;
+    public double OrcPursuitDirectionCosine { get; set; } = 0.35;
+    public double OrcHuntCombinedSpeedBonusCap { get; set; } = 0.35;
+    // First movement-cue prototype; client presentation settings, server also gates activation.
+    public bool EnableElfWatchfulness { get; set; } = true;
+    public double WatchfulnessRadius { get; set; } = 40;
+    public double WatchfulnessCooldownMinimumSeconds { get; set; } = 5;
+    public double WatchfulnessCooldownMaximumSeconds { get; set; } = 15;
+    public double WatchfulnessMinimumSpeed { get; set; } = 0.2;
+    public bool WatchfulnessDiagnostics { get; set; } = false;
+    public double WatchfulnessObservationSeconds { get; set; } = 2;
     /// <summary>Default trait code for the dwarf race. Loaded from config so it is trivially changeable.</summary>
     public string DwarfTraitCode { get; set; } = "rf-dwarf-positive";
+
+    public bool EnableDwarfStonebrace { get; set; } = true;
+    public double DwarfStonebraceMovementFactor { get; set; } = 0.50;
+    public double DwarfStonebraceKnockbackReduction { get; set; } = 0.80;
+    public double DwarfStonebraceOpenDamageReduction { get; set; } = 0.30;
+    public double DwarfStonebraceEnclosedDamageReduction { get; set; } = 0.60;
+    public double DwarfStonebraceMaximumDamageReduction { get; set; } = 0.60;
+    public double DwarfStonebraceReleaseFadeSeconds { get; set; } = 2.0;
+    public int DwarfStonebraceEnvironmentIntervalMilliseconds { get; set; } = 250;
+    public int DwarfStonebraceDepthFloorY { get; set; } = 0;
+    public int DwarfStonebraceSunlightThreshold { get; set; } = 16;
+    public int DwarfStonebraceEnclosureScanDistance { get; set; } = 4;
+    public string[] DwarfStonebraceStoneCodePrefixes { get; set; } = new[] { "rock-", "crackedrock-", "meteorite-", "stalagsection-" };
 
     /// <summary>Weight for the depth component of the mining speed bonus.</summary>
     public double MiningDepthWeight { get; set; } = 1.0;
@@ -30,7 +88,7 @@ public class RFMechanicsConfig
     /// <summary>Master toggle for the ore yield curve.</summary>
     public bool EnableOreCurve { get; set; } = true;
 
-    // ── Phase 3: Climb cost ──
+    // â”€â”€ Phase 3: Climb cost â”€â”€
 
     /// <summary>Scales climbUpSpeed/climbDownSpeed by (1 + ClimbSpeedFactor); negative slows the
     /// dwarf. LANDMINE: vanilla field names are inverted -- Sneak (descend) reads climbUpSpeed, Jump (ascend) reads climbDownSpeed.</summary>
@@ -54,7 +112,7 @@ public class RFMechanicsConfig
     /// after the entity-link race (player.Entity null during construction).</summary>
     public int ClimbLinkRetryDelayMs { get; set; } = 2000;
 
-    // ── Branchy leaves passthrough (Elf) ──
+    // â”€â”€ Branchy leaves passthrough (Elf) â”€â”€
 
     /// <summary>Trait code granting the branchy-leaves collision passthrough. Loaded from
     /// config so it is trivially changeable, mirroring DwarfTraitCode.</summary>
@@ -68,7 +126,7 @@ public class RFMechanicsConfig
     /// the manual test pass, not meant to run in production (this is a per-substep hot path).</summary>
     public bool LogLeafStandingBoxCounts { get; set; } = false;
 
-    // ── Tree proximity speed (Elf) ──
+    // â”€â”€ Tree proximity speed (Elf) â”€â”€
 
     /// <summary>Master toggle for the near-trees walkspeed bonus.</summary>
     public bool EnableTreeProximitySpeed { get; set; } = true;
@@ -88,7 +146,7 @@ public class RFMechanicsConfig
     /// <summary>Tick cadence, in seconds, for RFTreeProximityBehavior's tree scan.</summary>
     public double TreeProximityTickInterval { get; set; } = 3.0;
 
-    // ── Elf reduced hunger drain ──
+    // â”€â”€ Elf reduced hunger drain â”€â”€
 
     /// <summary>Master toggle for the Elf reduced-hunger-drain effect, parity with every other
     /// mechanic in this config. Unconditional for elves now (no attunement threshold) -- applied
@@ -100,7 +158,7 @@ public class RFMechanicsConfig
     /// HungerRateMult's convention. 0.85 = 15% less hunger drain.</summary>
     public double ElfHungerRateMult { get; set; } = 0.85;
 
-    // ── Tree climbing (Elf) ──
+    // â”€â”€ Tree climbing (Elf) â”€â”€
 
     /// <summary>Master toggle for letting Elves climb living tree trunks as if they were ladders,
     /// at plain vanilla ladder speed (no separate cost or
@@ -118,7 +176,7 @@ public class RFMechanicsConfig
     /// Zero disables the window, which also disables the diagonal scan.</summary>
     public int ElfCornerGraceTicks { get; set; } = 6;
 
-    // ── Fall damage reduction (Elf) ──
+    // â”€â”€ Fall damage reduction (Elf) â”€â”€
 
     /// <summary>Master toggle for the Elf fall damage reduction.</summary>
     public bool EnableFallDamageReduction { get; set; } = true;
@@ -126,7 +184,7 @@ public class RFMechanicsConfig
     /// <summary>Fraction of fall damage removed for Elves, e.g. 0.6 = 60% less fall damage.</summary>
     public double FallDamageReductionFactor { get; set; } = 0.6;
 
-    // ── Telescopic vision / zoom (Elf) ──
+    // â”€â”€ Telescopic vision / zoom (Elf) â”€â”€
 
     /// <summary>Master toggle for Elf telescopic vision.</summary>
     public bool EnableElfZoom { get; set; } = true;
@@ -144,13 +202,13 @@ public class RFMechanicsConfig
     /// without this, a container/block click can read as a one-tick zoom-then-cancel flicker.</summary>
     public double ElfZoomEngageDelayMs { get; set; } = 120.0;
 
-    // ── Elf identity ──
+    // â”€â”€ Elf identity â”€â”€
 
     /// <summary>Tick cadence, in seconds, for PlayerRaceBehavior's race-cache refresh (after the
     /// immediate Initialize()-time refresh). Matches GoblinRotAuraTickInterval's 2.0s precedent.</summary>
     public double ElfIdentityTickInterval { get; set; } = 2.0;
 
-    // ── Step height (baseline + per-race override) ──
+    // â”€â”€ Step height (baseline + per-race override) â”€â”€
 
     /// <summary>Master toggle for the whole step-height system. False restores each player entity's
     /// own pre-existing StepHeight, elves included.</summary>
@@ -166,6 +224,11 @@ public class RFMechanicsConfig
     /// to StepHeightValue to put elves back on the baseline -- there is no separate elf toggle,
     /// because the ability is automatic and stance-independent.</summary>
     public double ElfStepHeightOverride { get; set; } = 2.0;
+
+    /// <summary>StepHeight for Half-Giants only (proposal B13, approved 2026-10-01: walks up
+    /// 2-block ledges). Replaces the model's own StepHeight, which the per-tick baseline reset
+    /// would otherwise overwrite.</summary>
+    public double HalfGiantStepHeightOverride { get; set; } = 2.1;
 
     /// <summary>DORMANT: superseded by EnableStepHeight -- stepping is no longer elf-gated. No
     /// longer read anywhere; left in place so existing rfmechanics.json installs don't drop the key.</summary>
@@ -208,7 +271,7 @@ public class RFMechanicsConfig
         return true;
     }
 
-    // ── Elf living harvest yield (Phase 4 stub, E3.1) ──
+    // â”€â”€ Elf living harvest yield (Phase 4 stub, E3.1) â”€â”€
 
     /// <summary>Yield multiplier at attunement 0. Stub only -- Phase 4 wires this to the actual
     /// harvest tool once D3 (shears vs. knife) is settled; ComputeHarvestYieldMultiplier is not
@@ -218,7 +281,7 @@ public class RFMechanicsConfig
     /// <summary>Yield multiplier at attunement 100.</summary>
     public double ElfHarvestYieldFull { get; set; } = 1.0;
 
-    // ── Thew (Orc) ──
+    // â”€â”€ Thew (Orc) â”€â”€
 
     /// <summary>Master toggle for the Thew mechanic (gain/decay tick and preserved-protein multiplier).</summary>
     public bool EnableThew { get; set; } = true;
@@ -307,7 +370,7 @@ public class RFMechanicsConfig
     /// several hours of Lean.</summary>
     public double ThewCreationFloor { get; set; } = 0.4;
 
-    // ── Thew Debt (Orc) ──
+    // â”€â”€ Thew Debt (Orc) â”€â”€
 
     /// <summary>Per-in-game-hour Thew moved from ThewBehavior's own tick into paying down
     /// outstanding Burn/Frenzy debt (see BurnDebt/FrenzyDebt), applied to the sum of both
@@ -319,7 +382,7 @@ public class RFMechanicsConfig
     /// frenzy debt (see ThewDebtRepayPatch).</summary>
     public double DebtRepaidPerSaturationPoint { get; set; } = 0.0000533;
 
-    // ── Puff Cue (Orc) ──
+    // â”€â”€ Puff Cue (Orc) â”€â”€
 
     /// <summary>Master toggle for the client-side orc state particle cue.</summary>
     public bool EnablePuff { get; set; } = true;
@@ -380,7 +443,7 @@ public class RFMechanicsConfig
     public bool PuffWindAffected { get; set; } = true;
     public double PuffWindAffectedness { get; set; } = 0.20;
 
-    // ── Bands (Orc, Phase 3) ──
+    // â”€â”€ Bands (Orc, Phase 3) â”€â”€
 
     /// <summary>Master toggle for the Band mechanic (state machine, entitySize, and stat
     /// application). Independent of EnableThew -- Thew must still be on for bands to have
@@ -473,7 +536,7 @@ public class RFMechanicsConfig
     /// orc. "Applies on hit" has the same problem in reverse (no player-outgoing-melee hook found). Both need a Harmony patch design decision, not a speculative build.</summary>
     public double StandardKnockbackTakenReduction_UNWIRED { get; set; } = 0.30;
 
-    // ── Burn-to-survive (Orc, Phase 4) ──
+    // â”€â”€ Burn-to-survive (Orc, Phase 4) â”€â”€
 
     /// <summary>Master toggle for the Burn-to-Survive mechanic. Independent of EnableThew's own
     /// toggle, same convention as EnableBands -- Thew must still be on for there to be anything
@@ -524,7 +587,7 @@ public class RFMechanicsConfig
     /// deliberately much faster than the 6s Thew/Band cadence, but only runs while burning.</summary>
     public int BurnFastTickMs { get; set; } = 500;
 
-    // ── Frenzy (Orc) ──
+    // â”€â”€ Frenzy (Orc) â”€â”€
 
     /// <summary>Master toggle for Frenzy.</summary>
     public bool EnableFrenzy { get; set; } = true;
@@ -535,6 +598,7 @@ public class RFMechanicsConfig
 
     /// <summary>Exponent on the Frenzy ramp: curveMult = (1 - satFrac/FrenzySatietyGate)^this,
     /// zero at FrenzySatietyGate, full at satFrac 0. Same shape family as Burn's curve.</summary>
+    // Legacy prototype curve; use FrenzyResponseExponent for current Frenzy.
     public double FrenzyCurveExponent { get; set; } = 3.0;
 
     /// <summary>Walkspeed delta (Stats.Set-delta units, matching WalkSpeedDelta's convention) at
@@ -566,9 +630,10 @@ public class RFMechanicsConfig
     /// they're re-written via Stats.Set -- Frenzy recomputes every fast tick (the bonus tracks
     /// current satFrac continuously), so without a write-avoidance threshold this would spam
     /// WatchedAttributes dirty/sync on every tick.</summary>
+    // Legacy write threshold; use FrenzyResponseWriteThreshold.
     public double FrenzyStatWriteThreshold { get; set; } = 0.02;
 
-    // ── Orc Wild-Animal Resist (standalone, no Thew/Frenzy dependency) ──
+    // â”€â”€ Orc Wild-Animal Resist (standalone, no Thew/Frenzy dependency) â”€â”€
 
     /// <summary>Master toggle for orc damage resistance against wild-animal attackers.
     /// Deliberately independent of EnableFrenzy/EnableThew -- this exists specifically for an
@@ -595,7 +660,27 @@ public class RFMechanicsConfig
     /// only has to learn "armor turns this off."</summary>
     public bool OrcWildResistRequiresNoArmor { get; set; } = true;
 
-    // ── Darkvision (Goblin) ──
+    // The five OrcWildResist settings above are retained only for config compatibility.
+    // Their old health-dependent/animal-only patch is retired; none affects this prototype.
+    public bool EnableOrcNaturalProtection { get; set; } = true;
+    // Legacy bracing keys below are inert and retained only to preserve old config.
+    // Orc now has passive T2 regardless of clothing or armor.
+    public bool EnableOrcBracing { get; set; } = true;
+    /// <summary>Total horizontal arc, centred on server facing. Sanitized to 20..180 degrees.</summary>
+    public double OrcBraceFrontalArcDegrees { get; set; } = 120;
+    /// <summary>Literal satiety points per real simulation second, additional to ordinary hunger.</summary>
+    public double OrcBraceInitialSatietyPerSecond { get; set; } = 1;
+    public double OrcBraceMaxSatietyPerSecond { get; set; } = 5;
+    /// <summary>Seconds from fully recovered to capped drain under uninterrupted bracing.</summary>
+    public double OrcBraceRampSeconds { get; set; } = 30;
+    /// <summary>Seconds to settle full exertion after release. Reactivation keeps what remains.</summary>
+    public double OrcBraceRecoverySeconds { get; set; } = 60;
+    /// <summary>Release floor as a fraction of actual MaxSaturation; bracing never debits below it.</summary>
+    public double OrcBraceLowFoodFraction { get; set; } = 0.30;
+    /// <summary>Extra food fraction required to start again (32% total by default).</summary>
+    public double OrcBraceRestartFoodMargin { get; set; } = 0.02;
+
+    // â”€â”€ Darkvision (Goblin) â”€â”€
 
     /// <summary>Master toggle for the Goblin darkvision effect. Client-side only feature (no
     /// server authority), but still gets a toggle for parity with every other mechanic in this
@@ -606,12 +691,108 @@ public class RFMechanicsConfig
     /// mirroring DwarfTraitCode/ElfTraitCode/OrcTraitCode.</summary>
     public string GoblinTraitCode { get; set; } = "rf-goblin-positive";
 
+    /// <summary>Trait code for the Half-Giant. Race Framework attaches it to Racial Equality's
+    /// `halfgiant` model as a PlayerModelLib ExtraTrait; vanilla HasTrait reads those from the
+    /// "extraTraits" watched attribute (CharacterSystem.cs:534), so no model-code lookup is needed.</summary>
+    public string HalfGiantTraitCode { get; set; } = "rf-halfgiant-positive";
+
+    /// <summary>Master toggle for the Half-Giant's water body (wading, breath, swim-up, wading
+    /// speed). False restores vanilla water handling for Half-Giants.</summary>
+    public bool EnableHalfGiantWater { get; set; } = true;
+
+    /// <summary>The Half-Giant swims only once water reaches this far below its eye. 0.48 is a
+    /// human's gap (eye 1.7, vanilla swim line 1.85 x 0.66), so it wades in 3-deep water.</summary>
+    public double HalfGiantSwimLineBelowEye { get; set; } = 0.48;
+
+    /// <summary>Scales the Half-Giant's upward swim stroke. 0.5 with HalfGiantSwimSink 0.3 matches a
+    /// dwarf's swimSpeed -0.5 / buoyancy -0.3 rise; 0.45 is Miles's "slightly worse" (2026-10-01).
+    /// At 0.4 look-up+forward only holds the eye 0.02 above water (model in the SQ-33 handoff).</summary>
+    public double HalfGiantSwimUpFactor { get; set; } = 0.45;
+
+    /// <summary>Extra downward pull while the Half-Giant swims, as a fraction of in-water gravity
+    /// (the dwarf trait's buoyancy -0.3). Not applied while wading.</summary>
+    public double HalfGiantSwimSink { get; set; } = 0.3;
+
+    /// <summary>Multiplies the Half-Giant's walk speed while wading (vanilla divides any walk in
+    /// liquid by 2.5). 1.2 on top of the trait's walkspeed +0.25 makes it wade about 1.5x as fast
+    /// as a human (Miles, 2026-10-01).</summary>
+    public double HalfGiantWadingSpeedFactor { get; set; } = 1.2;
+
+    /// <summary>Client: on a Half-Giant's first-ever third-person view, zoom out HalfGiantCameraZoomOutSteps;
+    /// afterwards remember the player's own distance across sessions, which the game does not save
+    /// (Miles, 2026-10-01: "just once ever as long as it remembers that setting").</summary>
+    public bool EnableHalfGiantCamera { get; set; } = true;
+
+    public int HalfGiantCameraZoomOutSteps { get; set; } = 2;
+
+    public bool EnableHalfGiantReach { get; set; } = true;
+    public double HalfGiantPickingRange { get; set; } = 9.45;
+    public bool EnableHalfGiantQuarry { get; set; } = true;
+    public double HalfGiantQuarryMiningSpeed { get; set; } = 2.8;
+    public float HalfGiantQuarrySatietyCost { get; set; } = 10f;
+
+    public bool EnableHalfGiantAnimalCarry { get; set; } = true;
+    public double HalfGiantAnimalCarryReach { get; set; } = 7.0;
+    public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:bear-brown-adult-male";
+    public double HalfGiantAnimalCarryMaximumVolume { get; set; }
+    public double HalfGiantAnimalCarryMaximumDimension { get; set; }
+    public string[] HalfGiantAnimalCarryAllowCodes { get; set; } = Array.Empty<string>();
+    public string[] HalfGiantAnimalCarryDenyCodes { get; set; } = Array.Empty<string>();
+    // Smaller bear variants fall under the bear-volume limit, but no bear is carryable.
+    public string[] HalfGiantAnimalCarryDenyCodePathPrefixes { get; set; } = new[] { "bear-" };
+    // Drifters lack the vanilla animal tag; bowtorn and shiver stay excluded because their codes differ.
+    public string[] HalfGiantAnimalCarryTagExemptCodePathPrefixes { get; set; } = new[] { "drifter-" };
+    // Provisional until Miles's test: shorter than animal reach so a pickup cannot pull a hostile out of a fight at range.
+    public double HalfGiantAnimalCarryTagExemptReach { get; set; } = 3.0;
+    public Dictionary<string, HalfGiantAnimalCarrySizeOverride> HalfGiantAnimalCarrySizeOverrides { get; set; } = new();
+    public Dictionary<string, string> HalfGiantAnimalCarryDisplayItems { get; set; } = new();
+    public int HalfGiantAnimalCarryRevision { get; set; }
+
+    public bool EnableHalfGiantAnimalThrow { get; set; } = true;
+    // Motion units are blocks per 1/60 s, as for projectiles; 0.45 carries a chicken roughly as far as a thrown stone.
+    public double HalfGiantAnimalThrowSpeed { get; set; } = 0.45;
+    public double HalfGiantAnimalThrowMinimumSpeed { get; set; } = 0.15;
+    // A chicken's hitbox (0.5 × 0.5 × 0.6); larger creatures slow with the square root of their volume.
+    public double HalfGiantAnimalThrowFullSpeedVolume { get; set; } = 0.15;
+    public double HalfGiantAnimalThrowDamagePerVolume { get; set; } = 3.0;
+    public double HalfGiantAnimalThrowMinimumDamage { get; set; } = 1.0;
+    public double HalfGiantAnimalThrowMaximumDamage { get; set; } = 6.0;
+    public double HalfGiantAnimalThrowFlightTimeoutSeconds { get; set; } = 5.0;
+    // Provisional until Miles's test: keeps a thrown drifter from being used to dump hostiles into someone else's claim.
+    public bool HalfGiantAnimalThrowRemovesHostilesInForeignClaims { get; set; } = true;
+
+    public bool EnableHalfGiantRockPull { get; set; } = true;
+    // Counted among the four sides and the top: 2 admits edges and corners, but not flat ground or wall faces.
+    public int HalfGiantRockPullMinOpenFaces { get; set; } = 2;
+    public double HalfGiantRockThrowDamage { get; set; } = 6.0;
+    // Knockback strength is Weight × speed × 10, so 0.5 at launch speed is about twice a melee hit's 1.0.
+    public double HalfGiantRockThrowWeight { get; set; } = 0.5;
+    // Blocks per 1/60 s; a vanilla thrown stone leaves the hand at 0.5, and a whole rock is heavier.
+    public double HalfGiantRockThrowSpeed { get; set; } = 0.4;
+    public double HalfGiantRockThrowFlightTimeoutSeconds { get; set; } = 10.0;
+
+    /// <summary>Revision 1 moves only the shipped local-trial boar reference and 3.5-block reach to the bear
+    /// limit and 7-block reach. Revision 2 changes no values: older files lack the tag-exempt keys, so they
+    /// load with the drifter defaults. Custom values stay.</summary>
+    internal bool MigrateHalfGiantAnimalCarry()
+    {
+        if (HalfGiantAnimalCarryRevision >= 2) return false;
+        if (HalfGiantAnimalCarryRevision < 1)
+        {
+            if (HalfGiantAnimalCarryReach == 3.5) HalfGiantAnimalCarryReach = 7.0;
+            if (HalfGiantAnimalCarryReferenceEntityCode is "game:pig-eurasian-adult-elder-male" or "game:pig-eurasian-elder-male")
+                HalfGiantAnimalCarryReferenceEntityCode = "game:bear-brown-adult-male";
+        }
+        HalfGiantAnimalCarryRevision = 2;
+        return true;
+    }
+
     /// <summary>Strength written to ShaderUniforms.NightVisionStrength for goblins. 0.8 matches
     /// vanilla's own definition of "full strength" -- ModSystemNightVision clamps night-vision
     /// goggles' fuel-derived strength to a ceiling of 0.8, never 1.0. See GoblinDarkvisionModSystem for the Math.Max composition.</summary>
     public double GoblinDarkvisionStrength { get; set; } = 0.8;
 
-    // ── Fall damage reduction (Goblin) ──
+    // â”€â”€ Fall damage reduction (Goblin) â”€â”€
 
     /// <summary>Master toggle for the Goblin fall damage reduction. Separate from
     /// EnableFallDamageReduction (Elf) so either race's reduction can be tuned/disabled
@@ -621,7 +802,7 @@ public class RFMechanicsConfig
     /// <summary>Fraction of fall damage removed for Goblins, e.g. 0.5 = 50% less fall damage.</summary>
     public double GoblinFallDamageReductionFactor { get; set; } = 0.5;
 
-    // ── Goblin dig speed (Phase G2) ──
+    // â”€â”€ Goblin dig speed (Phase G2) â”€â”€
 
     /// <summary>DORMANT: GoblinDigModifierBehavior is re-homed to src/BugRace/ and no longer
     /// registered, so this flag currently has no effect. Left in place so existing
@@ -643,7 +824,11 @@ public class RFMechanicsConfig
     /// tedious" -- roughly 2.5x slower across every pick tier).</summary>
     public double GoblinStoneMiningFactor { get; set; } = 0.4;
 
-    // ── Goblin climbing (Phase G2) ──
+    // â”€â”€ Goblin climbing (Phase G2) â”€â”€
+
+    public bool EnableGoblinFreeHandClimbing { get; set; } = true;
+
+    public double GoblinFreeHandOneHandWallSpeedFactor { get; set; } = 0.5;
 
     /// <summary>Master toggle for Goblin raw-rock climbing (GoblinClimbingPatch). Independent
     /// of EnableGoblinTreeClimbing -- either match group can be disabled without the other.</summary>
@@ -730,7 +915,7 @@ public class RFMechanicsConfig
         return changed;
     }
 
-    // ── Goblin tunnel speed (Phase G2) ──
+    // â”€â”€ Goblin tunnel speed (Phase G2) â”€â”€
 
     /// <summary>Master toggle for the goblin tunnel-speed walkspeed bonus.</summary>
     public bool EnableGoblinTunnelSpeed { get; set; } = true;
@@ -746,7 +931,33 @@ public class RFMechanicsConfig
     /// per-tick sync writes.</summary>
     public double GoblinTunnelStatWriteThreshold { get; set; } = 0.02;
 
-    // ── Goblin spit-packed earth (Phase G2) ──
+    // â”€â”€ Goblin scouting (local trial) â”€â”€
+
+    public bool EnableGoblinScouting { get; set; } = true;
+
+    public string[] GoblinScoutingDrifterFamilyCodes { get; set; } = new[] { "drifter", "shiver", "bowtorn" };
+
+    public string[] GoblinScoutingAnimalFamilyCodes { get; set; } = new[] { "bear", "hyena", "wolf" };
+
+    public int GoblinScoutingMaxAmbientLight { get; set; } = 4;
+
+    public double GoblinScoutingCrouchedDarkGroundFactor { get; set; } = 0.15;
+    public double GoblinScoutingEmptyHandWallClimbFactor { get; set; } = 0.25;
+    public double GoblinScoutingOneHandWallClimbFactor { get; set; } = 0.35;
+    public double GoblinScoutingStandingFactor { get; set; } = 0.35;
+    public double GoblinScoutingSprintingFactor { get; set; } = 0.50;
+    public double GoblinScoutingAnimalFactor { get; set; } = 0.70;
+
+    public double GoblinScoutingSneakSpeedBonus { get; set; } = 0.40;
+
+    public double GoblinScoutingDarknessWalkSpeedBonus { get; set; } = 0.30;
+
+    public double GoblinScoutingMovementTickInterval { get; set; } = 0.25;
+    public double GoblinScoutingStatWriteThreshold { get; set; } = 0.02;
+
+    // Contact detection remains neutral to avoid hostility resets during close combat.
+    public double GoblinScoutingContactRevealRange { get; set; } = 2.0;
+
 
     /// <summary>DORMANT: GoblinSpitPackingPatch is re-homed to src/BugRace/ and its Harmony
     /// attributes are commented out, so this flag currently has no effect. Left in place so
@@ -754,7 +965,7 @@ public class RFMechanicsConfig
     /// spit-packed earth conversion (Soil -&gt; packeddirt, Sand/Gravel -&gt; this mod's spitpacked{family} blocktypes).</summary>
     public bool EnableGoblinSpitPacking { get; set; } = true;
 
-    // ── Goblin rot aura (Phase G3) ──
+    // â”€â”€ Goblin rot aura (Phase G3) â”€â”€
 
     /// <summary>Master toggle for the rot aura (spoilage acceleration, larder hold, and crop
     /// stunting -- Tasks 1-3 of the Phase G3 rebuild that replaced spit-packed earth).</summary>
@@ -884,7 +1095,7 @@ public class RFMechanicsConfig
     /// not a food source.</summary>
     public float GoblinRotEdibleSatiety { get; set; } = 3.0f;
 
-    // ── Goblin spit charges (rot repair) ──
+    // â”€â”€ Goblin spit charges (rot repair) â”€â”€
 
     /// <summary>Master toggle for goblin spit charges (GoblinSpitChargeGrantPatch +
     /// RFMechanicsModSystem.RegisterGoblinSpitCommand). A goblin's gut renders decay into a
@@ -911,7 +1122,7 @@ public class RFMechanicsConfig
     /// single load; lowering the global cap to close that gap would cost the other six blocks room instead.</summary>
     public double SpitRepairGain { get; set; } = 0.125;
 
-    // ── Goblin rot flies (Phase G4) ──
+    // â”€â”€ Goblin rot flies (Phase G4) â”€â”€
 
     /// <summary>Enable the ambient voxel fly population. Does not disable aura consumption or gameplay effects.</summary>
     public bool EnableGoblinRotFlies { get; set; } = true;
@@ -988,7 +1199,7 @@ public class RFMechanicsConfig
     /// <summary>Legacy setting: charge flies no longer fade in/out.</summary>
     public double GoblinSpitFliesFadeSeconds { get; set; } = 0.4;
 
-    // ── Elf leaf gathering (Phase G2) ──
+    // â”€â”€ Elf leaf gathering (Phase G2) â”€â”€
 
     /// <summary>Master toggle for the Elf leaf self-drop (ElfLeafDropPatch). Appends the
     /// harvested leaves-*/leavesbranchy-* block's own placed/obtainable form to vanilla's
@@ -996,7 +1207,7 @@ public class RFMechanicsConfig
     /// branchy-leaves ingredient-sourcing gap (see notes/goblin-phase-g1-as-built.md).</summary>
     public bool EnableElfLeafGathering { get; set; } = true;
 
-    // ── Dwarf ore-song (v1 wire-up) ──
+    // â”€â”€ Dwarf ore-song (v1 wire-up) â”€â”€
 
     /// <summary>Master toggle for the Dwarf ore-song mechanic (the shared "rfraceability" hotkey,
     /// as a dwarf, makes nearby ore/gem deposits answer with a positioned sound per material).
@@ -1043,8 +1254,8 @@ public class RFMechanicsConfig
     /// <summary>Client-only coarse sensory captions for players unable to use directional audio.</summary>
     public bool OreSongCaptions { get; set; } = false;
 
-    // ── Chunk scar tracker (passive data collector, no gameplay consumer -- see
-    // ChunkScarTracker.cs's header and notes/race-mechanics/chunk-scar-archived.md) ──
+    // â”€â”€ Chunk scar tracker (passive data collector, no gameplay consumer -- see
+    // ChunkScarTracker.cs's header and notes/race-mechanics/chunk-scar-archived.md) â”€â”€
 
     /// <summary>Master toggle for ChunkScarBreakPatch's write path only -- false makes the
     /// Harmony postfix return immediately with no moddata written. Does not gate /rfscar's
@@ -1071,7 +1282,7 @@ public class RFMechanicsConfig
     /// Radius 1 = the 3x3 grid centered on the calling player's map chunk.</summary>
     public int ChunkScarNeighborSampleRadius { get; set; } = 1;
 
-    // ── Orc Smell ──
+    // â”€â”€ Orc Smell â”€â”€
 
     /// <summary>Master toggle for the Orc Smell mechanic. Client-side only, no server authority.</summary>
     public bool SmellEnabled { get; set; } = true;
@@ -1253,7 +1464,7 @@ public class RFMechanicsConfig
     public double SmellFocusFogDensity { get; set; } = 0.25;
 
     /// <summary>Milliseconds of eligible stationary focus before smell particles start
-    /// appearing. Keyed off concentration duration (OrcSmellShared.HeldMs), independent of the
+    /// appearing. Keyed off concentration duration (legacy held clock), independent of the
     /// fog ramp -- the world darkens first, the smell sense kicks in after.</summary>
     public int SmellParticleFadeInStartMs { get; set; } = 4500;
 
@@ -1286,6 +1497,12 @@ public class RFMechanicsConfig
     /// harmless (e.g. an aggressive omnivore boss mob that would otherwise classify
     /// identically to a farm animal).</summary>
     public string[] SmellForcePredatorCodes { get; set; } = new[] { "feverstonewilds:hellboar" };
+}
+
+public class HalfGiantAnimalCarrySizeOverride
+{
+    public double MaximumVolume { get; set; }
+    public double MaximumDimension { get; set; }
 }
 
 /// <summary>DORMANT: backed StomachStackingMode, itself dormant -- see its doc comment.</summary>

@@ -19,13 +19,12 @@ namespace rfmechanics
     /// C (characterdialog) and X (fliphandslots) swallow it before Dispatch ever runs. See
     /// notes/race-mechanics/race-ability-hotkey-default-2026-09-16.md.
     ///
-    /// "rfclamber" (Ctrl+H) is a separate key on purpose: the Clamber stance is a persistent mode,
-    /// not one of the one-per-race abilities the dispatch table below assumes.
+    /// "rfclamber" (Ctrl+H) is the shared stance key, retaining existing rebinds. It dispatches
+    /// Dwarf Stonebrace, persistent Goblin Clamber, or session-only Elf Watchfulness independently
+    /// of held abilities.
     ///
-    /// The hotkey handler only covers the two discrete-press abilities (dwarf, goblin). Orc smell focus and elf zoom
-    /// are held ramps driven by their own render/tick pollers (OrcSmellFocusModSystem,
-    /// RFElfZoomBehavior), which read this same "rfraceability" code's raw key state directly and
-    /// gate on the same cached PlayerRaceBehavior.Race -- they never go through SetHotKeyHandler.
+    /// The press handler covers dwarf/goblin. Elf zoom polls the saved Race Ability
+    /// binding independently. Orc smell is stance-owned; Orc skin is passive.
     /// </summary>
     public class RaceAbilityHotkeyModSystem : ModSystem
     {
@@ -36,6 +35,11 @@ namespace rfmechanics
         {
             [PlayerRace.Dwarf] = api => api.ModLoader.GetModSystem<DwarfOreSongModSystem>().TryTrigger(api),
             [PlayerRace.Goblin] = api => api.ModLoader.GetModSystem<RFMechanicsModSystem>().TryTriggerGoblinSpit(api),
+            [PlayerRace.HalfGiant] = api =>
+            {
+                api.SendChatMessage("/rfhalfgiantcarry use");
+                return true;
+            },
         };
 
         public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Client;
@@ -48,7 +52,7 @@ namespace rfmechanics
 
             // New code, not the retired "rfelfstepheighttoggle" that held Ctrl+H before M1 --
             // see the orphaned-rebind warning above.
-            api.Input.RegisterHotKey("rfclamber", "Clamber Stance (Goblin)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
+            api.Input.RegisterHotKey("rfclamber", "Race Stance (Clamber / Watchfulness / Hunt)", GlKeys.H, HotkeyType.CharacterControls, ctrlPressed: true);
             api.Input.SetHotKeyHandler("rfclamber", _ => DispatchClamber(api));
         }
 
@@ -64,12 +68,17 @@ namespace rfmechanics
             return PressAbilities.TryGetValue(race, out var ability) && ability(api);
         }
 
-        /// <summary>Returns false for every non-goblin so their Ctrl+H stays available to other
-        /// mods, and so no other race ever acquires hidden stance state.</summary>
+        /// <summary>Other races fall through; the server validates each stance request independently.</summary>
         private static bool DispatchClamber(ICoreClientAPI api)
         {
             IPlayer? player = api.World.Player;
             PlayerRace race = player?.Entity?.GetBehavior<PlayerRaceBehavior>()?.Race ?? PlayerRace.None;
+            if (race == PlayerRace.Elf)
+                return api.ModLoader.GetModSystem<ElfWatchfulnessModSystem>().TryToggle();
+            if (race == PlayerRace.Orc)
+                return api.ModLoader.GetModSystem<OrcHuntModSystem>().TryToggle();
+            if (race == PlayerRace.Dwarf)
+                return api.ModLoader.GetModSystem<DwarfStonebraceModSystem>().TryToggle(api);
             if (race != PlayerRace.Goblin) return false;
 
             return api.ModLoader.GetModSystem<GoblinClamberStanceModSystem>().TryToggle(api);

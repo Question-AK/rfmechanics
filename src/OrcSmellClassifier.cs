@@ -7,7 +7,7 @@ using Vintagestory.GameContent;
 
 namespace rfmechanics
 {
-    internal enum ScentCategory { Unknown, Herbivore, Predator, Omnivore }
+    internal enum ScentCategory { Unknown, Herbivore, Predator, Omnivore, Player, Blood }
 
     internal static class OrcSmellClassifier
     {

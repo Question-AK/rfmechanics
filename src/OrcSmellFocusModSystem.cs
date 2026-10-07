@@ -3,161 +3,104 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace rfmechanics
+namespace rfmechanics;
+
+public sealed class OrcSmellFocusModSystem : ModSystem, IRenderer
 {
-    public class OrcSmellFocusModSystem : ModSystem, IRenderer
+    private ICoreClientAPI? capi;
+    private OrcHuntModSystem? hunt;
+    private AmbientModifier? ambient;
+    private readonly OrcSmellFocusState focus = new();
+    private Vec3d? previous;
+    private long playerId;
+    private int dimension, revision;
+    private double distance, elapsed, speed;
+    private bool logged;
+    public double RenderOrder => 0.05;
+    public int RenderRange => 1;
+    public override bool ShouldLoad(EnumAppSide side) => side == EnumAppSide.Client;
+    public override void StartClientSide(ICoreClientAPI api)
     {
-        private ICoreClientAPI? capi;
-        private AmbientModifier? ambientMod;
-        private static bool loggedException = false;
-        private OrcSmellFocusState focus = new();
-        private long playerId;
-        private int hurtCounter;
-        private Vec3d? previousPos;
-        private double speedDistance, speedTime, measuredSpeed;
-
-        public double RenderOrder => 0.05;
-        public int RenderRange => 1;
-
-        public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Client;
-
-        public override void StartClientSide(ICoreClientAPI api)
+        capi = api; hunt = api.ModLoader.GetModSystem<OrcHuntModSystem>();
+        ambient = new AmbientModifier {
+            FogColor = new WeightedFloatArray(new float[] { 0, 0, 0 }, 0),
+            AmbientColor = new WeightedFloatArray(new float[] { 0, 0, 0 }, 0),
+            FogDensity = new WeightedFloat(0, 0)
+        }.EnsurePopulated();
+        api.Ambient.CurrentModifiers["orcsmellfocus"] = ambient;
+        api.Event.RegisterRenderer(this, EnumRenderStage.Before, "rforcsmellfocus");
+        api.Event.LeaveWorld += Reset;
+    }
+    private void Reset()
+    {
+        focus.Reset(); previous = null; playerId = 0; distance = elapsed = speed = 0;
+        OrcSmellShared.Quality = OrcSmellShared.FocusWeight = 0;
+        OrcSmellShared.Resting = OrcSmellShared.Sitting = false; OrcSmellShared.Speed = 0;
+        OrcSmellShared.FocusActive = OrcSmellShared.SensoryActive = false;
+        Apply(0, 0);
+    }
+    private void Apply(float weight, float fogDensity)
+    {
+        if (ambient == null) return;
+        ambient.FogColor.Weight = ambient.AmbientColor.Weight = ambient.FogDensity.Weight = weight;
+        ambient.FogDensity.Value = fogDensity * weight * weight;
+    }
+    public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
+    {
+        if (capi == null || hunt == null) return;
+        try
         {
-            capi = api;
-
-            ambientMod = new AmbientModifier
-            {
-                FogColor = new WeightedFloatArray(new float[] { 0f, 0f, 0f }, 0f),
-                AmbientColor = new WeightedFloatArray(new float[] { 0f, 0f, 0f }, 0f),
-                FogDensity = new WeightedFloat(0f, 0f),
-            }.EnsurePopulated();
-            api.Ambient.CurrentModifiers["orcsmellfocus"] = ambientMod;
-
-            api.Event.RegisterRenderer(this, EnumRenderStage.Before, "rforcsmellfocus");
+            var cfg = RFMechanicsModSystem.Config;
+            var self = capi.World.Player?.Entity;
+            if (cfg?.SmellEnabled != true || !cfg.EnableOrcHunting || self?.Alive != true
+                || self.GetBehavior<PlayerRaceBehavior>()?.Race != PlayerRace.Orc)
+            { Reset(); return; }
+            if (capi.IsGamePaused) return;
+            bool discontinuity = playerId != self.EntityId || dimension != self.Pos.Dimension || deltaTime > 0.5
+                || previous != null && self.Pos.SquareDistanceTo(previous) > 4;
+            if (discontinuity) Reset();
+            if (revision != OrcSmellShared.StanceRevision)
+            { focus.Reset(false); revision = OrcSmellShared.StanceRevision; }
+            playerId = self.EntityId; dimension = self.Pos.Dimension;
+            double dx = previous == null ? 0 : self.Pos.X - previous.X;
+            double dz = previous == null ? 0 : self.Pos.Z - previous.Z;
+            distance += Math.Sqrt(dx*dx+dz*dz); elapsed += Math.Max(0, deltaTime);
+            if (elapsed >= 0.2) { speed = distance/elapsed; distance = elapsed = 0; }
+            previous = self.Pos.XYZ;
+            var controls = self.Controls;
+            // No OnGround or per-frame Motion*60 cancellation. Floor-sitting needs
+            // no separate sniff input; stationary seats also qualify by displacement.
+            bool travelling = controls.TriesToMove || speed > 0.15;
+            bool unavailable = self.Swimming || controls.IsFlying || controls.IsClimbing || controls.Jump;
+            bool resting = !unavailable && !travelling;
+            bool sitting = resting && controls.FloorSitting;
+            float target = resting ? 1 : unavailable || controls.Sprint && travelling ? 0
+                : (float)(Math.Clamp(cfg.OrcSlowFocusLevel, 0, 0.75) * Math.Clamp(
+                    1 - speed / Math.Clamp(cfg.OrcSlowFocusMaxSpeed, 0.2, 5), 0, 1));
+            focus.Update(deltaTime, hunt.Stance, target, resting, cfg);
+            OrcSmellShared.FocusActive = hunt.Stance;
+            OrcSmellShared.Quality = focus.Quality;
+            OrcSmellShared.Resting = resting;
+            OrcSmellShared.Sitting = sitting;
+            OrcSmellShared.Speed = speed;
+            float weight = focus.Fade * (float)Math.Clamp(cfg.OrcFocusMaximumDarkness, 0, 1);
+            OrcSmellShared.FocusWeight = weight;
+            Apply(weight, (float)Math.Clamp(cfg.SmellFocusFogDensity, 0, 1));
         }
-
-        public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
+        catch (Exception e)
         {
-            if (capi == null || ambientMod == null) return;
-
-            try
-            {
-                var cfg = RFMechanicsModSystem.Config;
-                if (cfg == null || !cfg.SmellEnabled)
-                {
-                    OrcSmellShared.FocusWeight = 0f;
-                    OrcSmellShared.FocusActive = false;
-                    OrcSmellShared.HeldMs = OrcSmellShared.Quality = 0f;
-                    focus = new();
-                    previousPos = null;
-                    ApplyWeight();
-                    return;
-                }
-
-                bool eligible = false;
-                if (!capi.IsGamePaused)
-                {
-                    IPlayer? player = capi.World.Player;
-                    if (player?.Entity?.Alive == true && player.Entity.GetBehavior<PlayerRaceBehavior>()?.Race == PlayerRace.Orc)
-                    {
-                        eligible = true;
-                    }
-                }
-
-                bool held = false;
-                if (eligible && capi.Input.HotKeys.TryGetValue("rfraceability", out HotKey hotkey))
-                {
-                    held = capi.Input.KeyboardKeyStateRaw[(int)hotkey.CurrentMapping.KeyCode];
-                }
-
-                var self = capi.World.Player?.Entity;
-                bool stationary = false, hurt = false, interrupted = false;
-                if (self != null)
-                {
-                    int counter = self.WatchedAttributes.GetInt("onHurtCounter");
-                    if (playerId != self.EntityId)
-                    {
-                        playerId = self.EntityId;
-                        hurtCounter = counter;
-                        focus = new();
-                        previousPos = null;
-                        speedDistance = speedTime = measuredSpeed = 0;
-                    }
-                    hurt = counter != hurtCounter;
-                    hurtCounter = counter;
-                    var controls = self.Controls;
-                    double dx = previousPos == null ? 0 : self.Pos.X - previousPos.X;
-                    double dz = previousPos == null ? 0 : self.Pos.Z - previousPos.Z;
-                    double tolerance = 0.12 * Math.Max(0.001, deltaTime);
-                    double moved = Math.Sqrt(dx*dx + dz*dz);
-                    speedDistance += moved;
-                    speedTime += Math.Max(0, deltaTime);
-                    if (speedTime >= 0.2)
-                    {
-                        measuredSpeed = speedDistance / speedTime;
-                        speedDistance = speedTime = 0;
-                    }
-                    // Average rendered displacement so physics tick steps do not look like sprints.
-                    double actualSpeed = Math.Max(measuredSpeed,
-                        60 * Math.Sqrt(self.Pos.Motion.X*self.Pos.Motion.X + self.Pos.Motion.Z*self.Pos.Motion.Z));
-                    interrupted = !self.OnGround || self.Swimming || controls.IsClimbing || controls.IsFlying
-                        || controls.Jump || controls.Sprint || moved > 0.75 || actualSpeed > cfg.SmellWalkingMaxSpeed;
-                    stationary = !interrupted && !controls.TriesToMove && dx*dx + dz*dz <= tolerance*tolerance
-                        && self.Pos.Motion.X*self.Pos.Motion.X + self.Pos.Motion.Z*self.Pos.Motion.Z <= 0.000004;
-                    previousPos = self.Pos.XYZ;
-                }
-                float oldQuality = OrcSmellShared.Quality;
-                focus.Update(deltaTime, held, eligible, stationary, hurt, interrupted);
-                OrcSmellShared.Quality = focus.Quality(cfg.SmellParticleFadeInFullMs);
-                if (focus.Active && oldQuality > 0 && OrcSmellShared.Quality == 0) OrcSmellShared.TrailGeneration++;
-                OrcSmellShared.HeldMs = focus.HeldMs;
-
-                float darkness = focus.Darkness(cfg.SmellFocusEngageMs, (float)cfg.SmellWalkingVisionWeight);
-                // The rising target already follows the long acquisition clock. Restore useful
-                // vision quickly when walking, releasing, or breaking concentration.
-                if (darkness >= OrcSmellShared.FocusWeight) OrcSmellShared.FocusWeight = darkness;
-                else RampToward(darkness, cfg.SmellFocusReleaseMs, deltaTime);
-
-                OrcSmellShared.FocusActive = focus.Active;
-
-                ambientMod.FogDensity.Value = (float)cfg.SmellFocusFogDensity * OrcSmellShared.FocusWeight * OrcSmellShared.FocusWeight;
-                ApplyWeight();
-            }
-            catch (Exception ex)
-            {
-                OrcSmellShared.FocusActive = false;
-                OrcSmellShared.FocusWeight = OrcSmellShared.HeldMs = OrcSmellShared.Quality = 0;
-                ApplyWeight();
-                if (!loggedException)
-                {
-                    loggedException = true;
-                    capi.Logger?.Warning("[rfmechanics] Exception in OrcSmellFocusModSystem: {0}", ex);
-                }
-            }
+            Reset();
+            if (!logged) { logged = true; capi.Logger.Warning("[rfmechanics] Orc focus: {0}", e); }
         }
-
-        private static void RampToward(float target, float rampMs, float deltaTime)
-        {
-            float step = rampMs > 0 ? deltaTime * 1000f / rampMs : 1f;
-            float delta = GameMath.Clamp(target - OrcSmellShared.FocusWeight, -step, step);
-            OrcSmellShared.FocusWeight = GameMath.Clamp(OrcSmellShared.FocusWeight + delta, 0f, 1f);
+    }
+    public override void Dispose()
+    {
+        Reset();
+        if (capi != null) {
+            capi.Event.LeaveWorld -= Reset;
+            capi.Event.UnregisterRenderer(this, EnumRenderStage.Before);
+            capi.Ambient.CurrentModifiers.Remove("orcsmellfocus");
         }
-
-        private void ApplyWeight()
-        {
-            float w = OrcSmellShared.FocusWeight;
-            ambientMod!.FogColor.Weight = w;
-            ambientMod.AmbientColor.Weight = w;
-            ambientMod.FogDensity.Weight = w;
-        }
-
-        public override void Dispose()
-        {
-            OrcSmellShared.FocusActive = false;
-            OrcSmellShared.FocusWeight = OrcSmellShared.HeldMs = OrcSmellShared.Quality = 0;
-            capi?.Event.UnregisterRenderer(this, EnumRenderStage.Before);
-            capi?.Ambient.CurrentModifiers.Remove("orcsmellfocus");
-            base.Dispose();
-        }
+        base.Dispose();
     }
 }

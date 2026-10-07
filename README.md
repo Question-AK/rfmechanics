@@ -1,6 +1,162 @@
 # RF Mechanics
 
-Prerelease candidate for Vintage Story 1.22.6. In-game acceptance is still pending.
+RF Mechanics **1.2.0** for Vintage Story **1.22.6**.
+
+Adds Half-Giant support for Race Framework 1.1.0: 2.1-block step height, wading and breathing in water up to
+about 3 blocks deep, heavy swimming and a remembered third-person camera distance. Retains all 1.1.2
+mechanics: Orc mechanics, Elf Watchfulness, Goblin Clamber, climbing/stepping and redwood trunk support.
+See CHANGELOG.md. Half-Giant multiplayer, redwood gameplay and armor interaction checks remain limited; the
+detailed notes below retain their original prototype context.
+
+Movement settings in `ModConfig/rfmechanics.json` (step height and Half-Giant water) are not synced from the
+server; keep them the same on the server and every client. The defaults already match.
+
+With Race Framework 1.1.0, which removes the dwarf subrace classes, saved `rf-mountain-dwarf` and
+`rf-hill-dwarf` characters migrate to `commoner` at login without replacing their race model, inventory or gear.
+
+Brief racial messages use one noninteractive fading line, distinct race colors and
+built-in fonts. Goblin rot consumption/repair and Clamber, Elf Watchfulness/woodland
+movement, Dwarf mining-depth milestones, and Orc scent/Burn/Frenzy use confirmed
+outcomes and restrained transitions. No panel or counter. Oresong is unchanged.
+Messages are localized in assets/rfmechanics/lang/en.json. EnableRacialFeedback
+controls these new lines. Rapid stance changes replace the previous line, with no
+historical queue. Passive messages yield to deliberate actions. Blood pursuit shares the line so simultaneous Orc messages cannot overlap.
+
+Dwarf lines follow the depth fraction already used by the mining curve, relative to
+sea level (not the local surface): 25%, 50%, 75%. They require breaking stone/ore,
+only the deepest newly reached band is announced, at most once per band per life/join.
+These are depth fractions, not a claim of a 25/50/75% speed bonus.
+
+Thew growth/stability produce no smoke. Wisps represent the net reduction from a
+server metabolic update, including actual reserve-funded debt repayment. Growth
+that offsets consumption is silent. Slower loss has thin occasional wisps, faster
+loss fuller/frequent ones. The same rate drives local and nearby-player feedback;
+local wisps are below the eyes and shorter-lived. Particles already emitted fade.
+The metabolic cadence is unchanged (normally six seconds), so changes in smoke can
+lag feeding by that interval. Initialization, admin edits and death resets are not
+counted as metabolic expenditure. Old smoke state/priority and steam settings no
+longer drive the effect. PuffSmokeColorRgb, PuffOpacity, PuffRenderRange, EnablePuff
+and PuffTickIntervalMs still apply; particle geometry/lifetime are restrained in code.
+
+Frenzy still begins below 50% satiety, reaches the existing 25% maximum and preserves
+the reserve/debt exhaustion safeguard. New FrenzyResponseExponent=1.5 and
+FrenzyResponseWriteThreshold=0.0025 replace the old saved cubic curve/write threshold
+without editing installed configuration. Gate, maximum and debt-rate settings remain
+active. Updates are normally every 500 ms, not every frame.
+
+| Food | Speed bonus | Sprint debt/game-hour | Walk debt/game-hour |
+| --- | --- | --- | --- |
+| 50% | 0% | 0 | 0 |
+| 40% | 2.24% | 0 | 0 |
+| 30% | 6.32% | 0 | 0 |
+| 25% | 8.84% | 0 | 0 |
+| 20% | 11.62% | 0.27885 | 0.09760 |
+| 10% | 17.89% | 0.42933 | 0.15026 |
+| 0% | 25% | 0.60000 | 0.21000 |
+
+Costs shown assume the benefit is available throughout qualifying movement. Idle is
+always zero extra Frenzy debt; ordinary starvation/Burn costs still apply. Below the
+existing 25% debt gate, deliberate ground sprinting pays full rate, ordinary travel
+35% (FrenzyWalkingDebtMultiplier). Requires input and measured displacement aligned
+with intended travel at both sample endpoints. Blocked input, riding, swimming,
+climbing, flying, airborne motion, hurt/knockback, vanilla agent repulsion, stale intervals and detected
+teleports are excluded. Teleport version changes reject even short same-dimension
+teleports between samples; push/knockback observations provide a 1.5-second grace. This conservative rule may undercount obstacle-rich movement;
+unrecognised external mod pushes concurrent with aligned input remain a limitation.
+
+Pursuit retains its configured 35% Frenzy/pursuit combined cap.
+Current local BurnThewPerHp=0.03 was inspected but not edited and can dominate costs.
+/rfthew dump additionally reports measured exertion, actual Frenzy debt rate and
+net Thew loss rate. Read-only diagnostics do not replace player observation.
+
+Future direction only: a sharp/vivid Frenzy screen effect, preserving learned scent
+colors/shapes, a clear center, smooth recovery and compatibility with smell-focus
+fade. The engine has PsychedelicStrength shader plumbing worth investigating later;
+no screen shader, color grading or psychedelic behavior is added here. Broader Thew
+food-category, maintenance, starvation, Burn-borrowing and band-balance proposals
+remain pending and are not part of this prototype.
+
+Orc natural skin uses the complete vanilla tin-bronze lamellar Tier 2 profile,
+from every direction, regardless of clothing or armor. All Orcs have this passive
+perk by default. Armor interaction gameplay testing is deferred. Normal equipment
+and shields resolve first, then one natural layer. Standard 8 HP tier-2 wolf damage
+becomes approximately 2.094 HP before other mitigation. Tier is not a
+percentage: .6 flat, .77 relative with vanilla weapon-tier losses apply.
+
+Entity/player/unknown-source blunt, piercing and slashing attacks qualify; other
+damage types, environmental sources and duration-bearing damage bypass protection.
+Source-less physical ticks that vanilla recreates without duration also qualify.
+Mods bypassing vanilla health delegates require separate compatibility testing.
+
+Orc bracing, its Race Ability binding, food drain, recovery, HUD and announcements
+are retired. Prior prototype history is preserved for future Dwarf consideration,
+not enabled for Dwarves. Legacy bracing settings remain readable but inert.
+EnableOrcNaturalProtection still controls skin. No player-config migration is needed.
+The old health-dependent wild-animal protection remains retired.
+
+Use `/rfskin` for a short current-state and last-hit report; `/rfthew dump` includes it.
+Run `./Verify-OrcSkin.ps1`, `./Verify-RacialFeedback.ps1` and the existing
+`./Build.ps1 -Configuration Release -ReleaseCandidate` package workflow.
+Gameplay acceptance remains a player check.
+
+Retained Orc smell **0.1.3-orchunt.2** behavior:
+Orc Ctrl+H (saved stance rebind retained) enables all scent visuals. The first whiff
+arrives on the next 50 ms sample. Moving/sprinting gives occasional whiffs; stopping
+or sitting automatically builds concentration in four seconds, extending base range
+from 20 to 64 blocks. Body size scales range 0.7-1.2, capped at 64. Sneaking/slow
+movement below 1.5 blocks/s can build partial focus. Smell uses no Race Ability input;
+Orc Race Ability is currently unassigned.
+
+Standing/sitting also fades the surrounding world over six seconds, to maximum 0.90
+ambient weight. Scent shaders keep their own color/alpha so they remain readable.
+Moving eases concentration down over up to two seconds and restores vision over up
+to one second. Stance off resets concentration and stops all scent emission; existing
+wisps fade within 0.2 seconds and vision returns within one second. Stance remains
+session-only. Death/race exit/world exit clear the effect.
+
+New tuning: OrcFocusFadeSeconds=6, OrcFocusMaximumDarkness=0.90,
+OrcFocusVisionRecoverySeconds=1, OrcFocusRecoverySeconds=2,
+OrcSlowFocusLevel=0.35, OrcSlowFocusMaxSpeed=1.5, OrcSmellSourceLimit=12 (cap 16).
+Existing OrcDeepFocusSeconds=4, OrcPassiveRange=20, OrcDeepRange=64,
+OrcWhiffIntervalSeconds=4 and OrcWhiffDurationSeconds=0.65 remain adjustable.
+Moving whiffs repeat every 3.4-4.6 seconds; concentration lengthens/joins them into
+continuous scent from 75% focus. OrcQuickSniffMs/OrcQuickRange are now legacy.
+No configuration migration or save change is needed.
+
+Pursuit physics/acknowledgement, blood adapters and tuning are unchanged: server-owned
+actual bleeding detection, 40-block radius, six-second ramp to +20%, two-second grace,
+three-second decay and +35% combined Frenzy/pursuit cap. Blood visuals now require
+stance; the physical benefit and brief engagement impression do not. Target swimming
+still interrupts eligibility until it surfaces bleeding. Orc swimming is separate.
+Diet still has neither BloodTrail nor The Hunter: blood gameplay cannot be tested
+there without a separately authorized provider setup. No dependency/profile expansion.
+
+Distinct scent shapes, body-size differences and close-range blood direction are
+preserved. Terrain remains unresolved: no scent obstruction/attenuation through walls.
+The source limit is raised to 12 for crowded scenes; scans remain bounded at 256 visits,
+64 candidates, with 1200 live wisps and particle-setting limits. `.rfhunttest` reports
+stance, resting/sitting, measured speed, concentration, darkness and real blood status;
+it does not create bleeding or identify targets in ordinary gameplay.
+
+Retained Watchfulness trial: elf Ctrl+H enables the stance.
+Without racial zoom, moving animals/players can produce a broad pale wisp.
+Hold Race Ability (default R, existing rebind retained) and observe a living agent
+near the centre for two seconds for a 1.05-second broken glimpse of its animated shape,
+with peak opacity 30% before texture, band and fade masks. Fade-in is 0.08 seconds;
+the smooth fade-out lasts 0.45 seconds.
+Leaves permit detection; solid occupied voxels conservatively suppress the full effect.
+Looking away fades a glimpse within 0.36 seconds. Continued viewing never repeats it:
+leave the wider attention area for 0.3 seconds, then observe again for two seconds.
+Releasing/re-holding zoom alone does not rearm it. No hearing, night-vision or goblin Clamber changes.
+
+Client commands (dot prefix): `.rfwatchtest` is moving-target testing only;
+`.rfwatchpreview` arms synthetic awareness at 10/25/38 metres; `.rfwatchglimpse`
+arms a real focused-target glimpse with observation time and look-away gate skipped once. Close chat
+within ten seconds; hold racial zoom for the glimpse. Previews are not normal
+detection validation. Commands write bounded rendering traces to the client log.
+Disable with Ctrl+H, or `EnableElfWatchfulness=false` in existing config and relaunch.
+Default radius 40, movement cooldown independently 5–15 seconds per target,
+`WatchfulnessObservationSeconds=2`. Visual acceptance and performance are unverified.
 
 **Summary:** Race-specific abilities and survival mechanics, from elven climbing and dwarven Ore-Song to Orc Thew and goblin scavenging.
 
