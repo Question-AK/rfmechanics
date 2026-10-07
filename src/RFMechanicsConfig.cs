@@ -737,9 +737,8 @@ public class RFMechanicsConfig
     // at a 3-block chase distance (atan(0.25/3) ~ 4.8 deg) with margin for faster fauna, while staying tight
     // enough not to also catch an unrelated animal standing nearby.
     public double HalfGiantAnimalCarryConeDegrees { get; set; } = 8.0;
-    // Repeated "R" presses right after a pickup must not immediately set the animal back down. 500 ms
-    // absorbs an observed spam cadence of roughly 100-250 ms between presses without delaying a deliberate release.
-    public int HalfGiantAnimalCarryReleaseGuardMilliseconds { get; set; } = 500;
+    // Miles's 2026-10-07 tuning: 1000 ms deliberate put-down time, up from the 500 ms spam guard.
+    public int HalfGiantAnimalCarryReleaseGuardMilliseconds { get; set; } = 1000;
     public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:bear-brown-adult-male";
     public double HalfGiantAnimalCarryMaximumVolume { get; set; }
     public double HalfGiantAnimalCarryMaximumDimension { get; set; }
@@ -780,9 +779,10 @@ public class RFMechanicsConfig
 
     // Shared by rocks, carried animals and drifters. The quick throw still fires at ThrowWindupSeconds (0.35s);
     // holding to this point instead swaps to the full pull-back pose and the stronger throw below.
-    public double HalfGiantThrowFullChargeSeconds { get; set; } = 1.0;
-    // A full charge throws 50% faster/farther than the unchanged quick throw; "Provisional until Miles's test" applies.
-    public double HalfGiantThrowFullChargeSpeedMultiplier { get; set; } = 1.5;
+    // Miles's 2026-10-07 tuning: 2.0 s full charge, up from 1.0 s.
+    public double HalfGiantThrowFullChargeSeconds { get; set; } = 2.0;
+    // Miles's 2026-10-07 tuning: a full charge now throws 2x as fast/far as the unchanged quick throw, up from 1.5x.
+    public double HalfGiantThrowFullChargeSpeedMultiplier { get; set; } = 2.0;
 
     /// <summary>Revision 1 moves only the shipped local-trial boar reference and 3.5-block reach to the bear
     /// limit and 7-block reach. Revision 2 changes no values: older files lack the tag-exempt keys, so they
@@ -797,6 +797,20 @@ public class RFMechanicsConfig
                 HalfGiantAnimalCarryReferenceEntityCode = "game:bear-brown-adult-male";
         }
         HalfGiantAnimalCarryRevision = 2;
+        return true;
+    }
+
+    public int HalfGiantThrowTuningRevision { get; set; }
+
+    /// <summary>Miles's 2026-10-07 tuning: 2.0 s full charge, 2.0x power, 1000 ms set-down guard. Replaces
+    /// each value only while it still matches its old default, so deliberate custom values survive.</summary>
+    internal bool MigrateHalfGiantThrowTuning()
+    {
+        if (HalfGiantThrowTuningRevision >= 1) return false;
+        if (HalfGiantThrowFullChargeSeconds == 1.0) HalfGiantThrowFullChargeSeconds = 2.0;
+        if (HalfGiantThrowFullChargeSpeedMultiplier == 1.5) HalfGiantThrowFullChargeSpeedMultiplier = 2.0;
+        if (HalfGiantAnimalCarryReleaseGuardMilliseconds == 500) HalfGiantAnimalCarryReleaseGuardMilliseconds = 1000;
+        HalfGiantThrowTuningRevision = 1;
         return true;
     }
 

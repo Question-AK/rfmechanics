@@ -250,6 +250,9 @@ namespace rfmechanics
                 api.Logger.Notification("[rfmechanics] Half-Giant animal carry revision 2: reach {0}, size reference {1}; tag-exempt prefixes [{2}] at reach {3}.",
                     config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryReferenceEntityCode,
                     string.Join(", ", config.HalfGiantAnimalCarryTagExemptCodePathPrefixes ?? Array.Empty<string>()), config.HalfGiantAnimalCarryTagExemptReach);
+            if (config.MigrateHalfGiantThrowTuning())
+                api.Logger.Notification("[rfmechanics] Half-Giant throw tuning revision 1: full charge {0}s, power multiplier {1}x, set-down guard {2}ms.",
+                    config.HalfGiantThrowFullChargeSeconds, config.HalfGiantThrowFullChargeSpeedMultiplier, config.HalfGiantAnimalCarryReleaseGuardMilliseconds);
 
             if (!malformed)
             {

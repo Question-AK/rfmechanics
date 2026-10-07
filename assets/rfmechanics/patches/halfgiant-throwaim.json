@@ -7,7 +7,7 @@
             "code": "halfgiantthrowaim",
             "animation": "throwaim",
             "blendMode": "Add",
-            "animationSpeed": 0.3,
+            "animationSpeed": 0.15,
             "elementWeight": {
                 "UpperArmR": 20,
                 "LowerArmR": 20,
