@@ -12,12 +12,6 @@
       translation: { x: -1.08, y: -1.38, z: -1.05 },
       rotation: { x: 0, y: 0, z: 0 },
       scale: 0.48
-    },
-    // Full charge only: doubles tpHandWindupTransform's offset from the resting hand pose for an obviously deeper pull-back.
-    tpHandFullWindupTransform: {
-      translation: { x: -1.76, y: -2.21, z: -1.4 },
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: 0.48
     }
   },
   guiTransform: {

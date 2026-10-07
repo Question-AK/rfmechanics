@@ -34,12 +34,6 @@
         translation: { x: -0.2, y: -0.38, z: 0.64 },
         rotation: { x: 0, y: 0, z: 90 }
       }
-    },
-    // Full charge only, every creature: the same pulled-back offset the Half-Giant's thrown-rock item uses for its windup.
-    tpHandFullWindupTransform: {
-      translation: { x: -1.08, y: -1.38, z: -1.05 },
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: 0.6
     }
   },
   groundTransform: {
