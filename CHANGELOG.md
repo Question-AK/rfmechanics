@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1-rp.12 - 2026-10-07
+
+- Half-Giant animal carry: Race Ability now picks up the creature nearest the crosshair within a small cone (8 degrees) when the crosshair is not exactly on one, so moving animals are easier to catch. A direct hit still wins; reach and eligibility are unchanged.
+- Half-Giant animal carry: for half a second after a pickup, Race Ability presses no longer set the creature down, so spamming the key while chasing does not drop it again.
+- Half-Giant throwing: holding right-click for a full second before letting go throws rocks, animals and drifters 1.5 times as fast. Releasing earlier is the unchanged quick throw. There is no visual charge cue yet; the arm pull-back cue follows in a later build.
+
 ## 1.2.1-rp.11 - 2026-10-07
 
 - While a Half-Giant holds right-click to throw a pulled rock, the rock now sits on the raised fist instead of hanging beside the forearm (third person). Other players see the same. The carry pose and first person are unchanged.
