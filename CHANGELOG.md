@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.3.0 - 2026-10-07
+## 1.3.1 - 2026-10-07
+
+First public release of the 1.3 line. It replaces 1.3.0, which was withdrawn before release, and lists every change since
+1.2.0.
 
 Half-Giants (requires Race Framework 1.1.0 or later):
 
@@ -47,8 +50,8 @@ Goblins:
 
 Everyone:
 
-- A "Races and abilities" handbook page explains each race's controls, limits and Diet Setup guidance. It does not
-  turn on any diet.
+- A "Races and abilities" handbook page explains each race's controls, active and passive abilities, limits and Diet
+  Setup guidance. It does not turn on any diet.
 - New settings in `ModConfig/rfmechanics.json` for all of the above. Existing files keep their values and gain the
   new keys with their defaults.
 - Keeps all 1.2.0 mechanics, including Half-Giant wading and camera memory, Elf Watchfulness, Orc mechanics and the
@@ -60,10 +63,16 @@ Known limitations:
   a restart.
 - First-person sizes of carried creatures and pulled rocks are not tuned yet.
 - Rock throw speed, damage and knockback have had little gameplay testing.
+- The arm pull-back animation is timed for the default 2-second charge. If a server changes the full-charge time,
+  the animation no longer lines up with full charge; throw power still follows the setting.
 - Movement settings (step height and Half-Giant water) are still not synced from the server. Keep them the same on
   the server and every client; the defaults match.
 
 For Vintage Story 1.22.6.
+
+## 1.3.0 - 2026-10-07 (withdrawn)
+
+Not released. Its handbook page still contained test-build wording and missed several abilities. Use 1.3.1.
 
 ## 1.2.0 - 2026-10-04
 

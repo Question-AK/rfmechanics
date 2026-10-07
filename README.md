@@ -1,6 +1,6 @@
 # RF Mechanics
 
-RF Mechanics **1.3.0** for Vintage Story **1.22.6**.
+RF Mechanics **1.3.1** for Vintage Story **1.22.6**.
 
 Adds Half-Giant reach, empty-hand quarrying, creature carrying and throwing, and rock pulling; Dwarf Stonebrace;
 Goblin dark scouting and free-hand Clamber; and a race handbook page. Retains all 1.2.0 mechanics: Half-Giant
