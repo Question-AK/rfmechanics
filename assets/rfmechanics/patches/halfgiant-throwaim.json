@@ -1,0 +1,25 @@
+[
+    {
+        "op": "add",
+        "path": "/client/animations/-",
+        "file": "game:entities/humanoid/player.json",
+        "value": {
+            "code": "halfgiantthrowaim",
+            "animation": "throwaim",
+            "blendMode": "Add",
+            "animationSpeed": 0.3,
+            "elementWeight": {
+                "UpperArmR": 20,
+                "LowerArmR": 20,
+                "UpperArmL": 20,
+                "LowerArmL": 20
+            },
+            "elementBlendMode": {
+                "UpperArmR": "AddAverage",
+                "LowerArmR": "AddAverage",
+                "UpperArmL": "AddAverage",
+                "LowerArmL": "AddAverage"
+            }
+        }
+    }
+]

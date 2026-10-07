@@ -32,6 +32,10 @@ public readonly struct HalfGiantCarryCandidate
 
 public static class HalfGiantAnimalCarryRules
 {
+    // A dedicated player.json code reusing vanilla's throwaim keyframes, so only this item's windup
+    // speed changes (not the spear/snowball/beenade throws that also trigger the shared "aim" code).
+    public const string ThrowWindupAnimationCode = "halfgiantthrowaim";
+
     public static HalfGiantCarryAdmission Admit(bool hasAnimalTag, string? codePath, IEnumerable<string>? tagExemptPrefixes)
     {
         if (hasAnimalTag) return HalfGiantCarryAdmission.Animal;
@@ -97,6 +101,15 @@ public static class HalfGiantAnimalCarryRules
     public static bool IsFullyCharged(float secondsUsed, float fullChargeSeconds)
     {
         return secondsUsed >= fullChargeSeconds;
+    }
+
+    // throwaim's final keyframe sits at quantityFrames - 1 with onAnimationEnd "Hold"; RunningAnimation.Progress
+    // advances CurrentFrame by 30 * dt * animationSpeed each tick, so this speed lands on that frame exactly
+    // at fullChargeSeconds and holds there, while the quick-throw point shows a proportionally shorter pull-back.
+    public static float WindupAnimationSpeed(int quantityFrames, double fullChargeSeconds)
+    {
+        if (quantityFrames <= 1 || !(fullChargeSeconds > 0)) return 1f;
+        return (float)((quantityFrames - 1) / (30.0 * fullChargeSeconds));
     }
 
     // The quick throw keeps base speed exactly; only a full charge is multiplied.

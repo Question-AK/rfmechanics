@@ -114,6 +114,8 @@ Assert-True ($item.Contains('slot != player.InventoryManager.ActiveHotbarSlot') 
 Assert-True ($item.Contains('EntityProjectileBase.GetProjectileDirection(') -and $item -match 'ThrowWindupSeconds = 0\.35f') 'The throw shares the vanilla aim and 0.35 s windup'
 Assert-True ($item -match 'override void OnHeldAttackStart\([^)]*\)\s*\{\s*handling = EnumHandHandling\.PreventDefault;\s*\}') 'A held rock cannot attack or mine'
 Assert-True ($item.Contains('GetDefaultBlockMeshRef(rock)') -and $item.Contains('HalfGiantRockRules.HeldScale(')) 'The held rock draws its block at true size'
+Assert-True (-not ($item -match '(?i)fullwindup')) 'The dead full-windup item-offset stack attribute is removed from ItemCarriedRock'
+Assert-True ($item.Contains('StartAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode)') -and $item.Contains('StopAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode)')) 'Rock windup starts and stops the dedicated animation code, not the shared "aim"'
 
 $entity = Get-Content (Join-Path $PSScriptRoot 'src/EntityThrownRock.cs') -Raw
 Assert-True ($entity.Contains(': EntityProjectileBase') -and -not $entity.Contains(': EntityThrownItem')) 'The thrown rock avoids EntityThrownItem repeat hits'
@@ -129,6 +131,7 @@ foreach ($landing in 'override void OnCollided()', 'override void OnCollideWithL
 
 $itemJson = Get-Content (Join-Path $PSScriptRoot 'assets/rfmechanics/itemtypes/carriedrock.json') -Raw
 Assert-True ($itemJson -match 'class:\s*"ItemCarriedRock"' -and $itemJson -match 'maxStackSize:\s*1,') 'The pulled rock is a single-stack item'
+Assert-True (-not $itemJson.Contains('tpHandFullWindupTransform')) 'carriedrock.json no longer defines a full-windup item offset'
 $recipeHits = Get-ChildItem -Path (Join-Path $PSScriptRoot 'assets') -Recurse -File -Filter '*.json' | Where-Object { $_.Name -ne 'carriedrock.json' -and $_.FullName -notmatch '[\\/]lang[\\/]' } | Select-String -Pattern 'carriedrock' -SimpleMatch
 Assert-True (-not $recipeHits) 'No recipe or patch turns a pulled rock into anything else'
 $entityJson = Get-Content (Join-Path $PSScriptRoot 'assets/rfmechanics/entities/thrownrock.json') -Raw

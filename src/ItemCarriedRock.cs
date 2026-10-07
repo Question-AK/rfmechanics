@@ -17,8 +17,6 @@ public sealed class ItemCarriedRock : Item
     internal const string HolderSizeKey = "holderSize";
     // On the stack, as vanilla ItemBow syncs renderVariant, so other players also see the wind-up hold.
     private const string WindupKey = "windup";
-    // Set once the hold crosses HalfGiantThrowFullChargeSeconds, swapping to the deeper pull-back pose.
-    private const string FullWindupKey = "fullwindup";
     // Vanilla CollectibleBehaviorThrowable windup and stone-throw launch geometry, as for carried creatures.
     private const float ThrowWindupSeconds = 0.35f;
     private const double ThrowDispersion = 0.75;
@@ -29,18 +27,16 @@ public sealed class ItemCarriedRock : Item
     private static readonly AssetLocation ThrownRockCode = new("rfmechanics", "thrownrock");
     private static readonly AssetLocation ThrowSound = new("game", "sounds/player/throw");
 
-    private enum HeldPose { Main, Offhand, Windup, FullWindup }
+    private enum HeldPose { Main, Offhand, Windup }
 
     // Keyed by resolved scale, so every stack shares one transform instead of allocating per frame.
     private readonly Dictionary<(float Scale, HeldPose Pose), ModelTransform> heldTransforms = new();
     private ModelTransform? tpHandWindupTransform;
-    private ModelTransform? tpHandFullWindupTransform;
 
     public override void OnLoaded(ICoreAPI api)
     {
         base.OnLoaded(api);
         tpHandWindupTransform = Attributes?["tpHandWindupTransform"].AsObject<ModelTransform>()?.EnsureDefaultValues();
-        tpHandFullWindupTransform = Attributes?["tpHandFullWindupTransform"].AsObject<ModelTransform>()?.EnsureDefaultValues();
     }
 
     public override void OnBeforeRender(ICoreClientAPI capi, ItemStack itemstack, EnumItemRenderTarget target, ref ItemRenderInfo renderinfo)
@@ -57,8 +53,6 @@ public sealed class ItemCarriedRock : Item
         renderinfo.Transform = target switch
         {
             EnumItemRenderTarget.Gui => GuiTransform,
-            EnumItemRenderTarget.HandTp when tpHandFullWindupTransform != null && itemstack.Attributes.GetBool(FullWindupKey)
-                => HeldTransform(itemstack, tpHandFullWindupTransform, HeldPose.FullWindup),
             EnumItemRenderTarget.HandTp when tpHandWindupTransform != null && itemstack.Attributes.GetBool(WindupKey)
                 => HeldTransform(itemstack, tpHandWindupTransform, HeldPose.Windup),
             EnumItemRenderTarget.HandTp => HeldTransform(itemstack, TpHandTransform, HeldPose.Main),
@@ -93,26 +87,21 @@ public sealed class ItemCarriedRock : Item
         // The aiming attributes drive the player's aiming-accuracy behavior that GetProjectileDirection reads.
         byEntity.Attributes.SetInt("aiming", 1);
         byEntity.Attributes.SetInt("aimingCancel", 0);
-        byEntity.StartAnimation("aim");
+        byEntity.StartAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode);
         SetWindup(slot, byEntity, true);
         handling = EnumHandHandling.PreventDefault;
     }
 
     public override bool OnHeldInteractStep(float secondsUsed, ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel)
     {
-        if (byEntity.Attributes.GetInt("aimingCancel") == 1) return false;
-        RFMechanicsConfig? config = RFMechanicsModSystem.Config;
-        if (config != null)
-            SetFullWindup(slot, byEntity, HalfGiantAnimalCarryRules.IsFullyCharged(secondsUsed, (float)config.HalfGiantThrowFullChargeSeconds));
-        return true;
+        return byEntity.Attributes.GetInt("aimingCancel") != 1;
     }
 
     public override bool OnHeldInteractCancel(float secondsUsed, ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, EnumItemUseCancelReason cancelReason)
     {
         byEntity.Attributes.SetInt("aiming", 0);
-        byEntity.StopAnimation("aim");
+        byEntity.StopAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode);
         SetWindup(slot, byEntity, false);
-        SetFullWindup(slot, byEntity, false);
         if (cancelReason != EnumItemUseCancelReason.ReleasedMouse)
             byEntity.Attributes.SetInt("aimingCancel", 1);
         return true;
@@ -122,9 +111,8 @@ public sealed class ItemCarriedRock : Item
     {
         if (byEntity.Attributes.GetInt("aimingCancel") == 1) return;
         byEntity.Attributes.SetInt("aiming", 0);
-        byEntity.StopAnimation("aim");
+        byEntity.StopAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode);
         SetWindup(slot, byEntity, false);
-        SetFullWindup(slot, byEntity, false);
         if (slot != byEntity.RightHandItemSlot || !HalfGiantAnimalCarryRules.IsThrowReady(secondsUsed, ThrowWindupSeconds)) return;
 
         RFMechanicsConfig? config = RFMechanicsModSystem.Config;
@@ -144,7 +132,6 @@ public sealed class ItemCarriedRock : Item
     {
         base.OnHeldIdle(slot, byEntity);
         SetWindup(slot, byEntity, false);
-        SetFullWindup(slot, byEntity, false);
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot)
@@ -244,16 +231,6 @@ public sealed class ItemCarriedRock : Item
         if (windup) stack.Attributes.SetBool(WindupKey, true);
         else stack.Attributes.RemoveAttribute(WindupKey);
         // A no-op on the client; the server sends the hand slot to everyone but its holder.
-        (byEntity as EntityPlayer)?.Player?.InventoryManager.BroadcastHotbarSlot();
-    }
-
-    private static void SetFullWindup(ItemSlot slot, EntityAgent byEntity, bool fullWindup)
-    {
-        ItemStack? stack = slot.Itemstack;
-        if (stack == null || stack.Attributes.GetBool(FullWindupKey) == fullWindup) return;
-
-        if (fullWindup) stack.Attributes.SetBool(FullWindupKey, true);
-        else stack.Attributes.RemoveAttribute(FullWindupKey);
         (byEntity as EntityPlayer)?.Player?.InventoryManager.BroadcastHotbarSlot();
     }
 

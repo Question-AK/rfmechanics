@@ -113,6 +113,9 @@ Assert-True ($itemJson -match 'heldLeftTpIdleAnimation:\s*"holdinglanternlefthan
 
 $itemSource = Get-Content (Join-Path $PSScriptRoot 'src/ItemCarriedAnimal.cs') -Raw
 Assert-True ($itemSource -match 'override void OnHeldAttackStart\([^)]*\)\s*\{\s*handling = EnumHandHandling\.PreventDefault;\s*\}') 'Held carried animal cannot attack'
+Assert-True (-not ($itemSource -match '(?i)fullwindup')) 'The dead full-windup item-offset stack attribute is removed from ItemCarriedAnimal'
+Assert-True ($itemSource.Contains('StartAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode)') -and $itemSource.Contains('StopAnimation(HalfGiantAnimalCarryRules.ThrowWindupAnimationCode)')) 'Carried-animal windup starts and stops the dedicated animation code, not the shared "aim"'
+Assert-True (-not $itemJson.Contains('tpHandFullWindupTransform')) 'carriedanimal.json no longer defines a full-windup item offset'
 Assert-True ($itemJson -match '(?s)tpHandTransformByCreature:\s*\{.*"drifter-\*":\s*\{\s*origin:\s*\{\s*x:\s*0,\s*y:\s*0,\s*z:\s*0\s*\},.*?rotation:\s*\{\s*x:\s*0,\s*y:\s*0,\s*z:\s*90\s*\}') 'Drifters hang head-down (z 90) from an ankle pinned by origin 0'
 Assert-True ($itemSource.Contains('GetString(HalfGiantAnimalCarryModSystem.CreatureCodeKey)') -and $itemSource.Contains('(CreatureHeldPose(creatureCode) ?? handPose).Clone()')) 'Held pose is chosen per creature before falling back to the hand pose'
 Assert-True ($itemSource.Contains('heldTransforms.TryGetValue((creatureCode, scale, offhand)') -and $itemSource.Contains('transform.Scale = scale;')) 'Held transforms are cached per creature, scale and hand, and keep the size-ratio scale'
@@ -128,6 +131,13 @@ Assert-True ([math]::Abs($boarSpeed - 0.15) -lt 1e-9) 'A boar is held at the spe
 Assert-True ($rules::ThrowSpeed(0.01, 0.15, 0.45, 0.15) -le 0.45) 'Tiny creatures never exceed the base speed'
 Assert-True ($rules::ThrowSpeed([double]::NaN, 0.15, 0.45, 0.15) -eq 0.15 -and $rules::ThrowSpeed(1, 0.15, 0, 0.15) -eq 0) 'Invalid volume uses the floor; a zero base speed throws nothing'
 Assert-True ($rules::IsThrowReady(0.34, 0.35) -eq $false -and $rules::IsThrowReady(0.35, 0.35)) 'Throw requires the full windup'
+
+Assert-True ($rules::ThrowWindupAnimationCode -eq 'halfgiantthrowaim') 'A dedicated animation code keeps vanilla throw items (spear, snowball, beenade) unaffected by the windup speed change'
+$halfGiantWindupSpeed = $rules::WindupAnimationSpeed(10, 1.0)
+Assert-True ([math]::Abs($halfGiantWindupSpeed - 0.3) -lt 1e-6) 'throwaim (quantityFrames 10, final keyframe 9, engine 30fps) needs animationSpeed 0.3 to land on the final frame exactly at a 1.0s full charge'
+$quickThrowProgress = ($halfGiantWindupSpeed * 30.0 * 0.35) / 9.0
+Assert-True ($quickThrowProgress -gt 0.1 -and $quickThrowProgress -lt 0.5) 'At the 0.35s quick-throw release the arm is visibly short of the full pull-back'
+Assert-True ([math]::Abs($rules::WindupAnimationSpeed(10, 1.0) * 30.0 * 1.0 - 9.0) -lt 1e-6) 'At a 1.0s full charge the animation reaches exactly the final frame (9) and holds'
 
 Assert-True ([math]::Abs($rules::HeldScale(1.0, 2.1, 2.1) - (1.0 / 2.1)) -lt 1e-6) 'Held scale divides creature size by holder size'
 Assert-True ([math]::Abs($rules::HeldScale(1.1, 2.1, 2.1) - (1.1 / 2.1)) -lt 1e-6) 'A larger-bodied boar keeps its own size factor'
@@ -177,6 +187,9 @@ Assert-True (-not $throwSource.Contains('IsWithinReleaseGuard')) 'The release gu
 Assert-True ($itemSource.Contains('slot != byEntity.RightHandItemSlot') -and $itemSource.Contains('api.Side == EnumAppSide.Client')) 'The item aims from the main hand; the client only animates'
 Assert-True ($itemSource.Contains('IsThrowReady(secondsUsed, ThrowWindupSeconds)') -and $itemSource -match 'ThrowWindupSeconds = 0\.35f') 'The item enforces the 0.35 s windup'
 Assert-True ($itemSource -notmatch 'TakeOut') 'The client-side item never removes the stack'
+
+$throwAimPatch = Get-Content (Join-Path $PSScriptRoot 'assets/rfmechanics/patches/halfgiant-throwaim.json') -Raw
+Assert-True ($throwAimPatch -match '"code":\s*"halfgiantthrowaim"' -and $throwAimPatch -match '"animation":\s*"throwaim"' -and $throwAimPatch -match '"animationSpeed":\s*0\.3' -and $throwAimPatch -match '"file":\s*"game:entities/humanoid/player\.json"') 'The player.json patch adds the dedicated halfgiant windup animation at the computed speed'
 
 if (-not (Test-Path -LiteralPath $AssemblyPath -PathType Leaf)) { throw "FAIL: production assembly not found: $AssemblyPath" }
 Write-Output "PASS: $script:checks Half-Giant animal-carry eligibility, drifter admission and reach, snapshot identity, preservation, replay, hand-swap, release-order, throw speed, held scale and pose, once-per-target hit, claim landing and throw consume-order assertions passed. Native entity serialization, collision and flight remain player/review checks."
