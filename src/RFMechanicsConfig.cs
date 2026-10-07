@@ -778,6 +778,12 @@ public class RFMechanicsConfig
     public double HalfGiantRockThrowSpeed { get; set; } = 0.4;
     public double HalfGiantRockThrowFlightTimeoutSeconds { get; set; } = 10.0;
 
+    // Shared by rocks, carried animals and drifters. The quick throw still fires at ThrowWindupSeconds (0.35s);
+    // holding to this point instead swaps to the full pull-back pose and the stronger throw below.
+    public double HalfGiantThrowFullChargeSeconds { get; set; } = 1.0;
+    // A full charge throws 50% faster/farther than the unchanged quick throw; "Provisional until Miles's test" applies.
+    public double HalfGiantThrowFullChargeSpeedMultiplier { get; set; } = 1.5;
+
     /// <summary>Revision 1 moves only the shipped local-trial boar reference and 3.5-block reach to the bear
     /// limit and 7-block reach. Revision 2 changes no values: older files lack the tag-exempt keys, so they
     /// load with the drifter defaults. Custom values stay.</summary>

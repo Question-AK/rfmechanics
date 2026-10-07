@@ -221,7 +221,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         return TextCommandResult.Success("Animal released.");
     }
 
-    internal void Throw(IServerPlayer player, ItemSlot carrySlot)
+    internal void Throw(IServerPlayer player, ItemSlot carrySlot, bool fullyCharged)
     {
         RFMechanicsConfig? config = RFMechanicsModSystem.Config;
         EntityPlayer? thrower = player.Entity;
@@ -269,8 +269,9 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         }
 
         double volume = collisionSize.X * collisionSize.X * collisionSize.Y;
-        double speed = HalfGiantAnimalCarryRules.ThrowSpeed(
-            volume, config.HalfGiantAnimalThrowFullSpeedVolume, config.HalfGiantAnimalThrowSpeed, config.HalfGiantAnimalThrowMinimumSpeed);
+        double speed = HalfGiantAnimalCarryRules.ChargedThrowSpeed(
+            HalfGiantAnimalCarryRules.ThrowSpeed(volume, config.HalfGiantAnimalThrowFullSpeedVolume, config.HalfGiantAnimalThrowSpeed, config.HalfGiantAnimalThrowMinimumSpeed),
+            fullyCharged, config.HalfGiantThrowFullChargeSpeedMultiplier);
         entity.Pos.SetPosWithDimension(position);
         entity.Pos.Yaw = thrower.Pos.Yaw;
         entity.Pos.Motion.Set(aim.X * speed, aim.Y * speed, aim.Z * speed);
