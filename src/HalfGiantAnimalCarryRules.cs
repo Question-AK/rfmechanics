@@ -79,6 +79,18 @@ public static class HalfGiantAnimalCarryRules
         return secondsUsed >= windupSeconds;
     }
 
+    // Full charge is a separate, longer hold past IsThrowReady; releasing before it still fires the quick throw.
+    public static bool IsFullyCharged(float secondsUsed, float fullChargeSeconds)
+    {
+        return secondsUsed >= fullChargeSeconds;
+    }
+
+    // The quick throw keeps base speed exactly; only a full charge is multiplied.
+    public static double ChargedThrowSpeed(double speed, bool isFullyCharged, double fullChargeSpeedMultiplier)
+    {
+        return isFullyCharged ? speed * Math.Max(1.0, fullChargeSpeedMultiplier) : speed;
+    }
+
     // Square-root falloff: a creature ten times a chicken's volume leaves the hand at about a third of its speed.
     public static double ThrowSpeed(double volume, double fullSpeedVolume, double baseSpeed, double minimumSpeed)
     {
