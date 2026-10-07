@@ -34,9 +34,32 @@ Assert-True ($rules::Admit($true, 'pig-eurasian-adult-female', $tagExempt) -eq $
 Assert-True ($rules::CaptureReach($admission::TagExempt, 7.0, 3.0) -eq 3.0) 'Drifters use the shorter tag-exempt reach'
 Assert-True ($rules::CaptureReach($admission::Animal, 7.0, 3.0) -eq 7.0) 'Animals keep the animal reach'
 
+$candidateType = [rfmechanics.HalfGiantCarryCandidate]
+$coneRadians = 0.15
+$nearestWins = New-Object 'System.Collections.Generic.List[rfmechanics.HalfGiantCarryCandidate]'
+$nearestWins.Add($candidateType::new(1, 0.05, 4.0))
+$nearestWins.Add($candidateType::new(2, 0.10, 2.0))
+$nearestWins.Add($candidateType::new(3, 0.30, 1.0))
+Assert-True ($rules::SelectNearestInCone($nearestWins, $coneRadians) -eq 1) 'The candidate nearest the look ray wins even if another in-cone target is closer in distance'
+$tieBreak = New-Object 'System.Collections.Generic.List[rfmechanics.HalfGiantCarryCandidate]'
+$tieBreak.Add($candidateType::new(10, 0.05, 5.0))
+$tieBreak.Add($candidateType::new(11, 0.05, 2.0))
+Assert-True ($rules::SelectNearestInCone($tieBreak, $coneRadians) -eq 11) 'Equal-angle candidates break the tie toward the nearer one'
+$outOfCone = New-Object 'System.Collections.Generic.List[rfmechanics.HalfGiantCarryCandidate]'
+$outOfCone.Add($candidateType::new(20, 0.5, 1.0))
+Assert-True ($null -eq $rules::SelectNearestInCone($outOfCone, $coneRadians)) 'A candidate outside the cone is never selected'
+Assert-True ($null -eq $rules::SelectNearestInCone((New-Object 'System.Collections.Generic.List[rfmechanics.HalfGiantCarryCandidate]'), $coneRadians)) 'No candidates means no selection'
+
+Assert-True ($rules::IsWithinReleaseGuard(100, 500)) 'A release right after pickup is ignored within the guard window'
+Assert-True (-not $rules::IsWithinReleaseGuard(500, 500)) 'A release exactly at the guard boundary is allowed'
+Assert-True (-not $rules::IsWithinReleaseGuard(600, 500)) 'A release after the guard window is allowed'
+Assert-True (-not $rules::IsWithinReleaseGuard(100, 0)) 'A disabled guard (zero window) never blocks release'
+
 $configSource = Get-Content (Join-Path $PSScriptRoot 'src/RFMechanicsConfig.cs') -Raw
 Assert-True ($configSource -match 'HalfGiantAnimalCarryTagExemptCodePathPrefixes \{ get; set; \} = new\[\] \{ "drifter-" \};') 'Tag-exempt prefixes default to drifters only'
 Assert-True ($configSource -match 'HalfGiantAnimalCarryTagExemptReach \{ get; set; \} = 3\.0;' -and $configSource -match 'HalfGiantAnimalCarryReach \{ get; set; \} = 7\.0;') 'Default reaches are 3 blocks for drifters and 7 for animals'
+Assert-True ($configSource -match 'HalfGiantAnimalCarryConeDegrees \{ get; set; \} = 8\.0;') 'The pickup-assist cone defaults to an 8-degree half-angle'
+Assert-True ($configSource -match 'HalfGiantAnimalCarryReleaseGuardMilliseconds \{ get; set; \} = 500;') 'The post-pickup release guard defaults to 500 ms'
 
 $id = [guid]::NewGuid().ToString('N')
 Assert-True ([rfmechanics.HalfGiantAnimalCarryRules]::IsSnapshotValid('EntityAgent', 'game:pig-eurasian-adult-elder-male', [byte[]](1,2,3), $id)) 'Serialized snapshot requires class code bytes and opaque identity'
@@ -66,6 +89,20 @@ foreach ($guard in 'Claims.TryAccess(player, target.Pos.AsBlockPos', 'HasOwnerAc
     $guardAt = $captureSource.IndexOf($guard)
     Assert-True ($guardAt -gt $admitAt) "Admitted drifters still pass $guard"
 }
+
+$targetAt = $captureSource.IndexOf('player.CurrentEntitySelection?.Entity ?? FindNearbyCarryTarget(player.Entity, config)')
+Assert-True ($targetAt -ge 0 -and $targetAt -lt $admitAt) 'The cone fallback only runs when there is no direct crosshair hit, and the direct hit is still checked first'
+Assert-True (([regex]::Matches($carrySource, 'FindNearbyCarryTarget\(')).Count -eq 2) 'The cone fallback has exactly one call site, inside Capture, and one definition'
+Assert-True ($captureSource.Contains('CapturedAtMillisecondsKey, sapi.World.ElapsedMilliseconds')) 'Capture stamps the pickup time the release guard reads'
+
+$findStart = $carrySource.IndexOf('private Entity? FindNearbyCarryTarget(')
+$findEnd = $carrySource.IndexOf('private static bool IsWithinReach(')
+$findSource = $carrySource.Substring($findStart, $findEnd - $findStart)
+Assert-True ($findSource.Contains('HalfGiantAnimalCarryRules.Admit(hasAnimalTag, candidate.Code.Path')) 'Cone candidates are admitted by the same tag/prefix rule as a direct hit'
+Assert-True ($findSource.Contains('HalfGiantAnimalCarryRules.CaptureReach(admission, config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryTagExemptReach)')) 'Cone candidates are bounded by the same admission-based reach as a direct hit'
+Assert-True ($findSource.Contains('HalfGiantAnimalCarryRules.SelectNearestInCone(candidates, coneRadians)')) 'The nearest-in-cone candidate is chosen by the pure rules method'
+Assert-True ($findSource.Contains('candidate is not EntityPlayer')) 'The cone search never targets another player'
+Assert-True ($findSource.Contains('config.HalfGiantAnimalCarryConeDegrees')) 'The cone half-angle is configurable'
 
 $itemJson = Get-Content (Join-Path $PSScriptRoot 'assets/rfmechanics/itemtypes/carriedanimal.json') -Raw
 $storageMatch = [regex]::Match($itemJson, '(?m)^\s*storageFlags:\s*(\d+)\s*,')
@@ -128,6 +165,14 @@ Assert-True ($carrySource -match 'creature\.Die\(EnumDespawnReason\.Removed\)' -
 Assert-True ($carrySource.Contains('ItemCarriedAnimal.CreatureSizeKey') -and $carrySource.Contains('ItemCarriedAnimal.HolderSizeKey')) 'Capture stores creature and holder sizes'
 $releaseSource = $carrySource.Substring($carrySource.IndexOf('private TextCommandResult Release('), $carrySource.IndexOf('internal void Throw(') - $carrySource.IndexOf('private TextCommandResult Release('))
 Assert-True ($releaseSource.Contains('entity.Pos.Motion.Set(0, 0, 0);') -and -not $releaseSource.Contains('thrownCreatures')) 'Release still places the creature at rest, untracked'
+
+$releaseGuardAt = $releaseSource.IndexOf('HalfGiantAnimalCarryRules.IsWithinReleaseGuard(')
+$selectionAt = $releaseSource.IndexOf('BlockSelection? selection = player.CurrentBlockSelection;')
+$releaseSpawnAt = $releaseSource.IndexOf('sapi.World.SpawnEntity(entity)')
+Assert-True ($releaseGuardAt -ge 0 -and $releaseGuardAt -lt $selectionAt -and $releaseGuardAt -lt $releaseSpawnAt) 'A spammed release is rejected before any release side effect runs'
+Assert-True ($releaseSource.Contains('CapturedAtMillisecondsKey')) 'The release guard reads the pickup timestamp stamped on the carried stack'
+Assert-True ($releaseSource.Contains('config.HalfGiantAnimalCarryReleaseGuardMilliseconds')) 'The release guard window is configurable'
+Assert-True (-not $throwSource.Contains('IsWithinReleaseGuard')) 'The release guard is specific to Release and does not affect Throw'
 
 Assert-True ($itemSource.Contains('slot != byEntity.RightHandItemSlot') -and $itemSource.Contains('api.Side == EnumAppSide.Client')) 'The item aims from the main hand; the client only animates'
 Assert-True ($itemSource.Contains('IsThrowReady(secondsUsed, ThrowWindupSeconds)') -and $itemSource -match 'ThrowWindupSeconds = 0\.35f') 'The item enforces the 0.35 s windup'

@@ -18,6 +18,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
     internal const string CreatureCodeKey = "creaturecode";
     private const string SerializedKey = "animalSerialized";
     private const string CaptureIdentityKey = "carryIdentity";
+    private const string CapturedAtMillisecondsKey = "capturedAtMs";
     private const string DisplayItemKey = "displayitem";
     private const string SourceEntityIdKey = "sourceEntityId";
 
@@ -90,7 +91,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         if (!offhand.Empty)
             return TextCommandResult.Success("Your offhand must be empty.");
 
-        Entity? target = player.CurrentEntitySelection?.Entity;
+        Entity? target = player.CurrentEntitySelection?.Entity ?? FindNearbyCarryTarget(player.Entity, config);
         if (target is not EntityAgent agent || target is EntityPlayer)
             return TextCommandResult.Success("Look at a living animal or drifter to carry it.");
         if (!target.Alive || target.Pos.Dimension != player.Entity.Pos.Dimension)
@@ -140,6 +141,7 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
         carried.Attributes.SetString(CreatureCodeKey, creatureCode);
         carried.Attributes.SetBytes(SerializedKey, bytes);
         carried.Attributes.SetString(CaptureIdentityKey, captureIdentity);
+        carried.Attributes.SetLong(CapturedAtMillisecondsKey, sapi.World.ElapsedMilliseconds);
         carried.Attributes.SetString(DisplayItemKey, displayItem);
         carried.Attributes.SetLong(SourceEntityIdKey, agent.EntityId);
         carried.Attributes.SetString("capturedBy", player.PlayerUID);
@@ -170,6 +172,10 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             return TextCommandResult.Success("This carried animal is damaged and was not consumed.");
         if (releasedCaptureIdentities.Contains(captureIdentity))
             return TextCommandResult.Success("This carried animal has already been released.");
+
+        long millisecondsSinceCapture = sapi!.World.ElapsedMilliseconds - stack.Attributes.GetLong(CapturedAtMillisecondsKey);
+        if (HalfGiantAnimalCarryRules.IsWithinReleaseGuard(millisecondsSinceCapture, config.HalfGiantAnimalCarryReleaseGuardMilliseconds))
+            return TextCommandResult.Success("The animal just settled in; wait a moment before releasing it.");
 
         BlockSelection? selection = player.CurrentBlockSelection;
         if (selection == null || selection.Position.dimension != player.Entity.Pos.Dimension || !CanReachBlock(player.Entity, selection, config.HalfGiantAnimalCarryReach))
@@ -511,6 +517,48 @@ public sealed class HalfGiantAnimalCarryModSystem : ModSystem
             return !hasInventory;
         });
         return !hasInventory;
+    }
+
+    // Chasing a moving animal often misses its exact hitbox under the crosshair (CurrentEntitySelection null).
+    // This fallback only runs then, so it never overrides a direct hit; eligibility/reach are re-checked downstream unchanged.
+    private Entity? FindNearbyCarryTarget(EntityPlayer player, RFMechanicsConfig config)
+    {
+        double coneRadians = config.HalfGiantAnimalCarryConeDegrees * GameMath.DEG2RAD_DOUBLE;
+        double maximumReach = Math.Max(config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryTagExemptReach);
+        if (!double.IsFinite(coneRadians) || coneRadians <= 0 || !double.IsFinite(maximumReach) || maximumReach <= 0) return null;
+
+        var eye = new Vec3d(player.Pos.X, player.Pos.InternalY + player.LocalEyePos.Y, player.Pos.Z);
+        Vec3f look = player.Pos.GetViewVector();
+        Entity[] nearby = sapi!.World.GetEntitiesAround(player.Pos.XYZ, (float)maximumReach, (float)maximumReach,
+            candidate => candidate.Alive && candidate.Pos.Dimension == player.Pos.Dimension && candidate is EntityAgent && candidate is not EntityPlayer);
+
+        var candidates = new List<HalfGiantCarryCandidate>(nearby.Length);
+        foreach (Entity candidate in nearby)
+        {
+            bool hasAnimalTag = animalTagAvailable && animalTag.IsFullyContainedIn(candidate.Tags);
+            HalfGiantCarryAdmission admission = HalfGiantAnimalCarryRules.Admit(hasAnimalTag, candidate.Code.Path, config.HalfGiantAnimalCarryTagExemptCodePathPrefixes);
+            if (admission == HalfGiantCarryAdmission.Refused) continue;
+            double reach = HalfGiantAnimalCarryRules.CaptureReach(admission, config.HalfGiantAnimalCarryReach, config.HalfGiantAnimalCarryTagExemptReach);
+
+            var box = new Cuboidd().SetAndTranslate(candidate.SelectionBox, candidate.Pos.X, candidate.Pos.InternalY, candidate.Pos.Z);
+            double distance = box.ShortestDistanceFrom(eye.X, eye.Y, eye.Z);
+            if (distance > reach) continue;
+
+            double dx = candidate.Pos.X - eye.X, dy = candidate.Pos.InternalY - eye.Y, dz = candidate.Pos.Z - eye.Z;
+            double directionLength = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (!(directionLength > 0)) continue;
+            double dot = (look.X * dx + look.Y * dy + look.Z * dz) / directionLength;
+            double angle = Math.Acos(Math.Max(-1.0, Math.Min(1.0, dot)));
+            candidates.Add(new HalfGiantCarryCandidate(candidate.EntityId, angle, distance));
+        }
+
+        long? bestId = HalfGiantAnimalCarryRules.SelectNearestInCone(candidates, coneRadians);
+        if (bestId == null) return null;
+        foreach (Entity candidate in nearby)
+        {
+            if (candidate.EntityId == bestId.Value) return candidate;
+        }
+        return null;
     }
 
     // Line of sight comes from the server's own per-tick look trace (CurrentEntity/BlockSelection), which excludes the player.

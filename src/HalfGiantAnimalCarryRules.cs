@@ -16,6 +16,20 @@ public enum HalfGiantThrowLanding
     RemoveWithoutDrops
 }
 
+public readonly struct HalfGiantCarryCandidate
+{
+    public HalfGiantCarryCandidate(long entityId, double angleRadians, double distance)
+    {
+        EntityId = entityId;
+        AngleRadians = angleRadians;
+        Distance = distance;
+    }
+
+    public long EntityId { get; }
+    public double AngleRadians { get; }
+    public double Distance { get; }
+}
+
 public static class HalfGiantAnimalCarryRules
 {
     public static HalfGiantCarryAdmission Admit(bool hasAnimalTag, string? codePath, IEnumerable<string>? tagExemptPrefixes)
@@ -126,6 +140,30 @@ public static class HalfGiantAnimalCarryRules
         return isHostile && removeHostilesInForeignClaims && !throwerCanBuild
             ? HalfGiantThrowLanding.RemoveWithoutDrops
             : HalfGiantThrowLanding.Keep;
+    }
+
+    // Nearest-angle wins so the candidate closest to the crosshair is preferred over a merely-closer one; ties break on distance.
+    public static long? SelectNearestInCone(IEnumerable<HalfGiantCarryCandidate> candidates, double maxConeRadians)
+    {
+        long? bestId = null;
+        double bestAngle = double.PositiveInfinity;
+        double bestDistance = double.PositiveInfinity;
+        foreach (HalfGiantCarryCandidate candidate in candidates)
+        {
+            if (!(candidate.AngleRadians <= maxConeRadians)) continue;
+            if (candidate.AngleRadians > bestAngle) continue;
+            if (candidate.AngleRadians == bestAngle && candidate.Distance >= bestDistance) continue;
+            bestId = candidate.EntityId;
+            bestAngle = candidate.AngleRadians;
+            bestDistance = candidate.Distance;
+        }
+        return bestId;
+    }
+
+    // A fresh pickup's own guard window; repeated "R" presses within it must not immediately release what was just captured.
+    public static bool IsWithinReleaseGuard(long millisecondsSinceCapture, long guardMilliseconds)
+    {
+        return guardMilliseconds > 0 && millisecondsSinceCapture >= 0 && millisecondsSinceCapture < guardMilliseconds;
     }
 
     public static bool MatchesPrefix(IEnumerable<string>? prefixes, string? codePath)

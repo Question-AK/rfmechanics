@@ -733,6 +733,13 @@ public class RFMechanicsConfig
 
     public bool EnableHalfGiantAnimalCarry { get; set; } = true;
     public double HalfGiantAnimalCarryReach { get; set; } = 7.0;
+    // Half-angle of the pickup-only aim assist around the look ray. 8 deg covers a chicken's half-width (0.25)
+    // at a 3-block chase distance (atan(0.25/3) ~ 4.8 deg) with margin for faster fauna, while staying tight
+    // enough not to also catch an unrelated animal standing nearby.
+    public double HalfGiantAnimalCarryConeDegrees { get; set; } = 8.0;
+    // Repeated "R" presses right after a pickup must not immediately set the animal back down. 500 ms
+    // absorbs an observed spam cadence of roughly 100-250 ms between presses without delaying a deliberate release.
+    public int HalfGiantAnimalCarryReleaseGuardMilliseconds { get; set; } = 500;
     public string HalfGiantAnimalCarryReferenceEntityCode { get; set; } = "game:bear-brown-adult-male";
     public double HalfGiantAnimalCarryMaximumVolume { get; set; }
     public double HalfGiantAnimalCarryMaximumDimension { get; set; }
