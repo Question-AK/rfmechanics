@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1-rp.14 - 2026-10-07
+
+- Half-Giant throwing: the full charge now takes 2 seconds (was 1) and throws 2 times as fast (was 1.5). The arm pull-back slows to match and reaches full depth at 2 seconds. The quick throw is unchanged.
+- Half-Giant animal carry: after a pickup, Race Ability presses are ignored for 1 second (was half a second) before a deliberate set-down works.
+- Existing `rfmechanics.json` files are updated once: each of these three values changes only if it still holds the old default.
+
 ## 1.2.1-rp.13 - 2026-10-07
 
 - Half-Giant throwing: the arm now pulls back gradually while right-click is held. At a quick throw it is only partly back, and it reaches the full pull-back exactly when the charged throw is ready (1 second), then holds. Other players see the same. Held rocks stay on the fist and carried drifters stay head-down at every depth.
