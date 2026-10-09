@@ -1,11 +1,11 @@
 # RF Mechanics
 
-RF Mechanics **1.2.0** for Vintage Story **1.22.6**.
+RF Mechanics **1.3.1** for Vintage Story **1.22.6**.
 
-Adds Half-Giant support for Race Framework 1.1.0: 2.1-block step height, wading and breathing in water up to
-about 3 blocks deep, heavy swimming and a remembered third-person camera distance. Retains all 1.1.2
-mechanics: Orc mechanics, Elf Watchfulness, Goblin Clamber, climbing/stepping and redwood trunk support.
-See CHANGELOG.md. Half-Giant multiplayer, redwood gameplay and armor interaction checks remain limited; the
+Adds Half-Giant reach, empty-hand quarrying, creature carrying and throwing, and rock pulling; Dwarf Stonebrace;
+Goblin dark scouting and free-hand Clamber; and a race handbook page. Retains all 1.2.0 mechanics: Half-Giant
+stepping, wading, swimming and camera memory, Orc mechanics, Elf Watchfulness, climbing/stepping and redwood
+trunk support. See CHANGELOG.md. Half-Giant multiplayer, redwood gameplay and armor interaction checks remain limited; the
 detailed notes below retain their original prototype context.
 
 Movement settings in `ModConfig/rfmechanics.json` (step height and Half-Giant water) are not synced from the
@@ -171,10 +171,11 @@ That includes generating and explaining code, researching implementation options
 RF Mechanics is the gameplay companion to Race Framework. It gives races different ways to explore, gather and survive.
 
 - **Every race, including humans:** step up a full block without jumping — two for elves. Low ceilings and openings too small to fit through still stop you.
-- **Dwarves:** mining bonuses that vary with depth, plus **Ore-Song**. Sit beside stone or ore, empty your main hand, and press Race Ability (default R) while aiming at a wall within two blocks. Settle, knock, and listen for distant mineral voices with broad directional cues. Standing or moving ends the listen. Placed ore sings too.
+- **Dwarves:** mining bonuses that vary with depth, **Stonebrace** on Race Stance (default Ctrl+H) against physical attacks and knockback, plus **Ore-Song**. Sit beside stone or ore, empty your main hand, and press Race Ability (default R) while aiming at a wall within two blocks. Settle, knock, and listen for distant mineral voices with broad directional cues. Standing or moving ends the listen. Placed ore sings too.
 - **Elves:** step up two blocks rather than one — always on, with no stance to hold or key to press, and the same ceiling and clearance limits as everyone else. They also move through branchy leaves, climb log-grown trees, gain tree-proximity movement, reduced fall damage, leaf gathering, zoom, and 15% lower hunger. Climbing follows the way you are moving and carries you around the outside edge of a trunk rather than dropping you. Chiseled-log climbing is an open diagnostic investigation, not a proven shipped fix.
 - **Orcs:** maintain **Thew** through feeding, with changing body size and physical capabilities. Frenzy offers a burst of speed with recovery costs. Hold scent to locate creatures: walking retains a weaker partial sense, while standing still builds full quality.
-- **Goblins:** eat rot to build an aura that accelerates nearby food spoilage, earn spit charges for block repair, and show separate aura and charge fly systems. They tunnel, take less fall damage, and mine stone/Ore at 0.4x. Tree trunks climb freely; rock and dry earth (soil, packed dirt, bony soil, cob, forest floor) need the Clamber stance on Ctrl+H, which starts off and stays as you leave it. Darkvision is optional and disabled by default.
+- **Goblins:** eat rot to build an aura that accelerates nearby food spoilage, earn spit charges for block repair, and show separate aura and charge fly systems. They tunnel, take less fall damage, and mine stone/Ore at 0.4x. Tree trunks climb freely; rock and dry earth (soil, packed dirt, bony soil, cob, forest floor) need the Clamber stance on Ctrl+H, which starts off and stays as you leave it. Clamber wall climbing needs free hands. In darkness, drifters, shivers and bowtorn notice a goblin later. Darkvision is optional and disabled by default.
+- **Half-Giants:** step up 2.1 blocks, wade and breathe in deeper water, and work at a longer reach. With an empty hand they quarry natural rock faster, pull single rocks loose, and carry animals or drifters with Race Ability. Hold right-click to throw a carried creature or rock; hold longer for a stronger throw.
 
 Elf attunement and goblin digging/spit-packed material conversion are not active mechanics. The elf harvest multiplier remains unwired. Mechanics and balance values are configurable; development and in-game acceptance are ongoing.
 

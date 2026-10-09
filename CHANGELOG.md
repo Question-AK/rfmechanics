@@ -1,92 +1,78 @@
 # Changelog
 
-## 1.2.1-rp.14 - 2026-10-07
+## 1.3.1 - 2026-10-07
 
-- Half-Giant throwing: the full charge now takes 2 seconds (was 1) and throws 2 times as fast (was 1.5). The arm pull-back slows to match and reaches full depth at 2 seconds. The quick throw is unchanged.
-- Half-Giant animal carry: after a pickup, Race Ability presses are ignored for 1 second (was half a second) before a deliberate set-down works.
-- Existing `rfmechanics.json` files are updated once: each of these three values changes only if it still holds the old default.
+First public release of the 1.3 line. It replaces 1.3.0, which was withdrawn before release, and lists every change since
+1.2.0.
 
-## 1.2.1-rp.13 - 2026-10-07
+Half-Giants (requires Race Framework 1.1.0 or later):
 
-- Half-Giant throwing: the arm now pulls back gradually while right-click is held. At a quick throw it is only partly back, and it reaches the full pull-back exactly when the charged throw is ready (1 second), then holds. Other players see the same. Held rocks stay on the fist and carried drifters stay head-down at every depth.
+- Longer picking reach in Survival, for working at a distance. Melee reach is unchanged.
+- With an empty main hand, a Half-Giant quarries natural rock and cracked rock faster. Drops are normal, and each
+  block costs some satiety. Tools, ore and worked stone are unaffected.
+- Carry animals: with an empty offhand, press Race Ability (default R) while looking at an animal up to 7 blocks
+  away. Anything smaller than an adult brown bear can be carried; bears cannot. Aim is forgiving for moving animals.
+- Drifters can be carried too, from up to 3 blocks away. Bowtorn and shivers cannot. A released drifter is still
+  hostile and may come back standing or crawling.
+- Press Race Ability while looking at clear ground to set the creature down. For 1 second after a pickup, presses
+  are ignored so the creature is not dropped again by accident.
+- A carried creature can move between hands (X, or drag it). Left-click does nothing while it is in the main hand.
+  It keeps its saved state through drops and transfers, and only a Half-Giant can release or throw it.
+- Throw: with a creature or rock in the main hand, hold right-click for at least 0.35 s and let go. Holding for
+  2 seconds gives a charged throw at twice the speed; the arm pulls back further as the charge builds. Aim works
+  like a thrown stone.
+- Thrown creatures land alive, with normal fall damage only, and smaller ones fly further. A thrown creature hits
+  each creature it touches once, for 1 to 6 blunt damage by size. PvP and creature-attack permissions apply.
+- A thrown drifter that lands in a claim where you cannot build is removed without drops, and you are told.
+- Pull a rock loose: with an empty main hand and nothing carried, press Race Ability at an edge or corner of natural
+  rock or cracked rock. Flat ground, wall faces, reinforced rock, unsupported rock and claims where you cannot build
+  are refused. A pull costs the same satiety as quarrying a block.
+- A pulled rock cannot be placed. Thrown, it hits each creature once for 6 blunt damage with knockback, then breaks
+  into its normal loose stones. It never gives back a rock block.
+- Carried creatures and pulled rocks show at their real size in third person.
 
-## 1.2.1-rp.12 - 2026-10-07
+Dwarves:
 
-- Half-Giant animal carry: Race Ability now picks up the creature nearest the crosshair within a small cone (8 degrees) when the crosshair is not exactly on one, so moving animals are easier to catch. A direct hit still wins; reach and eligibility are unchanged.
-- Half-Giant animal carry: for half a second after a pickup, Race Ability presses no longer set the creature down, so spamming the key while chasing does not drop it again.
-- Half-Giant throwing: holding right-click for a full second before letting go throws rocks, animals and drifters 1.5 times as fast. Releasing earlier is the unchanged quick throw. There is no visual charge cue yet; the arm pull-back cue follows in a later build.
+- Stonebrace on Race Stance (default Ctrl+H): slower movement and much less knockback, and less damage from physical
+  attacks. Protection grows with depth and nearby stone, and fades over 2 seconds after leaving them. Falls, fire,
+  poison, starvation and other environmental harm are unchanged. No extra hunger cost. Ore-Song stays on R.
 
-## 1.2.1-rp.11 - 2026-10-07
+Goblins:
 
-- While a Half-Giant holds right-click to throw a pulled rock, the rock now sits on the raised fist instead of hanging beside the forearm (third person). Other players see the same. The carry pose and first person are unchanged.
-- Local retest only.
-## 1.2.1-rp.10 - 2026-10-07
+- Dark scouting: in darkness, without a held light, drifters, shivers and bowtorn notice a goblin later. Crouching on
+  the ground hides best, empty-handed wall climbing less, and sprinting least. Bears, hyenas and wolves are less
+  affected. Close contact and existing hostility are not cleared.
+- Crouching in darkness without a held light is faster.
+- Clamber wall climbing needs free hands: full speed with both, half speed with one, and no grip with neither.
+  Ladders behave as in the base game while Clamber is on.
+- Goblin crop stunting now merges with other mods' crop behaviors (for example Almanac farming practice) instead of
+  replacing them.
 
-- A drifter carried by a Half-Giant now hangs head-down from one ankle in third person, as if held by the leg. Carried animals keep their pose, and first person is unchanged.
-- Local retest only.
-## 1.2.1-rp.9 - 2026-10-07
+Everyone:
 
-- Fixed Half-Giant carrying refusing a nearby animal or drifter as "out of reach". The reach is now measured from the eyes to the nearest part of the creature you are looking at: 7 blocks for animals and 3 for drifters, as before. Releasing uses the same distance check.
-- Local retest only.
-## 1.2.1-rp.8 - 2026-10-07
+- A "Races and abilities" handbook page explains each race's controls, active and passive abilities, limits and Diet
+  Setup guidance. It does not turn on any diet.
+- New settings in `ModConfig/rfmechanics.json` for all of the above. Existing files keep their values and gain the
+  new keys with their defaults.
+- Keeps all 1.2.0 mechanics, including Half-Giant wading and camera memory, Elf Watchfulness, Orc mechanics and the
+  retired-dwarf-class migration.
 
-- A Half-Giant can pull a single rock loose. With an empty main hand and nothing carried, press Race Ability while looking at a natural rock or cracked rock block within reach that has at least 2 open faces among its four sides and top, such as an outcrop corner or edge. Flat ground and wall faces are refused, and so are rocks in claims where you cannot build, reinforced rocks and rocks with nothing holding them. Pulling costs the same satiety as quarrying a block, once per pull.
-- The pulled rock shows at its real one-block size in hand (third person) and on the ground. It cannot be placed.
-- Throw it like a carried creature: hold right-click for at least 0.35 s and let go. It flies at full one-block size and hits each creature once for 6 blunt damage, with knockback. PvP and creature-attack permissions apply as for thrown stones. It breaks into its normal loose stones where it lands, and it never gives back a rock block.
-- New config keys `EnableHalfGiantRockPull` (true), `HalfGiantRockPullMinOpenFaces` (2), `HalfGiantRockThrowDamage` (6), `HalfGiantRockThrowWeight` (0.5), `HalfGiantRockThrowSpeed` (0.4) and `HalfGiantRockThrowFlightTimeoutSeconds` (10). Existing configs keep their values.
-- Local retest only.
-## 1.2.1-rp.7 - 2026-10-06
+Known limitations:
 
-- A Half-Giant can throw a carried animal or drifter. With it in the main hand, hold right-click for at least 0.35 s and let go. Aim works like a thrown stone. Smaller creatures fly further: a chicken goes much further than a boar or sheep. The creature lands alive, with vanilla fall damage only.
-- A thrown creature hits each other creature it touches once, with blunt damage that grows with its size (1 to 6). PvP and creature-attack permissions apply as for thrown stones.
-- Provisional: a thrown drifter that lands in a claim where you cannot build is removed without drops, and you are told. Animals are unaffected.
-- Held creatures now show at their real size next to the same creature standing in the world (third person). Creatures already carried before this update show at an average size until released and picked up again. First person is unchanged.
-- New config keys `EnableHalfGiantAnimalThrow`, `HalfGiantAnimalThrowSpeed` (0.45), `HalfGiantAnimalThrowMinimumSpeed` (0.15), `HalfGiantAnimalThrowFullSpeedVolume` (0.15), `HalfGiantAnimalThrowDamagePerVolume` (3), `HalfGiantAnimalThrowMinimumDamage` (1), `HalfGiantAnimalThrowMaximumDamage` (6), `HalfGiantAnimalThrowFlightTimeoutSeconds` (5) and `HalfGiantAnimalThrowRemovesHostilesInForeignClaims` (true). Existing configs keep their values.
-- Local retest only.
+- Protection against duplicating a carried creature lasts only while the game or server runs; it is not kept across
+  a restart.
+- First-person sizes of carried creatures and pulled rocks are not tuned yet.
+- Rock throw speed, damage and knockback have had little gameplay testing.
+- The arm pull-back animation is timed for the default 2-second charge. If a server changes the full-charge time,
+  the animation no longer lines up with full charge; throw power still follows the setting.
+- Movement settings (step height and Half-Giant water) are still not synced from the server. Keep them the same on
+  the server and every client; the defaults match.
 
-## 1.2.1-rp.6 - 2026-10-06
+For Vintage Story 1.22.6.
 
-- A Half-Giant can now pick up drifters (all six types) with Race Ability, from up to 3 blocks away; animals keep their 7-block reach. Bowtorn and shivers cannot be picked up.
-- A released drifter keeps its saved state and stays hostile. It may come back in its standing or crawling form, because the game picks that form when it spawns.
-- New config keys `HalfGiantAnimalCarryTagExemptCodePathPrefixes` (default `["drifter-"]`) and `HalfGiantAnimalCarryTagExemptReach` (default 3.0). Both defaults are provisional. Existing configs keep their values.
-- Local retest only.
+## 1.3.0 - 2026-10-07 (withdrawn)
 
-## 1.2.1-rp.5 - 2026-10-06
-
-- A carried animal now moves freely between hands: X swaps it into the main hand and back, and it can be dragged into the offhand slot. It shows a right-hand hold pose.
-- Race Ability releases a carried animal from either hand, offhand first. Picking up still needs an empty offhand.
-- Left-click does nothing while the animal is in the main hand (no attack or mining with it).
-- Local retest only.
-
-## 1.2.1-rp.4 - 2026-10-06
-
-- Fixes Half-Giant empty-hand quarrying: the server no longer rejects the break for missing pickaxe tier, so natural rock and cracked rock break instead of resetting.
-- Fixes the race handbook page losing most of its text after "Controls" (an unescaped ">" in the controls note).
-- Local retest only.
-
-## 1.2.1-rp.3 - 2026-10-06
-
-- Fixes releasing a carried animal: placement no longer fails before spawning; the animal faces away from the Half-Giant like a creative-mode placement.
-- Raises animal pickup/release reach from 3.5 to 7 blocks.
-- Half-Giants can carry any tagged animal smaller than an adult brown bear (volume), including sheep and wolves; no bear can be carried. Saved rp.1/rp.2 defaults update automatically; custom values are kept.
-- Local retest only: release, reach and size limits remain player checks.
-
-## 1.2.1-rp.2 - 2026-10-06
-
-- Corrects the Half-Giant animal-carry boar size reference, including the invalid default already saved by rp.1; no manual config changes are needed.
-- Retains automatic collision-size eligibility without a species list, all rp.1 features and unchanged dependencies. Larger animals remain refused.
-- Local retest only: pickup/release and oversized refusal remain player checks.
-
-## 1.2.1-rp.1 - 2026-10-06
-
-- Adds Half-Giant Survival interaction reach and empty-hand quarrying of natural rock and cracked rock; preserves ordinary drops, with a food cost per eligible block.
-- Adds Goblin dark scouting against drifter, shiver and bowtorn families; empty-handed wall climbing is less concealed than crouched ground movement in darkness.
-- Goblin wall climbing uses full speed with two free hands, half speed with one, and releases with neither; native ladder motion, tree climbing and Clamber controls are retained.
-- Adds Dwarf Stonebrace on Ctrl+H: slower movement and reduced physical-attack damage and knockback, with stronger protection deeper underground and in stone enclosure. Environmental damage is unchanged; no added hunger cost or shield requirement.
-- Adds a race handbook with controls, limits and conditional Diet Setup guidance; does not activate example diets or change saved bindings.
-- Retains the reviewed crop-behavior merge compatibility fix and all 1.2.0 Orc, Elf, Watchfulness, movement, water and retired-Dwarf migration features. Dependencies are unchanged.
-- Adds Half-Giant offhand animal capture/release on Race Ability while leaving the main hand available. Uses native animal-state serialization and a boar-sized default limit; live save/reopen and pose testing remain pending. Replay protection is process-local, not restart-persistent.
-- Unpublished local test candidate. Real climbing physics, UI, combat ordering, death/reconnect and multiplayer behavior remain player checks; no worldgen changes are included. Test animal carrying with expendable animals in a disposable world.
+Not released. Its handbook page still contained test-build wording and missed several abilities. Use 1.3.1.
 
 ## 1.2.0 - 2026-10-04
 
