@@ -16,3 +16,4 @@ Thumbs.db
 # Asset generation intermediates
 tools/oresong/wav/
 __pycache__/
+/.claude/
